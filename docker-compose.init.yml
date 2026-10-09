@@ -1,0 +1,74 @@
+# ==============================================================================
+# docker-compose.init.yml - Inicialización Básica y Aislada (db + odoo)
+# Utilizar solo si se desea levantar únicamente la base de datos y Odoo
+# sin Traccar ni servicios de respaldo.
+# ==============================================================================
+
+services:
+  db:
+    image: postgres:${POSTGRES_IMAGE_TAG:-15}
+    container_name: flota-db
+    restart: always
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-postgres}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - ODOO_DB_NAME=${ODOO_DB_NAME:-odoo_flota}
+      - ODOO_DB_USER=${ODOO_DB_USER:-odoo}
+      - ODOO_DB_PASSWORD=${ODOO_DB_PASSWORD}
+      - TRACCAR_DB_NAME=${TRACCAR_DB_NAME:-traccar}
+      - TRACCAR_DB_USER=${TRACCAR_DB_USER:-traccar}
+      - TRACCAR_DB_PASSWORD=${TRACCAR_DB_PASSWORD}
+    command: >
+      postgres
+      -c fsync=off
+      -c synchronous_commit=off
+      -c full_page_writes=off
+    volumes:
+      - flota-db-data:/var/lib/postgresql/data
+      - ./config/init-databases.sh:/docker-entrypoint-initdb.d/init-databases.sh:ro
+      - ./backups:/backups:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      flota-net:
+        aliases:
+          - db
+
+  odoo:
+    image: odoo:${ODOO_IMAGE_TAG:-16}
+    container_name: flota-odoo
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${ODOO_PORT:-8070}:8069"
+    environment:
+      - HOST=db
+      - PORT=5432
+      - USER=${ODOO_DB_USER:-odoo}
+      - PASSWORD=${ODOO_DB_PASSWORD}
+    volumes:
+      - flota-odoo-web-data:/var/lib/odoo
+      - ./addons:/mnt/extra-addons
+      - ./config/odoo.conf:/etc/odoo/odoo.conf:ro
+      - ./backups:/backups:ro
+    networks:
+      flota-net:
+        aliases:
+          - odoo
+
+volumes:
+  flota-db-data:
+    name: flota-db-data
+  flota-odoo-web-data:
+    name: flota-odoo-web-data
+
+networks:
+  flota-net:
+    name: flota-net
+    driver: bridge

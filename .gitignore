@@ -1,0 +1,38 @@
+# Entornos y secretos
+.env
+*.env.local
+
+# Archivos de configuración local que contienen credenciales
+traccar.xml
+traccar/traccar.xml
+*.bak
+*.backup
+
+# Respaldos y filestore privados
+backups/*.dump
+backups/filestore/*
+!backups/filestore/.gitkeep
+!backups/.gitkeep
+
+# Logs y trazas de ejecución
+*.log
+traccar/logs/*
+!traccar/logs/.gitkeep
+
+# Python / Odoo caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Archivos del sistema operativo
+.DS_Store
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# Archivos temporales o editores
+.idea/
+.vscode/
+*.swp
+*~

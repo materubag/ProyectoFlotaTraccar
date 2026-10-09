@@ -1,0 +1,21 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<!DOCTYPE properties SYSTEM 'http://java.sun.com/dtd/properties.dtd'>
+<properties>
+
+    <!-- Documentación: https://www.traccar.org/configuration-file/ -->
+
+    <!-- Configuración JDBC para PostgreSQL en Traccar 6.16 -->
+    <entry key='database.driver'>org.postgresql.Driver</entry>
+    <entry key='database.url'>jdbc:postgresql://{{TRACCAR_DB_HOST}}:{{TRACCAR_DB_PORT}}/{{TRACCAR_DB_NAME}}</entry>
+    <entry key='database.user'>{{TRACCAR_DB_USER}}</entry>
+    <entry key='database.password'>{{TRACCAR_DB_PASSWORD}}</entry>
+
+    <!-- Servidor Web y API REST -->
+    <entry key='web.port'>8082</entry>
+    <entry key='web.path'>./web</entry>
+
+    <!-- Registro de Logs -->
+    <entry key='logger.level'>info</entry>
+    <entry key='logger.file'>./logs/tracker-server.log</entry>
+
+</properties>

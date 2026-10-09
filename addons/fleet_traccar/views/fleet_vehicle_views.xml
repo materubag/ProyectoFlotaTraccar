@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="fleet_vehicle_view_form_inherit_traccar" model="ir.ui.view">
+        <field name="name">fleet.vehicle.form.inherit.traccar</field>
+        <field name="model">fleet.vehicle</field>
+        <field name="inherit_id" ref="fleet.fleet_vehicle_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//sheet/notebook" position="inside">
+                <page string="Seguimiento Traccar GPS" name="traccar_gps_tracking">
+                    <group>
+                        <group string="Vinculación con Traccar">
+                            <field name="traccar_tracking_enabled"/>
+                            <field name="traccar_device_id" attrs="{'invisible': [('traccar_tracking_enabled', '=', False)]}"/>
+                            <field name="traccar_unique_id" attrs="{'invisible': [('traccar_tracking_enabled', '=', False)]}"/>
+                            <field name="traccar_device_status" widget="badge"/>
+                        </group>
+                        <group string="Última Telemetría Recibida">
+                            <field name="traccar_last_update"/>
+                            <field name="traccar_last_latitude"/>
+                            <field name="traccar_last_longitude"/>
+                            <field name="traccar_last_speed"/>
+                        </group>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>

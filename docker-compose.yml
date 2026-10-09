@@ -1,0 +1,206 @@
+services:
+  db:
+    image: postgres:${POSTGRES_IMAGE_TAG:-15}
+    container_name: flota-db
+    restart: always
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-postgres}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - ODOO_DB_NAME=${ODOO_DB_NAME:-odoo_flota}
+      - ODOO_DB_USER=${ODOO_DB_USER:-odoo}
+      - ODOO_DB_PASSWORD=${ODOO_DB_PASSWORD}
+      - TRACCAR_DB_NAME=${TRACCAR_DB_NAME:-traccar}
+      - TRACCAR_DB_USER=${TRACCAR_DB_USER:-traccar}
+      - TRACCAR_DB_PASSWORD=${TRACCAR_DB_PASSWORD}
+    command: >
+      postgres
+      -c fsync=off
+      -c synchronous_commit=off
+      -c full_page_writes=off
+    volumes:
+      - flota-db-data:/var/lib/postgresql/data
+      - ./config/init-databases.sh:/docker-entrypoint-initdb.d/init-databases.sh:ro
+      - ./backups:/backups:ro
+      - ./scripts:/scripts:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      flota-net:
+        aliases:
+          - db
+
+  odoo:
+    image: odoo:${ODOO_IMAGE_TAG:-16}
+    container_name: flota-odoo
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${ODOO_PORT:-8070}:8069"
+    environment:
+      - HOST=db
+      - PORT=5432
+      - USER=${ODOO_DB_USER:-odoo}
+      - PASSWORD=${ODOO_DB_PASSWORD}
+    volumes:
+      - flota-odoo-web-data:/var/lib/odoo
+      - ./addons:/mnt/extra-addons
+      - ./config/odoo.conf:/etc/odoo/odoo.conf:ro
+      - ./backups:/backups:ro
+      - ./scripts:/scripts:ro
+    networks:
+      flota-net:
+        aliases:
+          - odoo
+
+  traccar:
+    image: traccar/traccar:${TRACCAR_IMAGE_TAG:-6.16.0}
+    container_name: flota-traccar
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${TRACCAR_WEB_PORT:-8082}:8082"
+      - "${TRACCAR_GPS_PORT:-5055}:5055/tcp"
+      - "${TRACCAR_GPS_PORT:-5055}:5055/udp"
+    environment:
+      - TRACCAR_DB_HOST=db
+      - TRACCAR_DB_PORT=5432
+      - TRACCAR_DB_NAME=${TRACCAR_DB_NAME:-traccar}
+      - TRACCAR_DB_USER=${TRACCAR_DB_USER:-traccar}
+      - TRACCAR_DB_PASSWORD=${TRACCAR_DB_PASSWORD}
+    volumes:
+      - ./traccar/traccar.xml.template:/opt/traccar/conf/traccar.xml.template:ro
+      - flota-traccar-logs:/opt/traccar/logs
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        sed \
+          -e "s|{{TRACCAR_DB_HOST}}|$${TRACCAR_DB_HOST:-db}|g" \
+          -e "s|{{TRACCAR_DB_PORT}}|$${TRACCAR_DB_PORT:-5432}|g" \
+          -e "s|{{TRACCAR_DB_NAME}}|$${TRACCAR_DB_NAME:-traccar}|g" \
+          -e "s|{{TRACCAR_DB_USER}}|$${TRACCAR_DB_USER:-traccar}|g" \
+          -e "s|{{TRACCAR_DB_PASSWORD}}|$${TRACCAR_DB_PASSWORD}|g" \
+          /opt/traccar/conf/traccar.xml.template > /opt/traccar/conf/traccar.xml
+        exec /opt/traccar/jre/bin/java -XX:+ExitOnOutOfMemoryError -jar tracker-server.jar conf/traccar.xml
+    networks:
+      flota-net:
+        aliases:
+          - traccar
+
+  restore:
+    image: postgres:${POSTGRES_IMAGE_TAG:-15}
+    container_name: flota-restore
+    user: root
+    profiles:
+      - restore
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - PGPASSWORD=${ODOO_DB_PASSWORD}
+      - DB_NAME=${ODOO_DB_NAME:-odoo_flota}
+      - DB_USER=${ODOO_DB_USER:-odoo}
+      - DB_HOST=db
+    volumes:
+      - ./backups:/backups:ro
+      - flota-odoo-web-data:/var/lib/odoo
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        set -e
+        echo "=========================================================="
+        echo ">>> [RESTORE] Iniciando proceso de restauración bajo demanda..."
+        echo "=========================================================="
+
+        if [ ! -f /backups/db_demo.dump ]; then
+          echo "ERROR: No existe /backups/db_demo.dump"
+          exit 1
+        fi
+
+        echo "Verificando base de datos destino: $$DB_NAME..."
+        echo "Cerrando sesiones activas en $$DB_NAME..."
+        psql -h $$DB_HOST -U $$DB_USER -d postgres -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '$$DB_NAME' AND pid <> pg_backend_pid();" || true
+
+        echo "Eliminando base previa si existe..."
+        dropdb -h $$DB_HOST -U $$DB_USER --if-exists --force "$$DB_NAME" || dropdb -h $$DB_HOST -U $$DB_USER --if-exists "$$DB_NAME"
+
+        echo "Creando base $$DB_NAME..."
+        createdb -h $$DB_HOST -U $$DB_USER "$$DB_NAME"
+
+        echo "Restaurando dump de Odoo..."
+        pg_restore -h $$DB_HOST -U $$DB_USER -d "$$DB_NAME" /backups/db_demo.dump
+
+        echo "Limpiando assets web cacheados..."
+        psql -h $$DB_HOST -U $$DB_USER -d "$$DB_NAME" -c "DELETE FROM ir_attachment WHERE res_model='ir.ui.view' AND name LIKE '%assets%'; DELETE FROM ir_attachment WHERE url LIKE '/web/assets/%';"
+
+        if [ -d /backups/filestore/odoo ]; then
+          echo "Restaurando filestore para $$DB_NAME..."
+          rm -rf /var/lib/odoo/filestore/$$DB_NAME
+          mkdir -p /var/lib/odoo/filestore/$$DB_NAME
+          cp -a /backups/filestore/odoo/. /var/lib/odoo/filestore/$$DB_NAME/
+          chmod -R a+rwX /var/lib/odoo/filestore/$$DB_NAME
+          echo "Filestore restaurado."
+        fi
+
+        chmod -R a+rwX /var/lib/odoo
+        echo "=========================================================="
+        echo ">>> [RESTORE] Restauración completada exitosamente."
+        echo "=========================================================="
+    restart: "no"
+    networks:
+      - flota-net
+
+  backup:
+    image: postgres:${POSTGRES_IMAGE_TAG:-15}
+    container_name: flota-backup
+    user: root
+    profiles:
+      - tools
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - PGPASSWORD=${ODOO_DB_PASSWORD}
+      - DB_NAME=${ODOO_DB_NAME:-odoo_flota}
+      - DB_USER=${ODOO_DB_USER:-odoo}
+      - DB_HOST=db
+    volumes:
+      - ./backups:/backups
+      - flota-odoo-web-data:/var/lib/odoo:ro
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        set -e
+        echo "=========================================================="
+        echo ">>> [BACKUP] Iniciando respaldo bajo demanda..."
+        echo "=========================================================="
+        mkdir -p /backups
+        pg_dump -h $$DB_HOST -U $$DB_USER -d "$$DB_NAME" -F c -f /backups/db_demo.dump
+        if [ -d /var/lib/odoo/filestore/$$DB_NAME ]; then
+          mkdir -p /backups/filestore/$$DB_NAME
+          cp -a /var/lib/odoo/filestore/$$DB_NAME/. /backups/filestore/$$DB_NAME/
+        fi
+        echo ">>> [BACKUP] Respaldo finalizado en ./backups"
+    restart: "no"
+    networks:
+      - flota-net
+
+volumes:
+  flota-db-data:
+    name: flota-db-data
+  flota-odoo-web-data:
+    name: flota-odoo-web-data
+  flota-traccar-logs:
+    name: flota-traccar-logs
+
+networks:
+  flota-net:
+    name: flota-net
+    driver: bridge
