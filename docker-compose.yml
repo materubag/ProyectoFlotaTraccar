@@ -47,6 +47,16 @@ services:
       - PORT=5432
       - USER=${ODOO_DB_USER:-odoo}
       - PASSWORD=${ODOO_DB_PASSWORD}
+      - ODOO_DB_NAME=${ODOO_DB_NAME:-odoo_flota}
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        if [ ! -d "/var/lib/odoo/filestore/$${ODOO_DB_NAME:-odoo_flota}" ] && [ -d /backups/filestore/odoo ]; then
+          mkdir -p "/var/lib/odoo/filestore/$${ODOO_DB_NAME:-odoo_flota}"
+          cp -a /backups/filestore/odoo/. "/var/lib/odoo/filestore/$${ODOO_DB_NAME:-odoo_flota}/" || true
+          chmod -R a+rwX "/var/lib/odoo/filestore/$${ODOO_DB_NAME:-odoo_flota}" || true
+        fi
+        exec /entrypoint.sh odoo "$$@"
     volumes:
       - flota-odoo-web-data:/var/lib/odoo
       - ./addons:/mnt/extra-addons
@@ -88,6 +98,13 @@ services:
           -e "s|{{TRACCAR_DB_USER}}|$${TRACCAR_DB_USER:-traccar}|g" \
           -e "s|{{TRACCAR_DB_PASSWORD}}|$${TRACCAR_DB_PASSWORD}|g" \
           /opt/traccar/conf/traccar.xml.template > /opt/traccar/conf/traccar.xml
+
+        (
+          while ! nc -z 127.0.0.1 8082 2>/dev/null; do sleep 1; done
+          sleep 2
+          wget -q -O /dev/null --header="Content-Type: application/json" --post-data='{"name":"Admin Flota","email":"admin@flota.local","password":"AdminFlota2026!"}' http://127.0.0.1:8082/api/users 2>/dev/null || true
+        ) &
+
         exec /opt/traccar/jre/bin/java -XX:+ExitOnOutOfMemoryError -jar tracker-server.jar conf/traccar.xml
     networks:
       flota-net:

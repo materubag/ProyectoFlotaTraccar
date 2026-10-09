@@ -42,6 +42,14 @@ if ! psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB"
     psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
         CREATE DATABASE ${ODOO_DB_NAME} OWNER ${ODOO_DB_USER};
 EOSQL
+
+    # Si existe el dump en backups, restaurarlo inmediatamente para que Odoo no inicie vacío
+    if [ -f /backups/db_demo.dump ]; then
+        echo ">>> [init-databases] Restaurando dump inicial de Odoo en ${ODOO_DB_NAME}..."
+        pg_restore --username "$POSTGRES_USER" --dbname "${ODOO_DB_NAME}" /backups/db_demo.dump || true
+        psql --username "$POSTGRES_USER" --dbname "${ODOO_DB_NAME}" -c "DELETE FROM ir_attachment WHERE res_model='ir.ui.view' AND name LIKE '%assets%'; DELETE FROM ir_attachment WHERE url LIKE '/web/assets/%';" || true
+        echo ">>> [init-databases] Dump inicial de Odoo restaurado exitosamente."
+    fi
 else
     echo ">>> [init-databases] Base de datos Odoo ${ODOO_DB_NAME} ya existe."
 fi
