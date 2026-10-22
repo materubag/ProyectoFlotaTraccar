@@ -52,6 +52,17 @@ services:
       - PORT=5432
       - USER=${ODOO_DB_USER:-odoo}
       - PASSWORD=${ODOO_DB_PASSWORD}
+      - ODOO_DB_NAME=${ODOO_DB_NAME:-odoo_flota}
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        if [ ! -d "/var/lib/odoo/filestore/$${ODOO_DB_NAME:-odoo_flota}" ] && [ -d /backups/filestore/odoo ]; then
+          mkdir -p "/var/lib/odoo/filestore/$${ODOO_DB_NAME:-odoo_flota}"
+          cp -a /backups/filestore/odoo/. "/var/lib/odoo/filestore/$${ODOO_DB_NAME:-odoo_flota}/" || true
+          chmod -R a+rwX "/var/lib/odoo/filestore/$${ODOO_DB_NAME:-odoo_flota}" || true
+        fi
+        python3 -c "import os, psycopg2, sys; conn = psycopg2.connect(host=os.environ.get('HOST','db'), port=os.environ.get('PORT','5432'), user=os.environ.get('USER','odoo'), password=os.environ.get('PASSWORD',''), dbname=os.environ.get('ODOO_DB_NAME','odoo_flota')); cur = conn.cursor(); cur.execute('SELECT 1 FROM information_schema.tables WHERE table_name=%s', ('ir_module_module',)); sys.exit(0 if cur.fetchone() else 1)" 2>/dev/null || /entrypoint.sh odoo -d "$${ODOO_DB_NAME:-odoo_flota}" -i base,fleet,fleet_traccar --stop-after-init
+        exec /entrypoint.sh odoo "$$@"
     volumes:
       - flota-odoo-web-data:/var/lib/odoo
       - ./addons:/mnt/extra-addons

@@ -1,0 +1,38 @@
+apiVersion: 1
+
+datasources:
+  - name: Traccar_DB
+    type: postgres
+    uid: traccar-pg
+    url: db:5432
+    database: traccar
+    user: ${TRACCAR_DB_USER}
+    secureJsonData:
+      password: ${TRACCAR_DB_PASSWORD}
+    jsonData:
+      sslmode: disable
+      maxOpenConns: 10
+      maxIdleConns: 5
+      connMaxLifetime: 14400
+      postgresVersion: 1500
+      timescaledb: false
+    isDefault: true
+    editable: false
+
+  - name: Odoo_DB
+    type: postgres
+    uid: odoo-pg
+    url: db:5432
+    database: ${ODOO_DB_NAME}
+    user: ${ODOO_DB_USER}
+    secureJsonData:
+      password: ${ODOO_DB_PASSWORD}
+    jsonData:
+      sslmode: disable
+      maxOpenConns: 10
+      maxIdleConns: 5
+      connMaxLifetime: 14400
+      postgresVersion: 1500
+      timescaledb: false
+    isDefault: false
+    editable: false

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!--
+        Acción cliente que carga el componente OWL FleetReportsDashboard.
+        Al activarse, Odoo renderiza el widget directamente en el área de contenido.
+    -->
+    <record id="action_fleet_reports_grafana" model="ir.actions.client">
+        <field name="name">Reportes de Flota (Grafana)</field>
+        <field name="tag">fleet_reports.grafana_dashboard</field>
+        <field name="target">current</field>
+    </record>
+</odoo>
