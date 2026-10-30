@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ============================================================ -->
+    <!-- VISTAS PARA fleet.metricas.recorrido                         -->
+    <!-- Sistema de Monitoreo de Rutas Universitarias (ISO/IEC 25010)  -->
+    <!-- ============================================================ -->
+
+    <!-- ─── TREE / LIST VIEW ─────────────────────────────────────── -->
+    <record id="view_fleet_metricas_tree" model="ir.ui.view">
+        <field name="name">fleet.metricas.recorrido.tree</field>
+        <field name="model">fleet.metricas.recorrido</field>
+        <field name="arch" type="xml">
+            <tree string="Métricas de Calidad de Rutas" create="false" edit="false"
+                  decoration-success="pct_cumplimiento_ruta &gt;= 85"
+                  decoration-warning="pct_cumplimiento_ruta &gt;= 60 and pct_cumplimiento_ruta &lt; 85"
+                  decoration-danger="pct_cumplimiento_ruta &lt; 60">
+                <field name="fecha_calculo" string="Fecha Cálculo"/>
+                <field name="recorrido_id" string="Recorrido"/>
+                <field name="ruta_id" string="Ruta"/>
+                <field name="vehicle_id" string="Vehículo"/>
+                <field name="pct_cumplimiento_ruta" string="% Cumplimiento" widget="progressbar"/>
+                <field name="pct_puntualidad" string="% Puntualidad" widget="progressbar"/>
+                <field name="retraso_promedio_min" string="Retraso Prom. (min)"/>
+                <field name="pct_paradas_cumplidas" string="% Paradas"/>
+                <field name="pct_desviacion_ruta" string="% Desv. Ruta"/>
+                <field name="distancia_real_km" string="Dist. Real (km)"/>
+                <field name="integridad_gps_pct" string="Integridad GPS (%)" widget="progressbar"/>
+                <field name="n_gaps_senal" string="Gaps GPS"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- ─── FORM VIEW ────────────────────────────────────────────── -->
+    <record id="view_fleet_metricas_form" model="ir.ui.view">
+        <field name="name">fleet.metricas.recorrido.form</field>
+        <field name="model">fleet.metricas.recorrido</field>
+        <field name="arch" type="xml">
+            <form string="Evaluación de Calidad de Recorrido" create="false" edit="false">
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="recorrido_id" readonly="1"/>
+                        </h1>
+                        <h3>
+                            Fecha de Auditoría: <field name="fecha_calculo" readonly="1"/>
+                        </h3>
+                    </div>
+                    <group>
+                        <group string="Asignación y Ruta">
+                            <field name="ruta_id" readonly="1"/>
+                            <field name="vehicle_id" readonly="1"/>
+                            <field name="duracion_real_min" readonly="1"/>
+                            <field name="distancia_real_km" readonly="1"/>
+                            <field name="diferencia_distancia_km" readonly="1"/>
+                        </group>
+                        <group string="Métricas de Operación de Transporte">
+                            <field name="pct_cumplimiento_ruta" widget="progressbar" readonly="1"/>
+                            <field name="pct_puntualidad" widget="progressbar" readonly="1"/>
+                            <field name="retraso_promedio_min" readonly="1"/>
+                            <field name="pct_paradas_cumplidas" widget="progressbar" readonly="1"/>
+                            <field name="pct_desviacion_ruta" readonly="1"/>
+                            <field name="frecuencia_incidencias" readonly="1"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Indicadores de Calidad de Software (ISO/IEC 25010)" name="sqa_metrics">
+                            <group>
+                                <group string="Fiabilidad y Tolerancia a Fallos">
+                                    <field name="integridad_gps_pct" widget="progressbar" readonly="1"/>
+                                    <field name="n_gaps_senal" readonly="1"/>
+                                    <field name="duracion_gaps_seg" readonly="1"/>
+                                </group>
+                                <group string="Adecuación Funcional y Rendimiento">
+                                    <field name="exactitud_sincronizacion_pct" widget="progressbar" readonly="1"/>
+                                    <field name="tiempo_respuesta_ms" readonly="1"/>
+                                    <field name="tasa_verdaderos_positivos_pct" widget="progressbar" readonly="1"/>
+                                </group>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- ─── GRAPH VIEW ───────────────────────────────────────────── -->
+    <record id="view_fleet_metricas_graph" model="ir.ui.view">
+        <field name="name">fleet.metricas.recorrido.graph</field>
+        <field name="model">fleet.metricas.recorrido</field>
+        <field name="arch" type="xml">
+            <graph string="Indicadores de Puntualidad y Cumplimiento" type="bar">
+                <field name="ruta_id" type="row"/>
+                <field name="pct_puntualidad" type="measure"/>
+                <field name="pct_cumplimiento_ruta" type="measure"/>
+                <field name="retraso_promedio_min" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+    <!-- ─── PIVOT VIEW ───────────────────────────────────────────── -->
+    <record id="view_fleet_metricas_pivot" model="ir.ui.view">
+        <field name="name">fleet.metricas.recorrido.pivot</field>
+        <field name="model">fleet.metricas.recorrido</field>
+        <field name="arch" type="xml">
+            <pivot string="Análisis de Rendimiento de Rutas">
+                <field name="ruta_id" type="row"/>
+                <field name="vehicle_id" type="col"/>
+                <field name="pct_puntualidad" type="measure"/>
+                <field name="pct_cumplimiento_ruta" type="measure"/>
+                <field name="pct_desviacion_ruta" type="measure"/>
+                <field name="integridad_gps_pct" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <!-- ─── SEARCH VIEW ──────────────────────────────────────────── -->
+    <record id="view_fleet_metricas_search" model="ir.ui.view">
+        <field name="name">fleet.metricas.recorrido.search</field>
+        <field name="model">fleet.metricas.recorrido</field>
+        <field name="arch" type="xml">
+            <search string="Buscar Métricas">
+                <field name="recorrido_id"/>
+                <field name="ruta_id"/>
+                <field name="vehicle_id"/>
+                <filter string="Alta Puntualidad (≥80%)" name="filter_alta_puntualidad"
+                        domain="[('pct_puntualidad', '&gt;=', 80)]"/>
+                <filter string="Baja Puntualidad (&lt;60%)" name="filter_baja_puntualidad"
+                        domain="[('pct_puntualidad', '&lt;', 60)]"/>
+                <filter string="Con Desviaciones" name="filter_con_desviacion"
+                        domain="[('pct_desviacion_ruta', '&gt;', 0)]"/>
+                <filter string="Gaps de Señal GPS" name="filter_gaps_senal"
+                        domain="[('n_gaps_senal', '&gt;', 0)]"/>
+                <group expand="0" string="Agrupar Por">
+                    <filter string="Ruta" name="group_ruta" context="{'group_by': 'ruta_id'}"/>
+                    <filter string="Vehículo" name="group_vehicle" context="{'group_by': 'vehicle_id'}"/>
+                    <filter string="Fecha" name="group_fecha" context="{'group_by': 'fecha_calculo:day'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- ─── ACTION ───────────────────────────────────────────────── -->
+    <record id="action_fleet_metricas" model="ir.actions.act_window">
+        <field name="name">Métricas y Calidad ISO 25010</field>
+        <field name="res_model">fleet.metricas.recorrido</field>
+        <field name="view_mode">tree,form,graph,pivot</field>
+        <field name="search_view_id" ref="view_fleet_metricas_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No hay métricas calculadas aún. Complete un recorrido para generar automáticamente sus indicadores.
+            </p>
+        </field>
+    </record>
+</odoo>
+

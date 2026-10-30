@@ -1,0 +1,257 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ============================================================ -->
+    <!-- VISTAS PARA fleet.ruta                                        -->
+    <!-- Sistema de Monitoreo de Rutas Universitarias                  -->
+    <!-- ============================================================ -->
+
+    <!-- ─── LIST / TREE VIEW ─────────────────────────────────────── -->
+    <record id="view_fleet_ruta_tree" model="ir.ui.view">
+        <field name="name">fleet.ruta.tree</field>
+        <field name="model">fleet.ruta</field>
+        <field name="arch" type="xml">
+            <tree string="Rutas" decoration-success="estado == 'activa'"
+                  decoration-warning="estado == 'mantenimiento'"
+                  decoration-danger="estado == 'suspendida'">
+                <field name="code" string="Código"/>
+                <field name="name" string="Nombre de Ruta"/>
+                <field name="origen" string="Origen"/>
+                <field name="destino" string="Destino"/>
+                <field name="distancia_estimada_km" string="Dist. Est. (km)" widget="float" digits="[10,2]"/>
+                <field name="total_paradas" string="Paradas"/>
+                <field name="estado" string="Estado" widget="badge"
+                       decoration-success="estado == 'activa'"
+                       decoration-warning="estado == 'mantenimiento'"
+                       decoration-danger="estado == 'suspendida'"/>
+                <field name="active" invisible="1"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- ─── FORM VIEW ────────────────────────────────────────────── -->
+    <record id="view_fleet_ruta_form" model="ir.ui.view">
+        <field name="name">fleet.ruta.form</field>
+        <field name="model">fleet.ruta</field>
+        <field name="arch" type="xml">
+            <form string="Ruta">
+                <header>
+                    <field name="estado" widget="statusbar"
+                           statusbar_visible="activa,mantenimiento,suspendida"
+                           statusbar_colors='{"suspendida": "danger", "mantenimiento": "warning"}'/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="%(action_fleet_recorrido)d"
+                                type="action"
+                                class="oe_stat_button"
+                                icon="fa-road"
+                                context="{'search_default_ruta_id': active_id}">
+                            <field name="total_paradas" string="Paradas" widget="statinfo"/>
+                        </button>
+                    </div>
+                    <widget name="web_ribbon" title="Suspendida" bg_color="bg-danger"
+                            attrs="{'invisible': [('estado', '!=', 'suspendida')]}"/>
+                    <widget name="web_ribbon" title="Mantenimiento" bg_color="bg-warning"
+                            attrs="{'invisible': [('estado', '!=', 'mantenimiento')]}"/>
+                    <div class="oe_title">
+                        <label for="name" class="oe_edit_only"/>
+                        <h1>
+                            <field name="name" placeholder="Nombre de la ruta..."/>
+                        </h1>
+                        <h2>
+                            <field name="code" placeholder="Código..."/>
+                        </h2>
+                    </div>
+                    <group>
+                        <group string="Identificación">
+                            <field name="name" string="Nombre"/>
+                            <field name="code" string="Código"/>
+                            <field name="estado" string="Estado" widget="badge"
+                                   decoration-success="estado == 'activa'"
+                                   decoration-warning="estado == 'mantenimiento'"
+                                   decoration-danger="estado == 'suspendida'"/>
+                            <field name="active" string="Activo"/>
+                        </group>
+                        <group string="Trayecto">
+                            <field name="origen" string="Origen"/>
+                            <field name="destino" string="Destino"/>
+                            <field name="distancia_estimada_km" string="Distancia Estimada (km)"
+                                   widget="float" digits="[10,2]"/>
+                            <field name="duracion_estimada_min" string="Duración Estimada (min)"/>
+                        </group>
+                    </group>
+
+                    <notebook>
+                        <!-- TAB: Puntos de Control -->
+                        <page string="Puntos de Control" name="paradas">
+                            <field name="parada_ids" widget="one2many_list"
+                                   context="{'default_ruta_id': active_id}">
+                                <tree string="Paradas" editable="bottom"
+                                      decoration-info="tipo == 'inicio'"
+                                      decoration-success="tipo == 'parada_regular'"
+                                      decoration-warning="tipo == 'parada_opcional'"
+                                      decoration-danger="tipo == 'fin'">
+                                    <field name="secuencia" string="Seq." widget="handle"/>
+                                    <field name="name" string="Nombre del Punto"/>
+                                    <field name="tipo" string="Tipo" widget="badge"
+                                           decoration-info="tipo == 'inicio'"
+                                           decoration-success="tipo == 'parada_regular'"
+                                           decoration-warning="tipo == 'parada_opcional'"
+                                           decoration-danger="tipo == 'fin'"/>
+                                    <field name="latitud" string="Latitud" digits="[10,6]"/>
+                                    <field name="longitud" string="Longitud" digits="[10,6]"/>
+                                    <field name="radio_proximidad_m" string="Radio (m)"/>
+                                    <field name="hora_prevista" string="Hora Prevista" widget="float_time"/>
+                                    <field name="tolerancia_min" string="Tolerancia (min)"/>
+                                </tree>
+                            </field>
+                        </page>
+
+                        <!-- TAB: Recorridos -->
+                        <page string="Recorridos" name="recorridos">
+                            <field name="recorrido_ids" widget="one2many_list" readonly="1">
+                                <tree string="Recorridos"
+                                      decoration-success="estado == 'completado'"
+                                      decoration-info="estado == 'en_curso'"
+                                      decoration-warning="estado == 'programado'"
+                                      decoration-danger="estado == 'cancelado'">
+                                    <field name="name" string="Referencia"/>
+                                    <field name="vehicle_id" string="Vehículo"/>
+                                    <field name="conductor_id" string="Conductor"/>
+                                    <field name="fecha_inicio" string="Fecha Inicio"/>
+                                    <field name="estado" string="Estado" widget="badge"
+                                           decoration-success="estado == 'completado'"
+                                           decoration-info="estado == 'en_curso'"
+                                           decoration-warning="estado == 'programado'"
+                                           decoration-danger="estado == 'cancelado'"/>
+                                    <field name="porcentaje_paradas_cumplidas" string="Cump. Paradas (%)"
+                                           widget="progressbar"/>
+                                    <field name="distancia_real_km" string="Dist. Real (km)"
+                                           widget="float" digits="[10,2]"/>
+                                    <field name="tiene_desviacion" string="Desviación" widget="boolean"/>
+                                </tree>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <!-- ─── KANBAN VIEW ──────────────────────────────────────────── -->
+    <record id="view_fleet_ruta_kanban" model="ir.ui.view">
+        <field name="name">fleet.ruta.kanban</field>
+        <field name="model">fleet.ruta</field>
+        <field name="arch" type="xml">
+            <kanban class="o_kanban_small_column" default_group_by="estado"
+                    group_create="false" quick_create="false">
+                <field name="name"/>
+                <field name="code"/>
+                <field name="origen"/>
+                <field name="destino"/>
+                <field name="total_paradas"/>
+                <field name="estado"/>
+                <field name="distancia_estimada_km"/>
+                <templates>
+                    <t t-name="kanban-box">
+                        <div t-attf-class="oe_kanban_global_click oe_kanban_card fleet-ruta-card
+                                           #{record.estado.raw_value == 'activa' ? 'border-success' : ''}
+                                           #{record.estado.raw_value == 'mantenimiento' ? 'border-warning' : ''}
+                                           #{record.estado.raw_value == 'suspendida' ? 'border-danger' : ''}">
+                            <div class="oe_kanban_content p-2">
+                                <div class="d-flex justify-content-between align-items-start mb-1">
+                                    <span class="fw-bold text-truncate" style="max-width:75%;">
+                                        <t t-esc="record.name.value"/>
+                                    </span>
+                                    <span t-attf-class="badge rounded-pill
+                                                        #{record.estado.raw_value == 'activa' ? 'bg-success' : ''}
+                                                        #{record.estado.raw_value == 'mantenimiento' ? 'bg-warning text-dark' : ''}
+                                                        #{record.estado.raw_value == 'suspendida' ? 'bg-danger' : ''}">
+                                        <t t-esc="record.estado.value"/>
+                                    </span>
+                                </div>
+                                <div class="text-muted small mb-1">
+                                    <i class="fa fa-tag me-1"/>
+                                    <t t-esc="record.code.value"/>
+                                </div>
+                                <div class="d-flex align-items-center mb-1 text-primary">
+                                    <i class="fa fa-map-marker me-1"/>
+                                    <span class="text-truncate small"><t t-esc="record.origen.value"/></span>
+                                    <i class="fa fa-arrow-right mx-1 small"/>
+                                    <span class="text-truncate small"><t t-esc="record.destino.value"/></span>
+                                </div>
+                                <div class="d-flex justify-content-between mt-2">
+                                    <span class="small text-muted">
+                                        <i class="fa fa-flag-checkered me-1"/>
+                                        <t t-esc="record.total_paradas.value"/> paradas
+                                    </span>
+                                    <span class="small text-muted">
+                                        <i class="fa fa-road me-1"/>
+                                        <t t-esc="record.distancia_estimada_km.value"/> km
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+    <!-- ─── SEARCH VIEW ──────────────────────────────────────────── -->
+    <record id="view_fleet_ruta_search" model="ir.ui.view">
+        <field name="name">fleet.ruta.search</field>
+        <field name="model">fleet.ruta</field>
+        <field name="arch" type="xml">
+            <search string="Buscar Rutas">
+                <field name="name" string="Nombre" filter_domain="[('name','ilike',self)]"/>
+                <field name="code" string="Código" filter_domain="[('code','ilike',self)]"/>
+                <field name="origen" string="Origen" filter_domain="[('origen','ilike',self)]"/>
+                <field name="destino" string="Destino" filter_domain="[('destino','ilike',self)]"/>
+
+                <separator/>
+                <filter name="filter_activa"       string="Activas"
+                        domain="[('estado','=','activa')]"/>
+                <filter name="filter_mantenimiento" string="En Mantenimiento"
+                        domain="[('estado','=','mantenimiento')]"/>
+                <filter name="filter_suspendida"   string="Suspendidas"
+                        domain="[('estado','=','suspendida')]"/>
+                <separator/>
+                <filter name="filter_archived" string="Archivadas" domain="[('active','=',False)]"/>
+
+                <group expand="0" string="Agrupar Por">
+                    <filter name="group_estado" string="Estado"
+                            context="{'group_by': 'estado'}"/>
+                    <filter name="group_origen" string="Origen"
+                            context="{'group_by': 'origen'}"/>
+                    <filter name="group_destino" string="Destino"
+                            context="{'group_by': 'destino'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- ─── ACTION ───────────────────────────────────────────────── -->
+    <record id="action_fleet_ruta" model="ir.actions.act_window">
+        <field name="name">Rutas</field>
+        <field name="res_model">fleet.ruta</field>
+        <field name="view_mode">list,kanban,form</field>
+        <field name="search_view_id" ref="view_fleet_ruta_search"/>
+        <field name="context">{'search_default_filter_activa': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Crea tu primera ruta universitaria
+            </p>
+            <p>
+                Define los orígenes, destinos y puntos de control
+                para el monitoreo de flota.
+            </p>
+        </field>
+    </record>
+
+</odoo>
