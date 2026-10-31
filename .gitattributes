@@ -1,0 +1,3 @@
+# Forzar fin de línea LF para scripts de shell que corren dentro de contenedores Linux
+*.sh text eol=lf
+*.template text eol=lf

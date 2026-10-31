@@ -24,6 +24,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 .pytest_cache/
+.venv/
 
 # Archivos del sistema operativo
 .DS_Store

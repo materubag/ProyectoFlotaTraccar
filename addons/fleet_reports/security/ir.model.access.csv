@@ -1,0 +1,3 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_fleet_reports_dashboard_user,fleet.reports.dashboard.user,model_fleet_reports_dashboard,base.group_user,1,0,0,0
+access_fleet_reports_dashboard_manager,fleet.reports.dashboard.manager,model_fleet_reports_dashboard,base.group_system,1,1,1,1

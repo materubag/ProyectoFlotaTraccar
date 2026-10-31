@@ -1,0 +1,311 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ============================================================ -->
+    <!-- VISTAS PARA fleet.recorrido                                   -->
+    <!-- Sistema de Monitoreo de Rutas Universitarias                  -->
+    <!-- ============================================================ -->
+
+    <!-- ─── TREE VIEW ────────────────────────────────────────────── -->
+    <record id="view_fleet_recorrido_tree" model="ir.ui.view">
+        <field name="name">fleet.recorrido.tree</field>
+        <field name="model">fleet.recorrido</field>
+        <field name="arch" type="xml">
+            <tree string="Recorridos"
+                  decoration-success="estado == 'completado'"
+                  decoration-info="estado == 'en_curso'"
+                  decoration-warning="estado == 'programado'"
+                  decoration-danger="estado == 'cancelado'">
+                <field name="name" string="Referencia"/>
+                <field name="ruta_id" string="Ruta"/>
+                <field name="vehicle_id" string="Vehículo"/>
+                <field name="conductor_id" string="Conductor"/>
+                <field name="fecha_inicio" string="Fecha Inicio"/>
+                <field name="estado" string="Estado" widget="badge"
+                       decoration-success="estado == 'completado'"
+                       decoration-info="estado == 'en_curso'"
+                       decoration-warning="estado == 'programado'"
+                       decoration-danger="estado == 'cancelado'"/>
+                <field name="porcentaje_paradas_cumplidas" string="Paradas (%)"
+                       widget="progressbar"
+                       options="{'editable': false, 'current_value': 'porcentaje_paradas_cumplidas', 'max_value': 100}"/>
+                <field name="distancia_real_km" string="Dist. Real (km)"
+                       widget="float" digits="[10,2]"/>
+                <field name="tiene_desviacion" string="Desviación" widget="boolean"
+                       decoration-danger="tiene_desviacion == True"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- ─── FORM VIEW ────────────────────────────────────────────── -->
+    <record id="view_fleet_recorrido_form" model="ir.ui.view">
+        <field name="name">fleet.recorrido.form</field>
+        <field name="model">fleet.recorrido</field>
+        <field name="arch" type="xml">
+            <form string="Recorrido">
+                <header>
+                    <button name="action_ver_mapa" string="Ver mapa GPS" type="object" class="btn-secondary"/>
+                    <button name="action_sincronizar_historial" string="Descargar historial GPS" type="object"/>
+                    <!-- Action buttons -->
+                    <button name="action_iniciar" string="Iniciar Recorrido"
+                            type="object" class="btn-primary"
+                            attrs="{'invisible': [('estado', '!=', 'programado')]}"
+                            confirm="¿Confirma el inicio del recorrido?"/>
+                    <button name="action_completar" string="Completar"
+                            type="object" class="btn-success"
+                            attrs="{'invisible': [('estado', '!=', 'en_curso')]}"
+                            confirm="¿Confirma la finalización del recorrido?"/>
+                    <button name="action_cancelar" string="Cancelar"
+                            type="object" class="btn-danger"
+                            attrs="{'invisible': [('estado', 'in', ['completado', 'cancelado'])]}"
+                            confirm="¿Está seguro de cancelar este recorrido?"/>
+                    <!-- Statusbar -->
+                    <field name="estado" widget="statusbar"
+                           statusbar_visible="programado,en_curso,completado"
+                           statusbar_colors='{"cancelado": "danger"}'/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="%(action_fleet_metricas)d"
+                                type="action"
+                                class="oe_stat_button"
+                                icon="fa-bar-chart"
+                                attrs="{'invisible': [('estado', 'not in', ['completado', 'en_curso'])]}"
+                                context="{'search_default_recorrido_id': active_id}">
+                            <div class="o_stat_info">
+                                <span class="o_stat_text">Métricas</span>
+                            </div>
+                        </button>
+                    </div>
+
+                    <widget name="web_ribbon" title="En Curso" bg_color="bg-info"
+                            attrs="{'invisible': [('estado', '!=', 'en_curso')]}"/>
+                    <widget name="web_ribbon" title="Cancelado" bg_color="bg-danger"
+                            attrs="{'invisible': [('estado', '!=', 'cancelado')]}"/>
+
+                    <div class="oe_title">
+                        <label for="name" class="oe_edit_only"/>
+                        <h1><field name="name" readonly="1"/></h1>
+                    </div>
+
+                    <!-- GRUPO: Información General + Tiempos -->
+                    <group>
+                        <group string="Información General">
+                            <field name="simulado"/>
+                            <field name="ruta_id" string="Ruta"
+                                   attrs="{'readonly': [('estado', '!=', 'programado')]}"/>
+                            <field name="vehicle_id" string="Vehículo"
+                                   attrs="{'readonly': [('estado', '!=', 'programado')]}"/>
+                            <field name="conductor_id" string="Conductor"
+                                   attrs="{'readonly': [('estado', '!=', 'programado')]}"/>
+                            <field name="estado" string="Estado" widget="badge"
+                                   decoration-success="estado == 'completado'"
+                                   decoration-info="estado == 'en_curso'"
+                                   decoration-warning="estado == 'programado'"
+                                   decoration-danger="estado == 'cancelado'"/>
+                        </group>
+                        <group string="Tiempos">
+                            <field name="fecha_inicio" string="Fecha Inicio Programada"
+                                   attrs="{'readonly': [('estado', '!=', 'programado')]}"/>
+                            <field name="fecha_fin_estimada" string="Fecha Fin Estimada"/>
+                            <field name="fecha_inicio_real" string="Inicio Real" readonly="1"/>
+                            <field name="fecha_fin_real" string="Fin Real" readonly="1"/>
+                        </group>
+                    </group>
+
+                    <!-- GRUPO: Métricas del Recorrido -->
+                    <group string="Métricas del Recorrido" name="metricas_group"
+                           attrs="{'invisible': [('estado', '=', 'programado')]}">
+                        <group>
+                            <field name="distancia_real_km" string="Distancia Real (km)"
+                                   widget="float" digits="[10,2]" readonly="1"/>
+                            <field name="velocidad_promedio_real" string="Vel. Promedio (km/h)"
+                                   widget="float" digits="[10,1]" readonly="1"/>
+                            <field name="duracion_real_min" string="Duración Real (min)" readonly="1"/>
+                            <field name="retraso_inicio_min" string="Retraso Inicio (min)" readonly="1"/>
+                        </group>
+                        <group>
+                            <field name="porcentaje_paradas_cumplidas" string="Paradas Cumplidas (%)"
+                                   widget="progressbar"
+                                   options="{'editable': false, 'current_value': 'porcentaje_paradas_cumplidas', 'max_value': 100}"
+                                   readonly="1"/>
+                            <field name="tiene_desviacion" string="¿Tiene Desviación?" readonly="1"
+                                   widget="boolean"/>
+                        </group>
+                    </group>
+
+                    <notebook>
+                        <!-- TAB 1: Cumplimiento de Paradas -->
+                        <page string="Cumplimiento de Paradas" name="cumplimiento">
+                            <field name="cumplimiento_parada_ids" widget="one2many_list" readonly="1">
+                                <tree string="Cumplimiento de Paradas"
+                                      decoration-success="cumplida == True"
+                                      decoration-danger="cumplida == False">
+                                    <field name="parada_id" string="Parada"/>
+                                    <field name="cumplida" string="Cumplida" widget="boolean"
+                                           decoration-success="cumplida == True"
+                                           decoration-danger="cumplida == False"/>
+                                    <field name="timestamp_llegada" string="Hora de Llegada"
+                                           widget="datetime"/>
+                                    <field name="retraso_min" string="Retraso (min)"
+                                           decoration-warning="retraso_min > 0"
+                                           decoration-danger="retraso_min > 10"/>
+                                    <field name="distancia_minima_m" string="Dist. Mín. (m)"
+                                           widget="float" digits="[10,1]"/>
+                                </tree>
+                            </field>
+                        </page>
+
+                        <!-- TAB 2: Historial GPS -->
+                        <page string="Historial GPS" name="gps">
+                            <field name="posicion_ids" widget="one2many_list" readonly="1"
+                                   context="{'tree_view_ref': 'fleet_rutas.view_fleet_posicion_gps_tree'}">
+                                <tree string="Posiciones GPS" limit="500"
+                                      decoration-danger="es_desviacion == True">
+                                    <field name="timestamp" string="Timestamp" widget="datetime"/>
+                                    <field name="latitud" string="Latitud" digits="[10,6]"/>
+                                    <field name="longitud" string="Longitud" digits="[10,6]"/>
+                                    <field name="velocidad_kmh" string="Velocidad (km/h)"
+                                           widget="float" digits="[10,1]"/>
+                                    <field name="es_desviacion" string="¿Desviación?" widget="boolean"
+                                           decoration-danger="es_desviacion == True"/>
+                                    <field name="distancia_ruta_m" string="Dist. Ruta (m)"
+                                           widget="float" digits="[10,1]"/>
+                                    <field name="traccar_position_id" string="ID Traccar"/>
+                                </tree>
+                            </field>
+                        </page>
+
+                        <!-- TAB 3: Incidencias -->
+                        <page string="Incidencias" name="incidencias">
+                            <field name="incidencia_ids" widget="one2many_list">
+                                <tree string="Incidencias"
+                                      decoration-danger="severidad == 'critica' and resuelta == False"
+                                      decoration-warning="severidad == 'alta' and resuelta == False"
+                                      decoration-muted="resuelta == True">
+                                    <field name="tipo" string="Tipo"/>
+                                    <field name="severidad" string="Severidad" widget="badge"
+                                           decoration-danger="severidad == 'critica'"
+                                           decoration-warning="severidad == 'alta'"
+                                           decoration-info="severidad == 'media'"
+                                           decoration-secondary="severidad == 'baja'"/>
+                                    <field name="timestamp" string="Momento" widget="datetime"/>
+                                    <field name="descripcion" string="Descripción"/>
+                                    <field name="valor_detectado" string="Valor Detectado"/>
+                                    <field name="valor_esperado" string="Valor Esperado"/>
+                                    <field name="resuelta" string="Resuelta" widget="boolean"
+                                           decoration-success="resuelta == True"/>
+                                </tree>
+                            </field>
+                        </page>
+
+                        <!-- TAB 4: Métricas -->
+                        <page string="Métricas de Calidad" name="metricas_tab"
+                              attrs="{'invisible': [('estado', '=', 'programado')]}">
+                            <field name="metricas_ids" widget="one2many_list" readonly="1">
+                                <tree string="Métricas">
+                                    <field name="fecha_calculo" string="Calculado en"/>
+                                    <field name="pct_cumplimiento_ruta" string="Cump. Ruta (%)"
+                                           widget="float" digits="[10,1]"/>
+                                    <field name="pct_puntualidad" string="Puntualidad (%)"
+                                           widget="float" digits="[10,1]"/>
+                                    <field name="pct_paradas_cumplidas" string="Paradas (%)"
+                                           widget="float" digits="[10,1]"/>
+                                    <field name="pct_desviacion_ruta" string="Desviación (%)"
+                                           widget="float" digits="[10,1]"/>
+                                    <field name="integridad_gps_pct" string="Integ. GPS (%)"
+                                           widget="float" digits="[10,1]"/>
+                                    <field name="frecuencia_incidencias" string="Incidencias"
+                                           widget="float" digits="[10,2]"/>
+                                </tree>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <!-- ─── SEARCH VIEW ──────────────────────────────────────────── -->
+    <record id="view_fleet_recorrido_search" model="ir.ui.view">
+        <field name="name">fleet.recorrido.search</field>
+        <field name="model">fleet.recorrido</field>
+        <field name="arch" type="xml">
+            <search string="Buscar Recorridos">
+                <field name="name" string="Referencia"/>
+                <field name="ruta_id" string="Ruta"/>
+                <field name="vehicle_id" string="Vehículo"/>
+                <field name="conductor_id" string="Conductor"/>
+
+                <separator/>
+                <filter name="filter_en_curso" string="En Curso"
+                        domain="[('estado','=','en_curso')]"/>
+                <filter name="filter_programado" string="Programados"
+                        domain="[('estado','=','programado')]"/>
+                <filter name="filter_completado" string="Completados"
+                        domain="[('estado','=','completado')]"/>
+                <filter name="filter_cancelado" string="Cancelados"
+                        domain="[('estado','=','cancelado')]"/>
+
+                <separator/>
+                <filter name="filter_programados_hoy" string="Programados Hoy"
+                        domain="[('estado','=','programado'),
+                                  ('fecha_inicio','&gt;=', datetime.datetime.combine(context_today(), datetime.time(0,0,0)).strftime('%Y-%m-%d %H:%M:%S')),
+                                  ('fecha_inicio','&lt;=', datetime.datetime.combine(context_today(), datetime.time(23,59,59)).strftime('%Y-%m-%d %H:%M:%S'))]"/>
+                <filter name="filter_con_incidencias" string="Con Incidencias"
+                        domain="[('incidencia_ids','!=',False)]"/>
+                <filter name="filter_con_desviacion" string="Con Desviación"
+                        domain="[('tiene_desviacion','=',True)]"/>
+
+                <group expand="0" string="Agrupar Por">
+                    <filter name="group_estado" string="Estado"
+                            context="{'group_by': 'estado'}"/>
+                    <filter name="group_ruta" string="Ruta"
+                            context="{'group_by': 'ruta_id'}"/>
+                    <filter name="group_vehicle" string="Vehículo"
+                            context="{'group_by': 'vehicle_id'}"/>
+                    <filter name="group_fecha" string="Fecha"
+                            context="{'group_by': 'fecha_inicio:day'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- ─── ACTION ───────────────────────────────────────────────── -->
+    <record id="action_fleet_recorrido" model="ir.actions.act_window">
+        <field name="name">Recorridos</field>
+        <field name="res_model">fleet.recorrido</field>
+        <field name="view_mode">tree,form</field>
+        <field name="search_view_id" ref="view_fleet_recorrido_search"/>
+        <field name="context">{'search_default_filter_en_curso': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No hay recorridos registrados
+            </p>
+            <p>
+                Programa un nuevo recorrido asignando una ruta,
+                vehículo y conductor.
+            </p>
+        </field>
+    </record>
+
+    <!-- ─── ACTION: Incidencias Activas ──────────────────────────── -->
+    <record id="action_fleet_incidencia_activas" model="ir.actions.act_window">
+        <field name="name">Incidencias Activas</field>
+        <field name="res_model">fleet.incidencia</field>
+        <field name="view_mode">tree,form</field>
+        <field name="domain">[('resuelta','=',False)]</field>
+        <field name="context">{'search_default_filter_no_resuelta': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                ¡Sin incidencias pendientes!
+            </p>
+            <p>No hay incidencias activas en este momento.</p>
+        </field>
+    </record>
+
+</odoo>

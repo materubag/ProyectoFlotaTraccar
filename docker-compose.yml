@@ -15,9 +15,11 @@ services:
       - TRACCAR_DB_PASSWORD=${TRACCAR_DB_PASSWORD}
     command: >
       postgres
-      -c fsync=off
-      -c synchronous_commit=off
-      -c full_page_writes=off
+      -c fsync=on
+      -c synchronous_commit=on
+      -c full_page_writes=on
+    ports:
+      - "${POSTGRES_HOST_PORT:-5433}:5432"
     volumes:
       - flota-db-data:/var/lib/postgresql/data
       - ./config/init-databases.sh:/docker-entrypoint-initdb.d/init-databases.sh:ro
@@ -56,6 +58,7 @@ services:
           cp -a /backups/filestore/odoo/. "/var/lib/odoo/filestore/$${ODOO_DB_NAME:-odoo_flota}/" || true
           chmod -R a+rwX "/var/lib/odoo/filestore/$${ODOO_DB_NAME:-odoo_flota}" || true
         fi
+        python3 -c "import os, psycopg2, sys; conn = psycopg2.connect(host=os.environ.get('HOST','db'), port=os.environ.get('PORT','5432'), user=os.environ.get('USER','odoo'), password=os.environ.get('PASSWORD',''), dbname=os.environ.get('ODOO_DB_NAME','odoo_flota')); cur = conn.cursor(); cur.execute('SELECT 1 FROM information_schema.tables WHERE table_name=%s', ('ir_module_module',)); sys.exit(0 if cur.fetchone() else 1)" 2>/dev/null || /entrypoint.sh odoo -d "$${ODOO_DB_NAME:-odoo_flota}" -i base,fleet,fleet_traccar,fleet_reports,fleet_rutas --stop-after-init
         exec /entrypoint.sh odoo "$$@"
     volumes:
       - flota-odoo-web-data:/var/lib/odoo
@@ -209,6 +212,42 @@ services:
     networks:
       - flota-net
 
+  grafana:
+    image: grafana/grafana:11.4.0
+    container_name: flota-grafana
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    environment:
+      # ── Acceso anónimo (para el iframe de Odoo sin login) ──
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+      # ── Seguridad del iframe ────────────────────────────────
+      - GF_SECURITY_ALLOW_EMBEDDING=true
+      # ── Admin por defecto (para crear/editar dashboards) ───
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-GrafanaFlota2026!}
+      # ── Credenciales BD Traccar (usadas en el datasource) ──
+      - TRACCAR_DB_USER=${TRACCAR_DB_USER:-traccar}
+      - TRACCAR_DB_PASSWORD=${TRACCAR_DB_PASSWORD}
+      # ── Credenciales BD Odoo (usadas en el datasource) ─────
+      - ODOO_DB_NAME=${ODOO_DB_NAME:-odoo_flota}
+      - ODOO_DB_USER=${ODOO_DB_USER:-odoo}
+      - ODOO_DB_PASSWORD=${ODOO_DB_PASSWORD}
+      # ── Plugins ─────────────────────────────────────────────
+      - GF_INSTALL_PLUGINS=
+    volumes:
+      - flota-grafana-data:/var/lib/grafana
+      - ./config/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./config/grafana/dashboards:/etc/grafana/dashboards:ro
+    networks:
+      flota-net:
+        aliases:
+          - grafana
+
 volumes:
   flota-db-data:
     name: flota-db-data
@@ -216,6 +255,8 @@ volumes:
     name: flota-odoo-web-data
   flota-traccar-logs:
     name: flota-traccar-logs
+  flota-grafana-data:
+    name: flota-grafana-data
 
 networks:
   flota-net:

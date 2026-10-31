@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ============================================================ -->
+    <!-- MENÚ PRINCIPAL: TRANSPORTE UNIVERSITARIO                     -->
+    <!-- ============================================================ -->
+
+    <!-- Menú Raíz / Aplicación -->
+    <menuitem id="menu_fleet_rutas_root"
+              name="Transporte Universitario"
+              web_icon="fleet,static/description/icon.png"
+              sequence="15"/>
+
+    <!-- Dashboard Principal -->
+    <menuitem id="menu_fleet_rutas_dashboard"
+              name="Dashboard"
+              parent="menu_fleet_rutas_root"
+              action="action_fleet_rutas_dashboard"
+              sequence="5"/>
+
+    <!-- ── Operaciones ───────────────────────────────────────────── -->
+    <menuitem id="menu_fleet_rutas_operaciones"
+              name="Operaciones"
+              parent="menu_fleet_rutas_root"
+              sequence="10"/>
+
+    <menuitem id="menu_fleet_recorridos_action"
+              name="Recorridos"
+              parent="menu_fleet_rutas_operaciones"
+              action="action_fleet_recorrido"
+              sequence="10"/>
+
+    <menuitem id="menu_fleet_incidencias_action"
+              name="Incidencias"
+              parent="menu_fleet_rutas_operaciones"
+              action="action_fleet_incidencia"
+              sequence="20"/>
+
+    <menuitem id="menu_fleet_posicion_gps_action"
+              name="Telemetría GPS"
+              parent="menu_fleet_rutas_operaciones"
+              action="action_fleet_posicion_gps"
+              sequence="30"/>
+
+    <!-- ── Reportes y Calidad SQA ────────────────────────────────── -->
+    <menuitem id="menu_fleet_rutas_reportes"
+              name="Reportes y Calidad SQA"
+              parent="menu_fleet_rutas_root"
+              sequence="20"/>
+
+    <menuitem id="menu_fleet_metricas_action"
+              name="Métricas ISO/IEC 25010"
+              parent="menu_fleet_rutas_reportes"
+              action="action_fleet_metricas"
+              sequence="10"/>
+
+    <!-- ── Configuración ─────────────────────────────────────────── -->
+    <menuitem id="menu_fleet_rutas_configuracion"
+              name="Configuración"
+              parent="menu_fleet_rutas_root"
+              sequence="30"/>
+
+    <menuitem id="menu_fleet_rutas_action"
+              name="Rutas y Paradas"
+              parent="menu_fleet_rutas_configuracion"
+              action="action_fleet_ruta"
+              sequence="10"/>
+
+    <menuitem id="menu_fleet_traccar_sync_action"
+              name="Sincronización Traccar"
+              parent="menu_fleet_rutas_configuracion"
+              action="action_fleet_traccar_sync"
+              sequence="20"/>
+</odoo>
+

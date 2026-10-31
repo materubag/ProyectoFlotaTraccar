@@ -1,0 +1,266 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- ═════════════════════════════════════════════════════════════════ -->
+        <!-- 1. MODELO Y VEHÍCULOS DE TRANSPORTE UNIVERSITARIO                 -->
+        <!-- ═════════════════════════════════════════════════════════════════ -->
+        <record id="brand_universitario" model="fleet.vehicle.model.brand">
+            <field name="name">Mercedes-Benz Transporte</field>
+        </record>
+
+        <record id="model_bus_universitario" model="fleet.vehicle.model">
+            <field name="name">Autobús Intercampus 40P</field>
+            <field name="brand_id" ref="brand_universitario"/>
+            <field name="vehicle_type">car</field>
+        </record>
+
+        <record id="vehicle_bus_01" model="fleet.vehicle">
+            <field name="model_id" ref="model_bus_universitario"/>
+            <field name="license_plate">UNI-BUS-01</field>
+            <field name="vin_sn">1HGCR2F83HA001001</field>
+            <field name="driver_id" ref="base.partner_admin"/>
+            <field name="traccar_tracking_enabled">True</field>
+            <field name="traccar_device_id">1</field>
+            <field name="traccar_unique_id">BUS01_GPS</field>
+            <field name="traccar_device_status">online</field>
+            <field name="traccar_last_latitude">-0.180653</field>
+            <field name="traccar_last_longitude">-78.467834</field>
+            <field name="traccar_last_speed">38.5</field>
+            <field name="traccar_last_update" eval="datetime.datetime.now()"/>
+        </record>
+
+        <record id="vehicle_bus_02" model="fleet.vehicle">
+            <field name="model_id" ref="model_bus_universitario"/>
+            <field name="license_plate">UNI-BUS-02</field>
+            <field name="vin_sn">1HGCR2F83HA001002</field>
+            <field name="driver_id" ref="base.partner_admin"/>
+            <field name="traccar_tracking_enabled">True</field>
+            <field name="traccar_device_id">2</field>
+            <field name="traccar_unique_id">BUS02_GPS</field>
+            <field name="traccar_device_status">online</field>
+            <field name="traccar_last_latitude">-0.220512</field>
+            <field name="traccar_last_longitude">-78.513421</field>
+            <field name="traccar_last_speed">42.0</field>
+            <field name="traccar_last_update" eval="datetime.datetime.now()"/>
+        </record>
+
+        <!-- ═════════════════════════════════════════════════════════════════ -->
+        <!-- 2. RUTAS UNIVERSITARIAS (Mínimo 3 rutas)                         -->
+        <!-- ═════════════════════════════════════════════════════════════════ -->
+
+        <!-- RUTA 1: NORTE -->
+        <record id="ruta_norte" model="fleet.ruta">
+            <field name="name">Ruta Norte: Campus Central - Residencias Norte</field>
+            <field name="code">RN-01</field>
+            <field name="estado">activa</field>
+            <field name="origen">Puerta Principal Campus Central</field>
+            <field name="destino">Residencias Universitarias Norte</field>
+            <field name="distancia_estimada_km">8.500</field>
+            <field name="duracion_estimada_min">35</field>
+            <field name="notas">Conecta facultades de Ingeniería y Medicina con el campus residencial norte.</field>
+        </record>
+
+        <!-- Paradas Ruta Norte (4 puntos de control) -->
+        <record id="parada_rn_1" model="fleet.parada">
+            <field name="name">PC-01: Puerta Principal Campus</field>
+            <field name="ruta_id" ref="ruta_norte"/>
+            <field name="secuencia">10</field>
+            <field name="latitud">-0.210452</field>
+            <field name="longitud">-78.491230</field>
+            <field name="radio_proximidad_m">60.0</field>
+            <field name="hora_prevista">7.00</field>
+            <field name="tolerancia_min">5</field>
+            <field name="tipo">origen</field>
+            <field name="descripcion">Andén central de salida.</field>
+        </record>
+
+        <record id="parada_rn_2" model="fleet.parada">
+            <field name="name">PC-02: Facultad de Medicina</field>
+            <field name="ruta_id" ref="ruta_norte"/>
+            <field name="secuencia">20</field>
+            <field name="latitud">-0.198320</field>
+            <field name="longitud">-78.489110</field>
+            <field name="radio_proximidad_m">50.0</field>
+            <field name="hora_prevista">7.15</field>
+            <field name="tolerancia_min">5</field>
+            <field name="tipo">intermedia</field>
+            <field name="descripcion">Parada frente al Hospital Universitario.</field>
+        </record>
+
+        <record id="parada_rn_3" model="fleet.parada">
+            <field name="name">PC-03: Biblioteca General / Ciencias</field>
+            <field name="ruta_id" ref="ruta_norte"/>
+            <field name="secuencia">30</field>
+            <field name="latitud">-0.187640</field>
+            <field name="longitud">-78.480250</field>
+            <field name="radio_proximidad_m">50.0</field>
+            <field name="hora_prevista">7.25</field>
+            <field name="tolerancia_min">5</field>
+            <field name="tipo">intermedia</field>
+            <field name="descripcion">Bahía de buses acceso norte.</field>
+        </record>
+
+        <record id="parada_rn_4" model="fleet.parada">
+            <field name="name">PC-04: Residencias Universitarias Norte</field>
+            <field name="ruta_id" ref="ruta_norte"/>
+            <field name="secuencia">40</field>
+            <field name="latitud">-0.174510</field>
+            <field name="longitud">-78.472180</field>
+            <field name="radio_proximidad_m">70.0</field>
+            <field name="hora_prevista">7.35</field>
+            <field name="tolerancia_min">5</field>
+            <field name="tipo">destino</field>
+            <field name="descripcion">Terminal de residencias.</field>
+        </record>
+
+        <!-- RUTA 2: SUR -->
+        <record id="ruta_sur" model="fleet.ruta">
+            <field name="name">Ruta Sur: Campus Central - Zona Tecnológica Sur</field>
+            <field name="code">RS-02</field>
+            <field name="estado">activa</field>
+            <field name="origen">Campus Central (Acceso Sur)</field>
+            <field name="destino">Complejo de Laboratorios Sur</field>
+            <field name="distancia_estimada_km">12.300</field>
+            <field name="duracion_estimada_min">45</field>
+            <field name="notas">Transporte para estudiantes de talleres e investigación agronómica/industrial.</field>
+        </record>
+
+        <!-- Paradas Ruta Sur (4 puntos de control) -->
+        <record id="parada_rs_1" model="fleet.parada">
+            <field name="name">PC-01: Acceso Sur Campus Central</field>
+            <field name="ruta_id" ref="ruta_sur"/>
+            <field name="secuencia">10</field>
+            <field name="latitud">-0.215100</field>
+            <field name="longitud">-78.495000</field>
+            <field name="radio_proximidad_m">60.0</field>
+            <field name="hora_prevista">8.00</field>
+            <field name="tolerancia_min">5</field>
+            <field name="tipo">origen</field>
+        </record>
+
+        <record id="parada_rs_2" model="fleet.parada">
+            <field name="name">PC-02: Facultad de Arquitectura</field>
+            <field name="ruta_id" ref="ruta_sur"/>
+            <field name="secuencia">20</field>
+            <field name="latitud">-0.230200</field>
+            <field name="longitud">-78.508000</field>
+            <field name="radio_proximidad_m">50.0</field>
+            <field name="hora_prevista">8.15</field>
+            <field name="tolerancia_min">5</field>
+            <field name="tipo">intermedia</field>
+        </record>
+
+        <record id="parada_rs_3" model="fleet.parada">
+            <field name="name">PC-03: Estación de Transferencia Sur</field>
+            <field name="ruta_id" ref="ruta_sur"/>
+            <field name="secuencia">30</field>
+            <field name="latitud">-0.252000</field>
+            <field name="longitud">-78.525000</field>
+            <field name="radio_proximidad_m">60.0</field>
+            <field name="hora_prevista">8.30</field>
+            <field name="tolerancia_min">5</field>
+            <field name="tipo">intermedia</field>
+        </record>
+
+        <record id="parada_rs_4" model="fleet.parada">
+            <field name="name">PC-04: Laboratorios y Talleres Sur</field>
+            <field name="ruta_id" ref="ruta_sur"/>
+            <field name="secuencia">40</field>
+            <field name="latitud">-0.278000</field>
+            <field name="longitud">-78.541000</field>
+            <field name="radio_proximidad_m">75.0</field>
+            <field name="hora_prevista">8.45</field>
+            <field name="tolerancia_min">5</field>
+            <field name="tipo">destino</field>
+        </record>
+
+        <!-- RUTA 3: CENTRO -->
+        <record id="ruta_centro" model="fleet.ruta">
+            <field name="name">Ruta Centro: Campus Central - Terminal Intermodal</field>
+            <field name="code">RC-03</field>
+            <field name="estado">activa</field>
+            <field name="origen">Campus Central (Facultad de Artes)</field>
+            <field name="destino">Terminal Central de Pasajeros</field>
+            <field name="distancia_estimada_km">6.700</field>
+            <field name="duracion_estimada_min">25</field>
+            <field name="notas">Servicio directo exprés para conectar con transporte interurbano.</field>
+        </record>
+
+        <!-- Paradas Ruta Centro (4 puntos de control) -->
+        <record id="parada_rc_1" model="fleet.parada">
+            <field name="name">PC-01: Facultad de Artes</field>
+            <field name="ruta_id" ref="ruta_centro"/>
+            <field name="secuencia">10</field>
+            <field name="latitud">-0.208000</field>
+            <field name="longitud">-78.498000</field>
+            <field name="radio_proximidad_m">50.0</field>
+            <field name="hora_prevista">9.00</field>
+            <field name="tolerancia_min">5</field>
+            <field name="tipo">origen</field>
+        </record>
+
+        <record id="parada_rc_2" model="fleet.parada">
+            <field name="name">PC-02: Campus Histórico / Museos</field>
+            <field name="ruta_id" ref="ruta_centro"/>
+            <field name="secuencia">20</field>
+            <field name="latitud">-0.218500</field>
+            <field name="longitud">-78.508500</field>
+            <field name="radio_proximidad_m">50.0</field>
+            <field name="hora_prevista">9.10</field>
+            <field name="tolerancia_min">5</field>
+            <field name="tipo">intermedia</field>
+        </record>
+
+        <record id="parada_rc_3" model="fleet.parada">
+            <field name="name">PC-03: Plaza Universitaria Central</field>
+            <field name="ruta_id" ref="ruta_centro"/>
+            <field name="secuencia">30</field>
+            <field name="latitud">-0.224000</field>
+            <field name="longitud">-78.514000</field>
+            <field name="radio_proximidad_m">50.0</field>
+            <field name="hora_prevista">9.18</field>
+            <field name="tolerancia_min">5</field>
+            <field name="tipo">intermedia</field>
+        </record>
+
+        <record id="parada_rc_4" model="fleet.parada">
+            <field name="name">PC-04: Terminal Terrestre Central</field>
+            <field name="ruta_id" ref="ruta_centro"/>
+            <field name="secuencia">40</field>
+            <field name="latitud">-0.231000</field>
+            <field name="longitud">-78.520000</field>
+            <field name="radio_proximidad_m">60.0</field>
+            <field name="hora_prevista">9.25</field>
+            <field name="tolerancia_min">5</field>
+            <field name="tipo">destino</field>
+        </record>
+
+        <!-- ═════════════════════════════════════════════════════════════════ -->
+        <!-- 3. RECORRIDOS DE ASIGNACIÓN (Mínimo 2 recorridos)                 -->
+        <!-- ═════════════════════════════════════════════════════════════════ -->
+        <record id="recorrido_demo_01" model="fleet.recorrido">
+            <field name="simulado">True</field>
+            <field name="ruta_id" ref="ruta_norte"/>
+            <field name="vehicle_id" ref="vehicle_bus_01"/>
+            <field name="conductor_id" ref="base.user_admin"/>
+            <field name="estado">en_curso</field>
+            <field name="fecha_inicio" eval="(datetime.datetime.now() - datetime.timedelta(minutes=20)).strftime('%Y-%m-%d %H:%M:%S')"/>
+            <field name="fecha_inicio_real" eval="(datetime.datetime.now() - datetime.timedelta(minutes=18)).strftime('%Y-%m-%d %H:%M:%S')"/>
+            <field name="fecha_fin_estimada" eval="(datetime.datetime.now() + datetime.timedelta(minutes=15)).strftime('%Y-%m-%d %H:%M:%S')"/>
+            <field name="distancia_real_km">4.850</field>
+            <field name="velocidad_promedio_real">35.40</field>
+            <field name="notas">Servicio matutino en operación normal.</field>
+        </record>
+
+        <record id="recorrido_demo_02" model="fleet.recorrido">
+            <field name="simulado">True</field>
+            <field name="ruta_id" ref="ruta_sur"/>
+            <field name="vehicle_id" ref="vehicle_bus_02"/>
+            <field name="conductor_id" ref="base.user_admin"/>
+            <field name="estado">programado</field>
+            <field name="fecha_inicio" eval="(datetime.datetime.now() + datetime.timedelta(hours=1)).strftime('%Y-%m-%d %H:%M:%S')"/>
+            <field name="fecha_fin_estimada" eval="(datetime.datetime.now() + datetime.timedelta(hours=1, minutes=45)).strftime('%Y-%m-%d %H:%M:%S')"/>
+            <field name="notas">Asignado para el turno vespertino de prácticas de laboratorio.</field>
+        </record>
+    </data>
+</odoo>

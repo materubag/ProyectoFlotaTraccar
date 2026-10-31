@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ============================================================ -->
+    <!-- DASHBOARD OWL Y VISTAS DE MONITOREO                          -->
+    <!-- ============================================================ -->
+
+    <!-- Acción Cliente OWL Dashboard -->
+    <record id="action_fleet_rutas_dashboard" model="ir.actions.client">
+        <field name="name">Centro de Control de Rutas</field>
+        <field name="tag">fleet_rutas.dashboard</field>
+        <field name="target">current</field>
+    </record>
+
+    <!-- ─── VISTA Y ACCIÓN DE INCIDENCIAS ────────────────────────── -->
+    <record id="view_fleet_incidencia_tree" model="ir.ui.view">
+        <field name="name">fleet.incidencia.tree</field>
+        <field name="model">fleet.incidencia</field>
+        <field name="arch" type="xml">
+            <tree string="Incidencias de Rutas" decoration-danger="severidad in ('alta', 'critica')"
+                  decoration-warning="severidad == 'media'"
+                  decoration-muted="resuelta == True">
+                <field name="timestamp" string="Fecha/Hora"/>
+                <field name="name" string="Incidencia"/>
+                <field name="recorrido_id" string="Recorrido"/>
+                <field name="ruta_id" string="Ruta"/>
+                <field name="vehicle_id" string="Vehículo"/>
+                <field name="tipo" string="Tipo" widget="badge"/>
+                <field name="severidad" string="Severidad" widget="badge"
+                       decoration-danger="severidad in ('alta', 'critica')"
+                       decoration-warning="severidad == 'media'"
+                       decoration-info="severidad == 'baja'"/>
+                <field name="valor_detectado" string="Valor"/>
+                <field name="unidad" string="Unidad"/>
+                <field name="resuelta" string="Resuelta" widget="boolean_toggle"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_fleet_incidencia_form" model="ir.ui.view">
+        <field name="name">fleet.incidencia.form</field>
+        <field name="model">fleet.incidencia</field>
+        <field name="arch" type="xml">
+            <form string="Incidencia de Recorrido">
+                <header>
+                    <button name="action_resolver" string="Marcar Resuelta" type="object"
+                            class="btn-success" attrs="{'invisible': [('resuelta', '=', True)]}"/>
+                    <button name="action_reabrir" string="Reabrir" type="object"
+                            class="btn-secondary" attrs="{'invisible': [('resuelta', '=', False)]}"/>
+                    <field name="severidad" widget="statusbar" statusbar_visible="baja,media,alta,critica"/>
+                </header>
+                <sheet>
+                    <widget name="web_ribbon" title="Resuelta" bg_color="bg-success"
+                            attrs="{'invisible': [('resuelta', '=', False)]}"/>
+                    <div class="oe_title">
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <group string="Detalles de Evento">
+                            <field name="recorrido_id"/>
+                            <field name="tipo"/>
+                            <field name="timestamp"/>
+                            <field name="resuelta"/>
+                            <field name="validacion"/>
+                        </group>
+                        <group string="Ubicación y Parámetros">
+                            <field name="latitud"/>
+                            <field name="longitud"/>
+                            <field name="valor_detectado"/>
+                            <field name="valor_esperado"/>
+                            <field name="unidad"/>
+                        </group>
+                    </group>
+                    <group string="Descripción">
+                        <field name="descripcion" nolabel="1"/>
+                    </group>
+                    <group string="Resolución" attrs="{'invisible': [('resuelta', '=', False)]}">
+                        <field name="notas_resolucion" placeholder="Explique las acciones tomadas para resolver la incidencia..."/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_fleet_incidencia_graph" model="ir.ui.view">
+        <field name="name">fleet.incidencia.graph</field>
+        <field name="model">fleet.incidencia</field>
+        <field name="arch" type="xml">
+            <graph string="Frecuencia de Incidencias por Tipo" type="pie">
+                <field name="tipo"/>
+            </graph>
+        </field>
+    </record>
+
+    <record id="action_fleet_incidencia" model="ir.actions.act_window">
+        <field name="name">Incidencias Operativas</field>
+        <field name="res_model">fleet.incidencia</field>
+        <field name="view_mode">tree,form,graph</field>
+        <field name="context">{'search_default_activas': 1}</field>
+    </record>
+
+    <!-- ─── VISTA Y ACCIÓN DE SINCRONIZACIÓN TRACCAR ──────────────── -->
+    <record id="view_fleet_traccar_sync_tree" model="ir.ui.view">
+        <field name="name">fleet.traccar.sync.tree</field>
+        <field name="model">fleet.traccar.sync</field>
+        <field name="arch" type="xml">
+            <tree string="Sincronizaciones Traccar" create="false"
+                  decoration-success="estado == 'completado'"
+                  decoration-danger="estado == 'error'"
+                  decoration-info="estado == 'en_proceso'">
+                <field name="name" string="Referencia"/>
+                <field name="sync_type" string="Tipo"/>
+                <field name="fecha_inicio" string="Inicio"/>
+                <field name="duracion_segundos" string="Duración (s)"/>
+                <field name="registros_procesados" string="Procesados"/>
+                <field name="registros_nuevos" string="Nuevos"/>
+                <field name="registros_duplicados" string="Duplicados"/>
+                <field name="estado" string="Estado" widget="badge"
+                       decoration-success="estado == 'completado'"
+                       decoration-danger="estado == 'error'"
+                       decoration-info="estado == 'en_proceso'"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_fleet_traccar_sync_form" model="ir.ui.view">
+        <field name="name">fleet.traccar.sync.form</field>
+        <field name="model">fleet.traccar.sync</field>
+        <field name="arch" type="xml">
+            <form string="Registro de Sincronización Traccar" create="false">
+                <header>
+                    <field name="estado" widget="statusbar" statusbar_visible="pendiente,en_proceso,completado,error"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name" readonly="1"/></h1>
+                    </div>
+                    <group>
+                        <group string="Ejecución">
+                            <field name="sync_type" readonly="1"/>
+                            <field name="fecha_inicio" readonly="1"/>
+                            <field name="fecha_fin" readonly="1"/>
+                            <field name="duracion_segundos" readonly="1"/>
+                        </group>
+                        <group string="Estadísticas de Procesamiento">
+                            <field name="registros_procesados" readonly="1"/>
+                            <field name="registros_nuevos" readonly="1"/>
+                            <field name="registros_duplicados" readonly="1"/>
+                            <field name="registros_error" readonly="1"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Log de Auditoría" name="log_page">
+                            <field name="log_detalle" readonly="1" widget="text"/>
+                        </page>
+                        <page string="Detalle de Error" name="error_page" attrs="{'invisible': [('error_mensaje', '=', False)]}">
+                            <field name="error_mensaje" readonly="1" widget="text"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fleet_traccar_sync" model="ir.actions.act_window">
+        <field name="name">Historial Sincronización Traccar</field>
+        <field name="res_model">fleet.traccar.sync</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <!-- ─── ACCIÓN PARA HISTORIAL GPS (fleet.posicion.gps) ────────── -->
+    <record id="view_fleet_posicion_gps_tree" model="ir.ui.view">
+        <field name="name">fleet.posicion.gps.tree</field>
+        <field name="model">fleet.posicion.gps</field>
+        <field name="arch" type="xml">
+            <tree string="Telemetría GPS" create="false" edit="false"
+                  decoration-danger="es_desviacion == True">
+                <field name="timestamp" string="Hora"/>
+                <field name="vehicle_id" string="Vehículo"/>
+                <field name="recorrido_id" string="Recorrido"/>
+                <field name="latitud" string="Latitud"/>
+                <field name="longitud" string="Longitud"/>
+                <field name="velocidad_kmh" string="Velocidad (km/h)"/>
+                <field name="distancia_ruta_m" string="Distancia Ruta (m)"/>
+                <field name="es_desviacion" string="Desviación" widget="boolean"/>
+                <field name="fuente" string="Origen"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="action_fleet_posicion_gps" model="ir.actions.act_window">
+        <field name="name">Historial de Posiciones GPS</field>
+        <field name="res_model">fleet.posicion.gps</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+</odoo>
+

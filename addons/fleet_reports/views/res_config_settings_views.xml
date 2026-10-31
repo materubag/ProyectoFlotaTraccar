@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!--
+        Extiende Ajustes > Flota para añadir la sección de configuración de Grafana.
+    -->
+    <record id="res_config_settings_view_form_fleet_reports" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.fleet_reports</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="fleet.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@id='fleet']" position="inside">
+                <h2 class="mt16">Reportes Grafana</h2>
+                <div class="row mt16 o_settings_container" id="fleet_reports_grafana_settings">
+
+                    <div class="col-12 col-lg-6 o_setting_box">
+                        <div class="o_setting_left_pane"/>
+                        <div class="o_setting_right_pane">
+                            <span class="o_form_label">URL de Grafana</span>
+                            <div class="text-muted">
+                                Dirección base donde está accesible Grafana desde el navegador del usuario.
+                                Ejemplo: <code>http://localhost:3000</code>
+                            </div>
+                            <div class="content-group">
+                                <div class="mt8">
+                                    <field name="grafana_base_url" class="o_light_label" placeholder="http://localhost:3000"/>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-lg-6 o_setting_box">
+                        <div class="o_setting_left_pane"/>
+                        <div class="o_setting_right_pane">
+                            <span class="o_form_label">UID del Dashboard</span>
+                            <div class="text-muted">
+                                UID del dashboard de Grafana a embeber.
+                                Cópialo desde la URL: <code>/d/<b>UID</b>/nombre</code>
+                            </div>
+                            <div class="content-group">
+                                <div class="mt8">
+                                    <field name="grafana_fleet_dashboard_uid" class="o_light_label" placeholder="fleet-traccar-main"/>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-lg-6 o_setting_box">
+                        <div class="o_setting_left_pane"/>
+                        <div class="o_setting_right_pane">
+                            <span class="o_form_label">Intervalo de Actualización (segundos)</span>
+                            <div class="text-muted">
+                                Cada cuántos segundos se recargará el dashboard automáticamente.
+                            </div>
+                            <div class="content-group">
+                                <div class="mt8">
+                                    <field name="grafana_refresh_interval" class="o_light_label"/>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-lg-6 o_setting_box">
+                        <div class="o_setting_left_pane"/>
+                        <div class="o_setting_right_pane">
+                            <span class="o_form_label">Rango de Tiempo por Defecto</span>
+                            <div class="text-muted">
+                                Ventana temporal que se mostrará al abrir el módulo de reportes.
+                            </div>
+                            <div class="content-group">
+                                <div class="mt8">
+                                    <field name="grafana_default_time_range" class="o_light_label"/>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </xpath>
+        </field>
+    </record>
+</odoo>
