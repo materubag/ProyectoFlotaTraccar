@@ -11,7 +11,7 @@
  * 5. Permite cambiar rango de tiempo y forzar refresh manual
  */
 
-import { Component, useState, onMounted, onWillUnmount, useRef } from "@odoo/owl";
+import { Component, useState, onMounted, onWillUnmount, useRef, xml } from "@odoo/owl";
 import { registry } from "@web/core/registry";
 import { useService } from "@web/core/utils/hooks";
 
@@ -39,6 +39,7 @@ class FleetReportsDashboard extends Component {
             errorMsg:        "",
             iframeUrl:       "",
             grafanaBaseUrl:  "http://localhost:3000",
+            dashboardUid:    "fleet-traccar-main",
             refreshInterval: 30,    // segundos
             timeFrom:        "now-6h",
             countdown:       30,    // cuenta regresiva actual
@@ -56,6 +57,8 @@ class FleetReportsDashboard extends Component {
 
     // ── Inicialización ──────────────────────────────────────────────────────
     async _init() {
+        this.state.error = false;
+        this.state.loading = true;
         try {
             const config = await this.rpc("/web/dataset/call_kw", {
                 model:  "fleet.reports.dashboard",
@@ -65,6 +68,7 @@ class FleetReportsDashboard extends Component {
             });
 
             this.state.grafanaBaseUrl  = config.base_url;
+            this.state.dashboardUid   = config.dashboard_uid;
             this.state.refreshInterval = config.refresh_interval;
             this.state.timeFrom        = config.time_from;
             this.state.countdown       = config.refresh_interval;
@@ -86,7 +90,7 @@ class FleetReportsDashboard extends Component {
     // ── Constructor de URL ──────────────────────────────────────────────────
     _buildUrl(timeFrom) {
         const base = this.state.grafanaBaseUrl.replace(/\/$/, "");
-        const uid  = "fleet-traccar-main";
+        const uid  = encodeURIComponent(this.state.dashboardUid);
         const slug = "flota-vehicular-gps-traccar";
         const ref  = `${this.state.refreshInterval}s`;
         return (
@@ -148,6 +152,10 @@ class FleetReportsDashboard extends Component {
     }
 
     onManualRefresh() {
+        if (this.state.error) {
+            this._init();
+            return;
+        }
         this.state.countdown = this.state.refreshInterval;
         this.state.lastRefresh = new Date();
         this._reloadIframe();
@@ -196,7 +204,7 @@ class FleetReportsDashboard extends Component {
 }
 
 // ── Template OWL (inline XML) ───────────────────────────────────────────────
-FleetReportsDashboard.template = owl.xml/* xml */`
+FleetReportsDashboard.template = xml/* xml */`
 <div t-attf-class="o_fleet_reports_dashboard {{ state.isFullscreen ? 'fullscreen' : '' }}">
 
   <!-- ── Barra superior ─────────────────────────────────────── -->
@@ -300,7 +308,7 @@ FleetReportsDashboard.template = owl.xml/* xml */`
     <span>Última actualización: <strong t-esc="lastRefreshLabel"/></span>
 
     <div class="o_fleet_countdown">
-      <span>Próximo refresh: <strong t-esc="countdownLabel"/></strong></span>
+      <span>Próximo refresh: <strong t-esc="countdownLabel"/></span>
       <div class="o_fleet_countdown_bar">
         <div class="o_fleet_countdown_fill"
              t-attf-style="width: {{ countdownPercent }}%"/>

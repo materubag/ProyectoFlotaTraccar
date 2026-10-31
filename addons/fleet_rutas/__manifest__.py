@@ -29,13 +29,13 @@ Características implementadas:
     'data': [
         'security/ir.model.access.csv',
         'data/scheduled_actions.xml',
-        'data/fleet_rutas_demo.xml',
         'views/fleet_dashboard_views.xml',
         'views/fleet_metricas_views.xml',
         'views/fleet_recorrido_views.xml',
         'views/fleet_ruta_views.xml',
         'views/menu_views.xml',
     ],
+    'demo': ['data/fleet_rutas_demo.xml'],
     'assets': {
         'web.assets_backend': [
             'fleet_rutas/static/src/css/fleet_dashboard.css',

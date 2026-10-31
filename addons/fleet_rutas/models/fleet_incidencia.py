@@ -10,6 +10,7 @@ from odoo import api, fields, models
 _logger = logging.getLogger(__name__)
 
 TIPO_INCIDENCIA = [
+    ('incompleto', 'Recorrido Incompleto'),
     ('retraso', 'Retraso de Horario'),
     ('parada_omitida', 'Parada Omitida'),
     ('desviacion', 'Desviación de Ruta'),
@@ -90,6 +91,9 @@ class FleetIncidencia(models.Model):
     notas_resolucion = fields.Text(
         string='Notas de Resolución',
     )
+    validacion = fields.Selection([
+        ('pendiente', 'Sin validar'), ('verdadero', 'Verdadero positivo'),
+        ('falso', 'Falso positivo')], default='pendiente', string='Validación del evento')
     # Relacionados para filtros rápidos
     vehicle_id = fields.Many2one(
         comodel_name='fleet.vehicle',

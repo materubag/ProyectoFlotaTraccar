@@ -4,7 +4,11 @@ Fixtures y configuración para la suite de pruebas Pytest.
 Sistema de Monitoreo de Rutas de Transporte Universitario.
 """
 import pytest
+import sys
+from pathlib import Path
 from datetime import datetime, timezone, timedelta
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'models'))
 
 
 @pytest.fixture

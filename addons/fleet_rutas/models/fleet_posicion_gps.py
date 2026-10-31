@@ -5,7 +5,11 @@ durante un recorrido, sincronizadas desde Traccar.
 """
 import json
 import logging
+import math
+from datetime import datetime, timedelta
+import pytz
 from odoo import api, fields, models
+from odoo.exceptions import ValidationError
 
 _logger = logging.getLogger(__name__)
 
@@ -89,6 +93,7 @@ class FleetPosicionGps(models.Model):
         string='Atributos Raw (JSON)',
         default='{}',
     )
+    payload_origen = fields.Text(string='Posición original Traccar', readonly=True)
     traccar_position_id = fields.Integer(
         string='ID Posición Traccar',
         index=True,
@@ -123,6 +128,16 @@ class FleetPosicionGps(models.Model):
             'Ya existe una posición registrada con este ID de Traccar.',
         ),
     ]
+
+    @api.constrains('latitud', 'longitud', 'velocidad_kmh', 'recorrido_id', 'vehicle_id')
+    def _check_datos_gps(self):
+        for pos in self:
+            if not math.isfinite(pos.latitud) or not math.isfinite(pos.longitud) or not -90 <= pos.latitud <= 90 or not -180 <= pos.longitud <= 180:
+                raise ValidationError('Coordenadas GPS inválidas.')
+            if not math.isfinite(pos.velocidad_kmh) or pos.velocidad_kmh < 0:
+                raise ValidationError('Velocidad GPS inválida.')
+            if pos.recorrido_id and pos.recorrido_id.vehicle_id != pos.vehicle_id:
+                raise ValidationError('La posición y el recorrido deben pertenecer al mismo vehículo.')
 
     def detectar_desviacion(self):
         """
@@ -225,15 +240,18 @@ class FleetPosicionGps(models.Model):
             )
             if dist <= parada.radio_proximidad_m:
                 retraso_min = 0
-                if parada.hora_prevista and recorrido.fecha_inicio:
-                    h = int(parada.hora_prevista)
-                    m = int(round((parada.hora_prevista - h) * 60))
-                    fecha_ref = recorrido.fecha_inicio.date()
-                    programado = fields.Datetime.from_string(
-                        f'{fecha_ref} {h:02d}:{m:02d}:00'
-                    )
+                if recorrido.fecha_inicio:
+                    tz = pytz.timezone(recorrido.ruta_id.zona_horaria)
+                    inicio_local = pytz.utc.localize(recorrido.fecha_inicio).astimezone(tz)
+                    fecha_ref = inicio_local.date()
+                    local = datetime.combine(fecha_ref, datetime.min.time()) + timedelta(minutes=round(parada.hora_prevista * 60))
+                    # Stops after midnight belong to the following calendar day.
+                    primera = recorrido.ruta_id.parada_ids.sorted('secuencia')[:1]
+                    if primera and parada.hora_prevista < primera.hora_prevista:
+                        local += timedelta(days=1)
+                    programado = tz.localize(local).astimezone(pytz.utc).replace(tzinfo=None)
                     diff_seg = (posicion.timestamp - programado).total_seconds()
-                    retraso_min = int(diff_seg / 60)
+                    retraso_min = round(diff_seg / 60, 2)
 
                 cumplimiento.write({
                     'cumplida': True,
@@ -242,6 +260,11 @@ class FleetPosicionGps(models.Model):
                     'posicion_id': posicion.id,
                     'retraso_min': retraso_min,
                 })
+                if retraso_min > parada.tolerancia_min:
+                    self.env['fleet.incidencia'].create({
+                        'recorrido_id': recorrido.id, 'tipo': 'retraso', 'timestamp': posicion.timestamp,
+                        'descripcion': f'Retraso en {parada.name}: {retraso_min} minutos.',
+                        'valor_detectado': retraso_min, 'valor_esperado': parada.tolerancia_min, 'unidad': 'min'})
                 _logger.info(
                     'Parada "%s" cumplida para recorrido %s (distancia: %.1f m, retraso: %d min)',
                     parada.name, recorrido.name, dist, retraso_min,

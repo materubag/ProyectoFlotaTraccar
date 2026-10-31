@@ -27,6 +27,24 @@ RADIO_TIERRA_M = 6_371_000.0   # Radio medio de la Tierra en metros
 KM_POR_M = 0.001
 
 
+def posicion_coincide_con_origen(latitud, longitud, velocidad_kmh, timestamp, payload):
+    """Compare a persisted fix against its received Traccar snapshot, at field precision."""
+    from datetime import timezone
+    try:
+        raw_time = payload.get('fixTime') or payload.get('deviceTime') or payload.get('serverTime')
+        source_time = datetime.fromisoformat(raw_time.replace('Z', '+00:00'))
+        if source_time.tzinfo:
+            source_time = source_time.astimezone(timezone.utc).replace(tzinfo=None)
+        return (
+            math.isclose(latitud, float(payload['latitude']), rel_tol=0, abs_tol=1e-7)
+            and math.isclose(longitud, float(payload['longitude']), rel_tol=0, abs_tol=1e-7)
+            and math.isclose(velocidad_kmh, float(payload.get('speed', 0)) * 1.852, rel_tol=0, abs_tol=.011)
+            and abs((timestamp - source_time).total_seconds()) < 1
+        )
+    except (TypeError, ValueError, KeyError, AttributeError):
+        return False
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # 1. Distancia Haversine
 # ──────────────────────────────────────────────────────────────────────────────
@@ -58,6 +76,7 @@ def haversine_distance_m(lat1: float, lon1: float,
 
     a = (math.sin(dphi / 2) ** 2
          + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2)
+    a = max(0.0, min(1.0, a))
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
     return RADIO_TIERRA_M * c
 
@@ -173,14 +192,11 @@ def calcular_retraso_min(hora_prevista_decimal: float,
 
     Característica ISO 25010: Corrección funcional, Fiabilidad.
     """
-    horas = int(hora_prevista_decimal)
-    minutos = int(round((hora_prevista_decimal - horas) * 60))
-    hora_programada = datetime(
-        fecha_referencia.year,
-        fecha_referencia.month,
-        fecha_referencia.day,
-        horas, minutos, 0
-    )
+    if not 0 <= hora_prevista_decimal < 24 or tolerancia_min < 0:
+        raise ValueError('Hora o tolerancia fuera de rango')
+    total_min = round(hora_prevista_decimal * 60)
+    horas, minutos = divmod(total_min % 1440, 60)
+    hora_programada = datetime.combine(fecha_referencia, datetime.min.time()) + timedelta(minutes=total_min)
 
     diff_seg = (hora_llegada - hora_programada).total_seconds()
     retraso_min = diff_seg / 60.0
@@ -237,8 +253,8 @@ def validar_parada(lat_parada: float, lon_parada: float,
         dist = haversine_distance_m(lat, lon, lat_parada, lon_parada)
         if dist < min_dist:
             min_dist = dist
-            if dist <= radio_m:
-                posicion_cumplimiento = pos
+        if dist <= radio_m and (posicion_cumplimiento is None or pos['timestamp'] < posicion_cumplimiento['timestamp']):
+            posicion_cumplimiento = pos
 
     cumplida = min_dist <= radio_m
     return {
@@ -495,7 +511,7 @@ def calcular_metricas_recorrido(historial_gps: List[Dict],
         'num_gaps': 0,
         'duracion_total_seg': 0.0,
         'duracion_gaps_seg': 0.0,
-        'integridad_gps_pct': 100.0,
+        'integridad_gps_pct': 0.0,
         'posiciones_duplicadas_eliminadas': 0,
         'velocidad_promedio_kmh': 0.0,
     }

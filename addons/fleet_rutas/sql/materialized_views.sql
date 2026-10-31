@@ -36,7 +36,7 @@ SELECT
     COALESCE(m.pct_cumplimiento_ruta, 0.0) AS pct_cumplimiento_ruta,
     COALESCE(m.pct_puntualidad, 0.0) AS pct_puntualidad,
     COALESCE(m.retraso_promedio_min, 0.0) AS retraso_promedio_min,
-    COALESCE(m.integridad_gps_pct, 100.0) AS integridad_gps_pct,
+    m.integridad_gps_pct AS integridad_gps_pct,
     COALESCE(m.frecuencia_incidencias, 0.0) AS frecuencia_incidencias
 FROM fleet_recorrido rec
 INNER JOIN fleet_ruta r ON rec.ruta_id = r.id

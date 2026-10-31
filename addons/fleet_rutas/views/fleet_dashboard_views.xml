@@ -60,6 +60,7 @@
                             <field name="tipo"/>
                             <field name="timestamp"/>
                             <field name="resuelta"/>
+                            <field name="validacion"/>
                         </group>
                         <group string="Ubicación y Parámetros">
                             <field name="latitud"/>

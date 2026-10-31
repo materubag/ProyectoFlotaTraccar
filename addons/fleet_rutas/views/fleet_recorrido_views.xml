@@ -43,6 +43,8 @@
         <field name="arch" type="xml">
             <form string="Recorrido">
                 <header>
+                    <button name="action_ver_mapa" string="Ver mapa GPS" type="object" class="btn-secondary"/>
+                    <button name="action_sincronizar_historial" string="Descargar historial GPS" type="object"/>
                     <!-- Action buttons -->
                     <button name="action_iniciar" string="Iniciar Recorrido"
                             type="object" class="btn-primary"
@@ -88,6 +90,7 @@
                     <!-- GRUPO: Información General + Tiempos -->
                     <group>
                         <group string="Información General">
+                            <field name="simulado"/>
                             <field name="ruta_id" string="Ruta"
                                    attrs="{'readonly': [('estado', '!=', 'programado')]}"/>
                             <field name="vehicle_id" string="Vehículo"
@@ -276,7 +279,7 @@
     <record id="action_fleet_recorrido" model="ir.actions.act_window">
         <field name="name">Recorridos</field>
         <field name="res_model">fleet.recorrido</field>
-        <field name="view_mode">list,form</field>
+        <field name="view_mode">tree,form</field>
         <field name="search_view_id" ref="view_fleet_recorrido_search"/>
         <field name="context">{'search_default_filter_en_curso': 1}</field>
         <field name="help" type="html">
@@ -294,7 +297,7 @@
     <record id="action_fleet_incidencia_activas" model="ir.actions.act_window">
         <field name="name">Incidencias Activas</field>
         <field name="res_model">fleet.incidencia</field>
-        <field name="view_mode">list,form</field>
+        <field name="view_mode">tree,form</field>
         <field name="domain">[('resuelta','=',False)]</field>
         <field name="context">{'search_default_filter_no_resuelta': 1}</field>
         <field name="help" type="html">

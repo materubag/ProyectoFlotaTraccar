@@ -313,3 +313,21 @@
     z-index: 9999;
     height: 100vh;
 }
+
+/* Mobile browser chrome changes the available viewport height. */
+.o_fleet_reports_dashboard { min-width: 0; width: 100%; height: calc(100dvh - 52px); }
+.o_fleet_reports_dashboard.fullscreen { height: 100dvh; }
+.o_fleet_reports_topbar, .o_fleet_reports_title { min-width: 0; }
+@media (max-width: 991px) {
+    .o_fleet_reports_topbar { flex-wrap: wrap; padding: 12px; gap: 10px; }
+    .o_fleet_reports_controls { width: 100%; gap: 8px; }
+    .o_fleet_reports_title h2 { font-size: 16px; overflow-wrap: anywhere; }
+    .o_fleet_btn, .o_fleet_reports_controls select { min-height: 44px; }
+    .o_fleet_reports_statusbar { flex-wrap: wrap; gap: 6px; padding: 8px 12px; }
+    .o_fleet_error_overlay { padding: 16px; overflow-y: auto; }
+}
+@media (max-width: 479px) {
+    .o_fleet_reports_controls .o_fleet_btn { flex: 1 1 120px; justify-content: center; white-space: normal; }
+    .o_fleet_reports_controls select { flex: 1; min-width: 0; }
+    .o_fleet_reports_iframe_wrapper { min-height: 180px; }
+}

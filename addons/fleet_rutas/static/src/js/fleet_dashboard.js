@@ -4,7 +4,7 @@
  * Compatible con Odoo 16 (OWL 2)
  */
 
-import { Component, useState, onMounted, onWillUnmount } from "@odoo/owl";
+import { Component, useState, onMounted, onWillUnmount, xml } from "@odoo/owl";
 import { registry } from "@web/core/registry";
 import { useService } from "@web/core/utils/hooks";
 
@@ -25,7 +25,7 @@ class FleetRutasDashboard extends Component {
                 incidencias_activas: 0,
                 avg_puntualidad: 0.0,
                 avg_cumplimiento: 0.0,
-                avg_integridad_gps: 100.0,
+                avg_integridad_gps: 0.0,
                 recorridos_activos: [],
             },
             lastUpdated: new Date().toLocaleTimeString(),
@@ -54,6 +54,7 @@ class FleetRutasDashboard extends Component {
                 kwargs: {},
             });
             this.state.kpis = data;
+            this.state.error = false;
             this.state.lastUpdated = new Date().toLocaleTimeString();
             this.state.loading = false;
         } catch (err) {
@@ -91,7 +92,7 @@ class FleetRutasDashboard extends Component {
     }
 }
 
-FleetRutasDashboard.template = owl.xml/* xml */`
+FleetRutasDashboard.template = xml/* xml */`
 <div class="o_fleet_rutas_dashboard">
     <div class="dashboard_header">
         <div class="title_section">
@@ -106,6 +107,8 @@ FleetRutasDashboard.template = owl.xml/* xml */`
         </div>
     </div>
 
+    <div t-if="state.error" class="alert alert-danger" role="alert">No se pudieron actualizar los indicadores. Intenta actualizar de nuevo.</div>
+    <div t-if="state.loading" role="status" class="alert alert-info">Cargando indicadores…</div>
     <!-- KPI Grid -->
     <div class="kpi_grid">
         <div class="kpi_card bg-primary-subtle" t-on-click="openRecorridos">
@@ -122,7 +125,7 @@ FleetRutasDashboard.template = owl.xml/* xml */`
             <div class="kpi_body">
                 <span class="kpi_val"><t t-esc="state.kpis.avg_puntualidad"/>%</span>
                 <span class="kpi_label">Puntualidad Global</span>
-                <small class="text-muted">Tolerancia ±5 min</small>
+                <small class="text-muted">Tolerancia configurada por parada</small>
             </div>
         </div>
 

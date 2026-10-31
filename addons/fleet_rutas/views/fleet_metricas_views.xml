@@ -50,6 +50,7 @@
                             <field name="ruta_id" readonly="1"/>
                             <field name="vehicle_id" readonly="1"/>
                             <field name="duracion_real_min" readonly="1"/>
+                            <field name="diferencia_duracion_min" readonly="1"/>
                             <field name="distancia_real_km" readonly="1"/>
                             <field name="diferencia_distancia_km" readonly="1"/>
                         </group>
@@ -71,6 +72,8 @@
                                     <field name="duracion_gaps_seg" readonly="1"/>
                                 </group>
                                 <group string="Adecuación Funcional y Rendimiento">
+                                    <field name="calidad_sync_disponible"/>
+                                    <field name="deteccion_validada"/>
                                     <field name="exactitud_sincronizacion_pct" widget="progressbar" readonly="1"/>
                                     <field name="tiempo_respuesta_ms" readonly="1"/>
                                     <field name="tasa_verdaderos_positivos_pct" widget="progressbar" readonly="1"/>
@@ -103,12 +106,15 @@
         <field name="model">fleet.metricas.recorrido</field>
         <field name="arch" type="xml">
             <pivot string="Análisis de Rendimiento de Rutas">
+                <field name="fecha_recorrido" type="col" interval="month"/>
                 <field name="ruta_id" type="row"/>
                 <field name="vehicle_id" type="col"/>
                 <field name="pct_puntualidad" type="measure"/>
                 <field name="pct_cumplimiento_ruta" type="measure"/>
                 <field name="pct_desviacion_ruta" type="measure"/>
                 <field name="integridad_gps_pct" type="measure"/>
+                <field name="duracion_real_min" type="measure"/>
+                <field name="diferencia_duracion_min" type="measure"/>
             </pivot>
         </field>
     </record>

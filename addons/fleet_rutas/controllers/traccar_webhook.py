@@ -29,7 +29,7 @@ class TraccarWebhookController(http.Controller):
         return (
             request.env["ir.config_parameter"]
             .sudo()
-            .get_param("fleet_rutas.webhook_secret", "flota_traccar_secret_2026")
+            .get_param("fleet_rutas.webhook_secret", "")
         )
 
     def _validate_secret(self, req_secret: str) -> bool:
@@ -38,11 +38,8 @@ class TraccarWebhookController(http.Controller):
         comparación de tiempo constante para evitar timing-attacks.
         """
         stored = self._get_webhook_secret()
-        if not stored:
-            return True
-        if not req_secret:
-            # Permitir si coincide con el default y no se requiere token estricto
-            return stored == "flota_traccar_secret_2026"
+        if not stored or not req_secret:
+            return False
         return hmac.compare_digest(stored.strip(), req_secret.strip())
 
     # ------------------------------------------------------------------
@@ -100,8 +97,10 @@ class TraccarWebhookController(http.Controller):
                 {"status": "error", "message": "Invalid JSON"}, status=400
             )
 
-        positions = payload.get("positions", [])
-        if not isinstance(positions, list):
+        if not isinstance(payload, dict):
+            return self._json_response({"status": "error", "message": "Expected JSON object"}, status=400)
+        positions = payload.get("positions", [payload["position"]] if "position" in payload else [])
+        if not isinstance(positions, list) or any(not isinstance(p, dict) for p in positions):
             return self._json_response(
                 {"status": "error", "message": "Invalid payload: 'positions' must be a list"},
                 status=400,
@@ -164,14 +163,12 @@ class TraccarWebhookController(http.Controller):
 
         for pos in positions:
             try:
-                processed += self._process_single_position(
-                    env=env,
-                    PosicionGps=PosicionGps,
-                    Recorrido=Recorrido,
-                    device_vehicle_map=device_vehicle_map,
-                    existing_pos_ids=existing_pos_ids,
-                    pos=pos,
-                )
+                with env.cr.savepoint():
+                    processed += self._process_single_position(
+                        env=env, PosicionGps=PosicionGps, Recorrido=Recorrido,
+                        device_vehicle_map=device_vehicle_map,
+                        existing_pos_ids=existing_pos_ids, pos=pos,
+                    )
             except Exception as exc:  # noqa: BLE001
                 _logger.error(
                     "Webhook Traccar: error procesando posición id=%s — %s",
@@ -240,7 +237,7 @@ class TraccarWebhookController(http.Controller):
         timestamp_str = pos.get("fixTime") or pos.get("deviceTime") or pos.get("serverTime")
         timestamp = self._parse_iso_datetime(timestamp_str)
 
-        if latitude is None or longitude is None:
+        if latitude is None or longitude is None or timestamp is None or pos.get("valid") is False:
             _logger.warning(
                 "Webhook Traccar: posición id=%s sin lat/lon, omitida.", traccar_position_id
             )
@@ -251,6 +248,7 @@ class TraccarWebhookController(http.Controller):
             [
                 ("vehicle_id", "=", vehicle.id),
                 ("estado", "=", "en_curso"),
+                ("fecha_inicio_real", "<=", timestamp),
             ],
             limit=1,
             order="fecha_inicio desc",
@@ -258,6 +256,7 @@ class TraccarWebhookController(http.Controller):
 
         # ── Crear fleet.posicion.gps ────────────────────────────────────
         vals_posicion = {
+            "payload_origen": json.dumps(pos),
             "traccar_position_id": traccar_position_id,
             "vehicle_id": vehicle.id,
             "recorrido_id": recorrido.id if recorrido else False,
@@ -274,7 +273,8 @@ class TraccarWebhookController(http.Controller):
         existing_pos_ids.add(traccar_position_id)
 
         # ── Actualizar última posición en fleet.vehicle ─────────────────
-        vehicle.write(
+        if not vehicle.traccar_last_update or timestamp >= vehicle.traccar_last_update:
+            vehicle.write(
             {
                 "traccar_last_latitude": float(latitude),
                 "traccar_last_longitude": float(longitude),

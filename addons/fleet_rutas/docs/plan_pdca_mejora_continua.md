@@ -1,4 +1,6 @@
 # Plan de Acción y Mejora Continua (Ciclo PDCA / Deming)
+
+> Nota de auditoría, 30/10/2026: las cifras y afirmaciones de pruebas de preproducción de este documento son ilustrativas y no tienen evidencias adjuntas verificadas. No presentarlas como mediciones reales. Consultar `docs/REVISION_PROYECTO.md` para los hallazgos y resultados comprobados de la revisión actual.
 ## Sistema de Monitoreo y Evaluación de Rutas de Transporte Universitario
 **Norma de Referencia SQA:** ISO/IEC 25010 (Características de Fiabilidad, Eficiencia y Adecuación Funcional)
 

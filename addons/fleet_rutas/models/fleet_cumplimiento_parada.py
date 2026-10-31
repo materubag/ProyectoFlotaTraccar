@@ -37,7 +37,7 @@ class FleetCumplimientoParada(models.Model):
     timestamp_llegada = fields.Datetime(
         string='Hora Real de Llegada',
     )
-    retraso_min = fields.Integer(
+    retraso_min = fields.Float(
         string='Retraso (min)',
         readonly=True,
         help='Positivo = tarde, negativo = adelantado respecto a hora programada.',
@@ -90,8 +90,8 @@ class FleetCumplimientoParada(models.Model):
         self.ensure_one()
         if not self.cumplida:
             return 'omitida'
-        if self.retraso_min > (self.parada_id.tolerancia_min or 5):
+        if self.retraso_min > self.parada_id.tolerancia_min:
             return 'tardía'
-        if self.retraso_min < -(self.parada_id.tolerancia_min or 5):
+        if self.retraso_min < -self.parada_id.tolerancia_min:
             return 'adelantada'
         return 'puntual'

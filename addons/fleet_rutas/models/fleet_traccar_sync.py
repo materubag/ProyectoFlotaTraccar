@@ -119,6 +119,9 @@ class FleetTraccarSync(models.Model):
 
         return TraccarService(url, user, password)
 
+    def _check_sync_access(self):
+        self.check_access_rights('write')
+
     def _create_sync_log(self, sync_type: str) -> "FleetTraccarSync":
         """Crea y retorna un registro de log de sincronización."""
         return self.sudo().create(
@@ -194,6 +197,7 @@ class FleetTraccarSync(models.Model):
         :param vehicle_ids: IDs de fleet.vehicle a sincronizar (None = todos).
         :returns: Dict con estadísticas.
         """
+        self._check_sync_access()
         from ..services.traccar_service import TraccarAPIError
 
         sync_log = self._create_sync_log("ultimo_posicion")
@@ -212,6 +216,7 @@ class FleetTraccarSync(models.Model):
                 domain.append(("id", "in", vehicle_ids))
 
             vehicles = self.env["fleet.vehicle"].sudo().search(domain)
+            sync_log.vehicle_ids = [(6, 0, vehicles.ids)]
             if not vehicles:
                 log_lines.append("No hay vehículos con tracking habilitado.")
                 self._finalizar_log(sync_log, stats, log_lines=log_lines)
@@ -256,13 +261,12 @@ class FleetTraccarSync(models.Model):
             nuevas_posiciones = []
             for pos in positions:
                 try:
-                    result = self._procesar_posicion_ultima(
-                        pos=pos,
-                        device_vehicle_map=device_vehicle_map,
-                        vehicle_recorrido_map=vehicle_recorrido_map,
-                        existing_ids=existing_ids,
-                        stats=stats,
-                    )
+                    with self.env.cr.savepoint():
+                        result = self._procesar_posicion_ultima(
+                            pos=pos, device_vehicle_map=device_vehicle_map,
+                            vehicle_recorrido_map=vehicle_recorrido_map,
+                            existing_ids=existing_ids, stats=stats,
+                        )
                     if result:
                         nuevas_posiciones.append(result)
                 except Exception as exc:  # noqa: BLE001
@@ -347,11 +351,16 @@ class FleetTraccarSync(models.Model):
         timestamp_str = pos.get("fixTime") or pos.get("deviceTime") or pos.get("serverTime")
         timestamp = self._parse_iso_datetime(timestamp_str)
 
+        if timestamp is None or pos.get("valid") is False:
+            raise ValueError("Invalid GPS timestamp or fix")
         recorrido = vehicle_recorrido_map.get(vehicle.id)
+        if recorrido and recorrido.fecha_inicio_real and timestamp < recorrido.fecha_inicio_real:
+            recorrido = None
 
         # Crear posicion.gps
         pos_record = self.env["fleet.posicion.gps"].sudo().create(
             {
+                "payload_origen": json.dumps(pos),
                 "traccar_position_id": traccar_pos_id,
                 "vehicle_id": vehicle.id,
                 "recorrido_id": recorrido.id if recorrido else False,
@@ -369,7 +378,8 @@ class FleetTraccarSync(models.Model):
         stats["nuevos"] += 1
 
         # Actualizar fleet.vehicle
-        vehicle.sudo().write(
+        if not vehicle.traccar_last_update or timestamp >= vehicle.traccar_last_update:
+            vehicle.sudo().write(
             {
                 "traccar_last_latitude": float(latitude),
                 "traccar_last_longitude": float(longitude),
@@ -404,6 +414,8 @@ class FleetTraccarSync(models.Model):
         7. Actualizar recorrido.distancia_real_km.
         8. Retornar dict con estadísticas.
         """
+        self._check_sync_access()
+        self.env['fleet.recorrido'].browse(recorrido_id).check_access_rule('write')
         from ..services.traccar_service import TraccarAPIError
 
         sync_log = self._create_sync_log("historial")
@@ -417,6 +429,7 @@ class FleetTraccarSync(models.Model):
                 raise UserError(f"Recorrido id={recorrido_id} no encontrado.")
 
             vehicle = recorrido.vehicle_id
+            sync_log.vehicle_ids = [(6, 0, vehicle.ids)]
             if not vehicle or not vehicle.traccar_device_id:
                 raise UserError(
                     f"El vehículo del recorrido id={recorrido_id} no tiene "
@@ -430,8 +443,8 @@ class FleetTraccarSync(models.Model):
             )
 
             # ── Rango temporal ───────────────────────────────────────────
-            effective_from = from_dt or recorrido.fecha_inicio
-            effective_to = to_dt or recorrido.fecha_fin or fields.Datetime.now()
+            effective_from = from_dt or recorrido.fecha_inicio_real or recorrido.fecha_inicio
+            effective_to = to_dt or recorrido.fecha_fin_real or fields.Datetime.now()
 
             if isinstance(effective_from, str):
                 effective_from = fields.Datetime.from_string(effective_from)
@@ -465,11 +478,14 @@ class FleetTraccarSync(models.Model):
                     .search(
                         [
                             ("traccar_position_id", "in", incoming_ids),
-                            ("recorrido_id", "=", recorrido_id),
                         ]
                     )
                 )
                 existing_ids = set(existing_records.mapped("traccar_position_id"))
+                # A last-position poll may have stored this fix before assignment.
+                unassigned = existing_records.filtered(lambda p: not p.recorrido_id and p.vehicle_id == vehicle)
+                unassigned.write({'recorrido_id': recorrido.id})
+                unassigned.detectar_desviacion()
 
             nuevas_positions = [
                 p for p in positions if p.get("id") not in existing_ids
@@ -592,11 +608,15 @@ class FleetTraccarSync(models.Model):
                 pos.get("fixTime") or pos.get("deviceTime") or pos.get("serverTime")
             )
             timestamp = self._parse_iso_datetime(timestamp_str)
+            if timestamp is None or pos.get("valid") is False:
+                stats["errores"] += 1
+                continue
             speed_kmh = float(pos.get("speed", 0.0)) * 1.852
             attributes = pos.get("attributes", {})
 
             vals_list.append(
                 {
+                    "payload_origen": json.dumps(pos),
                     "traccar_position_id": pos.get("id"),
                     "vehicle_id": vehicle.id,
                     "recorrido_id": recorrido.id,
@@ -614,76 +634,17 @@ class FleetTraccarSync(models.Model):
         if not vals_list:
             return []
 
-        if len(vals_list) >= BULK_THRESHOLD:
-            return self._insertar_bulk_sql(vals_list, stats)
-        else:
-            PosicionGps = self.env["fleet.posicion.gps"].sudo()
-            records = PosicionGps.create(vals_list)
-            stats["nuevos"] += len(records)
-            return list(records)
-
-    def _insertar_bulk_sql(self, vals_list: List[Dict], stats: dict) -> List:
-        """
-        Inserta posiciones directamente con SQL para máximo rendimiento.
-        Retorna los registros recién creados como lista de browse records.
-        """
-        cr = self.env.cr
-        now = fields.Datetime.to_string(fields.Datetime.now())
-
-        rows = []
+        records = []
         for vals in vals_list:
-            ts = (
-                fields.Datetime.to_string(vals["timestamp"])
-                if vals.get("timestamp")
-                else now
-            )
-            rows.append(
-                (
-                    vals.get("traccar_position_id"),
-                    vals["vehicle_id"],
-                    vals["recorrido_id"],
-                    vals["latitud"],
-                    vals["longitud"],
-                    vals.get("altitud", 0.0),
-                    vals.get("velocidad", 0.0),
-                    vals.get("rumbo", 0.0),
-                    vals.get("precision", 0.0),
-                    ts,
-                    vals.get("atributos_raw", "{}"),
-                    now,  # create_date
-                    now,  # write_date
-                    self.env.uid,  # create_uid
-                    self.env.uid,  # write_uid
-                )
-            )
-
-        # Construir INSERT múltiple con parámetros (seguro contra SQL injection)
-        placeholders = ", ".join(
-            ["(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"] * len(rows)
-        )
-        flat_values = [v for row in rows for v in row]
-
-        cr.execute(
-            f"""
-            INSERT INTO fleet_posicion_gps
-              (traccar_position_id, vehicle_id, recorrido_id,
-               latitud, longitud, altitud, velocidad, rumbo, precision,
-               timestamp, atributos_raw,
-               create_date, write_date, create_uid, write_uid)
-            VALUES {placeholders}
-            RETURNING id
-            """,
-            flat_values,
-        )
-        inserted_ids = [row[0] for row in cr.fetchall()]
-        stats["nuevos"] += len(inserted_ids)
-
-        # Invalidar caché del ORM
-        self.env["fleet.posicion.gps"].invalidate_model()
-
-        return list(
-            self.env["fleet.posicion.gps"].sudo().browse(inserted_ids)
-        )
+            try:
+                with self.env.cr.savepoint():
+                    record = self.env["fleet.posicion.gps"].sudo().create(vals)
+                records.append(record)
+                stats["nuevos"] += 1
+            except Exception:
+                stats["errores"] += 1
+                _logger.exception('No se pudo importar la posición Traccar %s', vals.get('traccar_position_id'))
+        return records
 
     def _actualizar_distancia_recorrido(self, recorrido):
         """
@@ -737,6 +698,7 @@ class FleetTraccarSync(models.Model):
 
         :returns: Dict con estadísticas.
         """
+        self._check_sync_access()
         from ..services.traccar_service import TraccarAPIError
 
         sync_log = self._create_sync_log("dispositivos")
@@ -843,6 +805,13 @@ class FleetTraccarSync(models.Model):
             )
         )
 
+        if recorrido.fecha_inicio_real:
+            end = recorrido.fecha_fin_real or fields.Datetime.now()
+            last = positions[-1].timestamp if positions else recorrido.fecha_inicio_real
+            if (end - last).total_seconds() > 120:
+                incidence = self.env['fleet.incidencia'].sudo()
+                if not incidence.search_count([('recorrido_id', '=', recorrido_id), ('tipo', '=', 'senal_perdida'), ('timestamp', '=', last)]):
+                    incidence.crear_incidencia_perdida_senal(recorrido_id, (end - last).total_seconds(), last)
         if len(positions) < 2:
             return 0
 

@@ -239,6 +239,7 @@
         <!-- 3. RECORRIDOS DE ASIGNACIÓN (Mínimo 2 recorridos)                 -->
         <!-- ═════════════════════════════════════════════════════════════════ -->
         <record id="recorrido_demo_01" model="fleet.recorrido">
+            <field name="simulado">True</field>
             <field name="ruta_id" ref="ruta_norte"/>
             <field name="vehicle_id" ref="vehicle_bus_01"/>
             <field name="conductor_id" ref="base.user_admin"/>
@@ -252,6 +253,7 @@
         </record>
 
         <record id="recorrido_demo_02" model="fleet.recorrido">
+            <field name="simulado">True</field>
             <field name="ruta_id" ref="ruta_sur"/>
             <field name="vehicle_id" ref="vehicle_bus_02"/>
             <field name="conductor_id" ref="base.user_admin"/>
