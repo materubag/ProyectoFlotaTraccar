@@ -25,6 +25,7 @@ Características implementadas:
         'fleet',
         'fleet_traccar',
         'web',
+        'mail',
     ],
     'data': [
         'security/ir.model.access.csv',
@@ -43,7 +44,7 @@ Características implementadas:
         ],
     },
     'installable': True,
-    'application': True,
+    'application': False,
     'auto_install': False,
     'sequence': 10,
 }

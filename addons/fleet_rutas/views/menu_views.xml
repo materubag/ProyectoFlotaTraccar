@@ -4,15 +4,15 @@
     <!-- MENÚ PRINCIPAL: TRANSPORTE UNIVERSITARIO                     -->
     <!-- ============================================================ -->
 
-    <!-- Menú Raíz / Aplicación -->
+    <!-- Transporte forma parte de Fleet; se conservan los IDs y las acciones. -->
     <menuitem id="menu_fleet_rutas_root"
-              name="Transporte Universitario"
-              web_icon="fleet,static/description/icon.png"
-              sequence="15"/>
+              name="Transporte"
+              parent="fleet.menu_root"
+              sequence="20"/>
 
     <!-- Dashboard Principal -->
     <menuitem id="menu_fleet_rutas_dashboard"
-              name="Dashboard"
+              name="Panel de control"
               parent="menu_fleet_rutas_root"
               action="action_fleet_rutas_dashboard"
               sequence="5"/>
@@ -43,9 +43,9 @@
 
     <!-- ── Reportes y Calidad SQA ────────────────────────────────── -->
     <menuitem id="menu_fleet_rutas_reportes"
-              name="Reportes y Calidad SQA"
-              parent="menu_fleet_rutas_root"
-              sequence="20"/>
+              name="Reportes y calidad"
+              parent="fleet.menu_root"
+              sequence="40"/>
 
     <menuitem id="menu_fleet_metricas_action"
               name="Métricas ISO/IEC 25010"
@@ -55,7 +55,7 @@
 
     <!-- ── Configuración ─────────────────────────────────────────── -->
     <menuitem id="menu_fleet_rutas_configuracion"
-              name="Configuración"
+              name="Rutas y sincronización"
               parent="menu_fleet_rutas_root"
               sequence="30"/>
 

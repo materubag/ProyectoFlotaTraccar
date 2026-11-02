@@ -1,113 +1,84 @@
-/* Estilos para el Dashboard de Rutas Universitarias */
-.o_fleet_rutas_dashboard {
-    width: 100%;
-    min-width: 0;
-    height: 100%;
-    overflow-y: auto;
-    box-sizing: border-box;
-    padding: 24px;
-    background-color: #f8fafc;
-    min-height: 100vh;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+﻿/* Scoped to the Fleet control panel; Grafana styles are independent. */
+.o_fleet_rutas_dashboard { --fleet-text:#edf3ff; --fleet-muted:#a5b5cd; --fleet-border:#2b3b53; box-sizing:border-box; width:100%; height:100%; min-width:0; overflow-y:auto; color:var(--fleet-text); background:radial-gradient(ellipse at 10% 0%,#173448 0,transparent 55%),#0d1726; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; padding:28px; }
+.o_fleet_rutas_dashboard *, .o_fleet_rutas_dashboard *::before, .o_fleet_rutas_dashboard *::after { box-sizing:border-box; }
+.o_fleet_rutas_dashboard .fleet_workspace { max-width:1680px; margin:0 auto; }
+.o_fleet_rutas_dashboard button { font:inherit; cursor:pointer; }
+.o_fleet_rutas_dashboard button:focus-visible, .o_fleet_rutas_dashboard [tabindex]:focus-visible { outline:3px solid #7de3db; outline-offset:4px; }
+.o_fleet_rutas_dashboard .fleet_hero { display:flex; justify-content:space-between; align-items:center; gap:28px; padding:30px 32px; margin-bottom:22px; border:1px solid #33536b; border-radius:18px; background:linear-gradient(115deg,#19384b 0%,#192b43 58%,#1f2840 100%); box-shadow:0 14px 40px #030c1629; }
+.o_fleet_rutas_dashboard .fleet_heading { min-width:0; }
+.o_fleet_rutas_dashboard .fleet_eyebrow { color:#a1d5db; display:block; font-size:11px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; }
+.o_fleet_rutas_dashboard h1 { color:#f4f8ff; font-size:clamp(26px,3vw,36px); line-height:1.2; letter-spacing:-.8px; font-weight:700; margin:10px 0; }
+.o_fleet_rutas_dashboard .fleet_heading p { color:#c0cfdf; margin:0; font-size:14px; line-height:1.6; }
+.o_fleet_rutas_dashboard .fleet_hero_stats { display:flex; flex-wrap:wrap; gap:10px 24px; margin-top:24px; color:#b7c9d8; font-size:12px; }
+.o_fleet_rutas_dashboard .fleet_hero_stats strong { color:#fff; font-weight:700; margin-right:5px; }
+.o_fleet_rutas_dashboard .fleet_hero_controls { display:flex; flex-direction:column; align-items:flex-end; gap:12px; flex-shrink:0; }
+.o_fleet_rutas_dashboard .fleet_connection { display:flex; align-items:center; gap:8px; font-size:12px; color:#c1d6dc; }
+.o_fleet_rutas_dashboard .fleet_refresh_note { color:#a2b7cd; font-size:11px; }
+.o_fleet_rutas_dashboard .fleet_button { display:inline-flex; justify-content:center; align-items:center; gap:10px; padding:10px 16px; min-height:44px; border:1px solid transparent; border-radius:8px; font-size:12px; font-weight:600; line-height:1.4; }
+.o_fleet_rutas_dashboard .fleet_button_primary { background:#81e0d0; border-color:#81e0d0; color:#102e35; }
+.o_fleet_rutas_dashboard .fleet_button_primary:hover { background:#a0efdf; }
+.o_fleet_rutas_dashboard .fleet_button_secondary { background:#203249; border-color:#3d516d; color:#e4edf9; }
+.o_fleet_rutas_dashboard .fleet_button_secondary:hover { background:#2d4560; border-color:#718ba8; }
+.o_fleet_rutas_dashboard .fleet_button:disabled { opacity:.65; cursor:wait; }
+.o_fleet_rutas_dashboard .fleet_notice { padding:14px 18px; margin-bottom:18px; border:1px solid #345671; border-radius:10px; background:#172d43; color:#dbeaff; }
+.o_fleet_rutas_dashboard .fleet_notice.is_error { border-color:#866034; background:#3a2e22; color:#ffe0ae; }
+.o_fleet_rutas_dashboard .fleet_kpis { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:14px; margin-bottom:24px; }
+.o_fleet_rutas_dashboard .fleet_kpi { --accent:#81e0d0; display:flex; flex-direction:column; text-align:left; min-width:0; padding:20px; border:1px solid var(--fleet-border); border-top:3px solid var(--accent); border-radius:12px; color:var(--fleet-text); background:#17263a; box-shadow:0 8px 22px #050c161c; transition:background .15s,transform .15s; }
+.o_fleet_rutas_dashboard .fleet_kpi:hover { background:#1e3048; transform:translateY(-2px); }
+.o_fleet_rutas_dashboard .tone_blue { --accent:#8abcf9; }
+.o_fleet_rutas_dashboard .tone_violet { --accent:#b4a6f3; }
+.o_fleet_rutas_dashboard .tone_amber { --accent:#f4c17c; }
+.o_fleet_rutas_dashboard .tone_cyan { --accent:#81d5e9; }
+.o_fleet_rutas_dashboard .fleet_kpi_top { display:flex; align-items:center; justify-content:space-between; width:100%; gap:8px; font-size:13px; color:#c6d3e5; }
+.o_fleet_rutas_dashboard .fleet_kpi_top .fa { color:var(--accent); font-size:17px; }
+.o_fleet_rutas_dashboard .fleet_kpi_value { display:block; color:#f3f7ff; font-size:34px; font-weight:700; line-height:1.2; letter-spacing:-.9px; margin:20px 0 8px; }
+.o_fleet_rutas_dashboard .fleet_kpi_value small { color:var(--accent); font-size:19px; margin-left:4px; }
+.o_fleet_rutas_dashboard .fleet_kpi_hint { color:var(--fleet-muted); font-size:11px; line-height:1.6; flex:1; }
+.o_fleet_rutas_dashboard .fleet_kpi_link { display:flex; justify-content:space-between; align-items:center; gap:8px; width:100%; border-top:1px solid #2b3b53; margin-top:18px; padding-top:12px; color:var(--accent); font-size:11px; }
+.o_fleet_rutas_dashboard .fleet_content_grid { display:grid; grid-template-columns:minmax(0,1fr) 320px; gap:20px; align-items:start; }
+.o_fleet_rutas_dashboard .fleet_panel { min-width:0; overflow:hidden; border:1px solid var(--fleet-border); border-radius:14px; background:#142237; }
+.o_fleet_rutas_dashboard .fleet_panel_header { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:22px 24px; border-bottom:1px solid var(--fleet-border); }
+.o_fleet_rutas_dashboard .fleet_panel_header .fleet_eyebrow { font-size:10px; color:#96abc4; letter-spacing:1.2px; }
+.o_fleet_rutas_dashboard h2 { color:#eaf1ff; margin:7px 0 0; font-size:17px; font-weight:600; }
+.o_fleet_rutas_dashboard .fleet_empty { display:flex; flex-direction:column; align-items:center; text-align:center; padding:36px 24px 40px; }
+.o_fleet_rutas_dashboard .fleet_empty_icon { display:flex; align-items:center; justify-content:center; height:58px; width:58px; border-radius:16px; color:#88b8c6; background:#20384c; font-size:23px; margin-bottom:18px; }
+.o_fleet_rutas_dashboard .fleet_empty h3 { color:#e2ebfa; font-size:16px; font-weight:600; margin:0 0 8px; }
+.o_fleet_rutas_dashboard .fleet_empty p { color:#a5b5cd; font-size:12px; margin:0 0 22px; max-width:300px; line-height:1.7; }
+.o_fleet_rutas_dashboard .fleet_shortcuts .fleet_panel_header { padding:22px 20px; }
+.o_fleet_rutas_dashboard .fleet_shortcuts nav { padding:8px; }
+.o_fleet_rutas_dashboard .fleet_shortcuts nav button { display:flex; align-items:center; gap:14px; width:100%; text-align:left; color:#cedbec; background:transparent; border:0; border-radius:8px; padding:16px 12px; }
+.o_fleet_rutas_dashboard .fleet_shortcuts nav button:hover { background:#21344b; }
+.o_fleet_rutas_dashboard .fleet_shortcuts nav button > .fa:first-child { color:#8dbbc8; font-size:17px; width:20px; text-align:center; }
+.o_fleet_rutas_dashboard .fleet_shortcuts nav button > .fa:last-child { margin-left:auto; color:#8ca3c0; }
+.o_fleet_rutas_dashboard .fleet_shortcuts nav strong { font-size:12px; font-weight:600; display:block; }
+.o_fleet_rutas_dashboard .fleet_shortcuts nav small { color:#9cacc3; font-size:11px; display:block; margin-top:5px; line-height:1.5; }
+.o_fleet_rutas_dashboard .fleet_table_scroll { max-width:100%; overflow-x:auto; }
+.o_fleet_rutas_dashboard .fleet_table { width:100%; min-width:650px; border-collapse:collapse; font-size:12px; }
+.o_fleet_rutas_dashboard .fleet_table th { color:#abc0d7; background:#1a2c42; font-size:10px; text-transform:uppercase; letter-spacing:.5px; text-align:left; font-weight:600; }
+.o_fleet_rutas_dashboard .fleet_table th, .o_fleet_rutas_dashboard .fleet_table td { padding:16px 20px; border-bottom:1px solid var(--fleet-border); }
+.o_fleet_rutas_dashboard .fleet_table tbody tr:hover { background:#1d3047; }
+.o_fleet_rutas_dashboard .fleet_table td strong { color:#e4edfa; display:block; max-width:320px; overflow-wrap:anywhere; }
+.o_fleet_rutas_dashboard .fleet_cell_secondary { color:#a5b5cd; display:block; font-size:11px; margin-top:5px; }
+.o_fleet_rutas_dashboard .fleet_badge { display:inline-block; border-radius:6px; padding:5px 9px; background:#2a3e57; color:#d6e7fc; white-space:nowrap; }
+.o_fleet_rutas_dashboard .fleet_badge.is_success { color:#9de6d2; background:#1b3e3c; }
+.o_fleet_rutas_dashboard .fleet_badge.is_warning { color:#ffcf95; background:#473629; }
+@media (max-width:1199px) {
+ .o_fleet_rutas_dashboard { padding:20px; }
+ .o_fleet_rutas_dashboard .fleet_kpis { grid-template-columns:repeat(3,minmax(0,1fr)); }
+ .o_fleet_rutas_dashboard .fleet_content_grid { grid-template-columns:minmax(0,1fr); }
+ .o_fleet_rutas_dashboard .fleet_shortcuts nav { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); }
 }
-
-.o_fleet_rutas_dashboard .dashboard_header { flex-wrap: wrap; gap: 16px; }
-.o_fleet_rutas_dashboard .title_section,
-.o_fleet_rutas_dashboard .kpi_body { min-width: 0; overflow-wrap: anywhere; }
-.o_fleet_rutas_dashboard .action_section { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.o_fleet_rutas_dashboard .table-responsive { max-width: 100%; overflow-x: auto; }
-.o_fleet_rutas_dashboard .table { min-width: 640px; }
-@media (max-width: 767px) {
-    .o_fleet_rutas_dashboard { padding: 12px; min-height: 0; }
-    .o_fleet_rutas_dashboard .title_section h2 { font-size: 1.15rem; }
-    .o_fleet_rutas_dashboard .kpi_grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-    .o_fleet_rutas_dashboard .kpi_card { padding: 12px; flex-direction: column; align-items: flex-start; }
-    .o_fleet_rutas_dashboard .kpi_icon { font-size: 1.6rem; margin: 0 0 8px; }
-    .o_fleet_rutas_dashboard .btn { min-height: 44px; white-space: normal; }
-    .o_fleet_rutas_dashboard .card-header { flex-wrap: wrap; gap: 8px; }
+@media (max-width:767px) {
+ .o_fleet_rutas_dashboard { padding:12px; }
+ .o_fleet_rutas_dashboard .fleet_hero { padding:24px 20px; flex-direction:column; align-items:stretch; gap:22px; }
+ .o_fleet_rutas_dashboard .fleet_hero_controls { align-items:flex-start; }
+ .o_fleet_rutas_dashboard .fleet_hero_controls .fleet_button { width:100%; }
+ .o_fleet_rutas_dashboard .fleet_kpis { grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+ .o_fleet_rutas_dashboard .fleet_kpi { padding:16px 12px; }
+ .o_fleet_rutas_dashboard .fleet_kpi_top { font-size:12px; }
+ .o_fleet_rutas_dashboard .fleet_kpi_value { font-size:30px; }
+ .o_fleet_rutas_dashboard .fleet_panel_header { padding:18px 16px; flex-wrap:wrap; }
+ .o_fleet_rutas_dashboard .fleet_shortcuts nav { grid-template-columns:minmax(0,1fr); }
 }
-@media (max-width: 359px) {
-    .o_fleet_rutas_dashboard .kpi_grid { grid-template-columns: minmax(0, 1fr); }
-}
-@media (prefers-reduced-motion: reduce) {
-    .o_fleet_rutas_dashboard .kpi_card { transition: none; }
-}
-
-.dashboard_header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 24px;
-    padding-bottom: 16px;
-    border-bottom: 1px solid #e2e8f0;
-}
-
-.title_section h2 {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: #1e293b;
-    margin: 0;
-}
-
-.title_section .subtitle {
-    font-size: 0.875rem;
-    color: #64748b;
-}
-
-.kpi_grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-    gap: 16px;
-    margin-bottom: 24px;
-}
-
-.kpi_card {
-    display: flex;
-    align-items: center;
-    padding: 18px 20px;
-    border-radius: 12px;
-    background: #ffffff;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03);
-    cursor: pointer;
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
-    border: 1px solid rgba(0, 0, 0, 0.05);
-}
-
-.kpi_card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-}
-
-.kpi_icon {
-    font-size: 2.2rem;
-    margin-right: 16px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.kpi_body {
-    display: flex;
-    flex-direction: column;
-}
-
-.kpi_val {
-    font-size: 1.75rem;
-    font-weight: 700;
-    color: #0f172a;
-    line-height: 1.1;
-}
-
-.kpi_label {
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: #475569;
-    margin-top: 4px;
-}
-
-.active_trips_panel {
-    border-radius: 12px;
-    overflow: hidden;
-    border: 1px solid #e2e8f0;
-}
-
+@media (max-width:359px) { .o_fleet_rutas_dashboard .fleet_kpis { grid-template-columns:minmax(0,1fr); } }
+@media (prefers-reduced-motion:reduce) { .o_fleet_rutas_dashboard .fleet_kpi { transition:none; } }

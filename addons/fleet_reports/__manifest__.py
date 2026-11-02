@@ -23,6 +23,7 @@ Módulo de Reportes de Flota Vehicular con Grafana
         'base',
         'fleet',
         'fleet_traccar',
+        'fleet_rutas',
         'web',
     ],
     'data': [

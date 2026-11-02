@@ -69,6 +69,9 @@ class FleetRutasDashboard extends Component {
         this.loadKpis();
     }
 
+    openRutas() { this.actionService.doAction("fleet_rutas.action_fleet_ruta"); }
+    openTelemetria() { this.actionService.doAction("fleet_rutas.action_fleet_posicion_gps"); }
+
     openRecorridos() {
         this.actionService.doAction("fleet_rutas.action_fleet_recorrido");
     }
@@ -94,124 +97,52 @@ class FleetRutasDashboard extends Component {
 
 FleetRutasDashboard.template = xml/* xml */`
 <div class="o_fleet_rutas_dashboard">
-    <div class="dashboard_header">
-        <div class="title_section">
-            <h2>🚌 Monitoreo y Evaluación de Rutas Universitarias</h2>
-            <span class="subtitle">Indicadores Operativos y Calidad ISO/IEC 25010 en Tiempo Real</span>
-        </div>
-        <div class="action_section">
-            <span class="badge bg-light text-dark me-2">Actualizado: <t t-esc="state.lastUpdated"/></span>
-            <button class="btn btn-primary btn-sm" t-on-click="onRefresh">
-                <i class="fa fa-refresh me-1"/> Actualizar
-            </button>
-        </div>
-    </div>
-
-    <div t-if="state.error" class="alert alert-danger" role="alert">No se pudieron actualizar los indicadores. Intenta actualizar de nuevo.</div>
-    <div t-if="state.loading" role="status" class="alert alert-info">Cargando indicadores…</div>
-    <!-- KPI Grid -->
-    <div class="kpi_grid">
-        <div class="kpi_card bg-primary-subtle" t-on-click="openRecorridos">
-            <div class="kpi_icon text-primary">🚍</div>
-            <div class="kpi_body">
-                <span class="kpi_val"><t t-esc="state.kpis.en_curso"/></span>
-                <span class="kpi_label">En Curso Ahora</span>
-                <small class="text-muted"><t t-esc="state.kpis.recorridos_hoy"/> programados hoy</small>
-            </div>
-        </div>
-
-        <div class="kpi_card bg-success-subtle" t-on-click="openMetricas">
-            <div class="kpi_icon text-success">⏱️</div>
-            <div class="kpi_body">
-                <span class="kpi_val"><t t-esc="state.kpis.avg_puntualidad"/>%</span>
-                <span class="kpi_label">Puntualidad Global</span>
-                <small class="text-muted">Tolerancia configurada por parada</small>
-            </div>
-        </div>
-
-        <div class="kpi_card bg-info-subtle" t-on-click="openMetricas">
-            <div class="kpi_icon text-info">🎯</div>
-            <div class="kpi_body">
-                <span class="kpi_val"><t t-esc="state.kpis.avg_cumplimiento"/>%</span>
-                <span class="kpi_label">Cumplimiento de Rutas</span>
-                <small class="text-muted">Paradas y recorrido</small>
-            </div>
-        </div>
-
-        <div class="kpi_card bg-warning-subtle" t-on-click="openIncidencias">
-            <div class="kpi_icon text-warning">⚠️</div>
-            <div class="kpi_body">
-                <span class="kpi_val"><t t-esc="state.kpis.incidencias_activas"/></span>
-                <span class="kpi_label">Incidencias Activas</span>
-                <small class="text-muted">Desvíos, retrasos, señal</small>
-            </div>
-        </div>
-
-        <div class="kpi_card bg-secondary-subtle" t-on-click="openMetricas">
-            <div class="kpi_icon text-dark">📡</div>
-            <div class="kpi_body">
-                <span class="kpi_val"><t t-esc="state.kpis.avg_integridad_gps"/>%</span>
-                <span class="kpi_label">Integridad GPS (ISO 25010)</span>
-                <small class="text-muted">Disponibilidad de señal</small>
-            </div>
-        </div>
-    </div>
-
-    <!-- Tabla de Recorridos Activos -->
-    <div class="active_trips_panel card mt-4 shadow-sm">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">🛣️ Recorridos Activos en Tránsito</h5>
-            <button class="btn btn-outline-secondary btn-sm" t-on-click="openRecorridos">Ver Todos</button>
-        </div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Recorrido</th>
-                            <th>Ruta</th>
-                            <th>Vehículo</th>
-                            <th>Cumplimiento Paradas</th>
-                            <th>Desviación</th>
-                            <th>Acción</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <t t-if="state.kpis.recorridos_activos.length === 0">
-                            <tr>
-                                <td colspan="6" class="text-center py-4 text-muted">
-                                    No hay recorridos en curso en este momento.
-                                </td>
-                            </tr>
-                        </t>
-                        <t t-foreach="state.kpis.recorridos_activos" t-as="item" t-key="item.id">
-                            <tr>
-                                <td><strong><t t-esc="item.name"/></strong></td>
-                                <td><t t-esc="item.ruta"/></td>
-                                <td><span class="badge bg-dark"><t t-esc="item.vehiculo"/></span></td>
-                                <td><span class="badge bg-primary"><t t-esc="item.paradas_cumplidas"/></span></td>
-                                <td>
-                                    <t t-if="item.desviacion">
-                                        <span class="badge bg-danger">Desviado</span>
-                                    </t>
-                                    <t t-else="">
-                                        <span class="badge bg-success">En Corredor</span>
-                                    </t>
-                                </td>
-                                <td>
-                                    <button class="btn btn-outline-primary btn-sm" t-on-click="() => this.openRecorridoDetail(item.id)">
-                                        Monitorear
-                                    </button>
-                                </td>
-                            </tr>
-                        </t>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
+ <div class="fleet_workspace">
+  <header class="fleet_hero">
+   <div class="fleet_heading">
+    <span class="fleet_eyebrow">Fleet / Transporte universitario</span>
+    <h1>Control de flota</h1>
+    <p>Recorridos, puntualidad y calidad del servicio en un solo lugar.</p>
+    <div class="fleet_hero_stats"><span><strong t-esc="state.kpis.recorridos_hoy"/> programados hoy</span><span><strong t-esc="state.kpis.completados"/> finalizados en el historial</span></div>
+   </div>
+   <div class="fleet_hero_controls">
+    <span class="fleet_connection" role="status"><i t-att-class="state.error ? 'fa fa-exclamation-circle' : 'fa fa-clock-o'" aria-hidden="true"/><t t-if="state.error">Actualización pendiente</t><t t-elif="state.loading">Actualizando indicadores</t><t t-else="">Actualizado <t t-esc="state.lastUpdated"/></t></span>
+    <button class="fleet_button fleet_button_primary" t-on-click="onRefresh" t-att-disabled="state.loading"><i class="fa fa-refresh" aria-hidden="true"/> Actualizar panel</button>
+    <span class="fleet_refresh_note">Actualización automática cada 30 s</span>
+   </div>
+  </header>
+  <div t-if="state.error" class="fleet_notice is_error" role="alert">No se pudieron actualizar los indicadores. Se conservan los últimos datos recibidos.</div>
+  <div t-if="state.loading" class="fleet_notice" role="status">Actualizando los datos de la flota…</div>
+  <section class="fleet_kpis" aria-label="Indicadores del servicio">
+   <button class="fleet_kpi tone_teal" t-on-click="openRecorridos"><span class="fleet_kpi_top">En curso <i class="fa fa-bus" aria-hidden="true"/></span><strong class="fleet_kpi_value" t-esc="state.kpis.en_curso"/><span class="fleet_kpi_hint">Recorridos activos ahora</span><span class="fleet_kpi_link">Ver operación <i class="fa fa-arrow-right" aria-hidden="true"/></span></button>
+   <button class="fleet_kpi tone_blue" t-on-click="openMetricas"><span class="fleet_kpi_top">Puntualidad <i class="fa fa-clock-o" aria-hidden="true"/></span><strong class="fleet_kpi_value"><t t-esc="state.kpis.avg_puntualidad"/><small>%</small></strong><span class="fleet_kpi_hint">Tolerancia de cada parada</span><span class="fleet_kpi_link">Consultar métricas <i class="fa fa-arrow-right" aria-hidden="true"/></span></button>
+   <button class="fleet_kpi tone_violet" t-on-click="openMetricas"><span class="fleet_kpi_top">Cumplimiento <i class="fa fa-check-circle-o" aria-hidden="true"/></span><strong class="fleet_kpi_value"><t t-esc="state.kpis.avg_cumplimiento"/><small>%</small></strong><span class="fleet_kpi_hint">Rutas y puntos de control</span><span class="fleet_kpi_link">Evaluar servicio <i class="fa fa-arrow-right" aria-hidden="true"/></span></button>
+   <button class="fleet_kpi tone_amber" t-on-click="openIncidencias"><span class="fleet_kpi_top">Incidencias <i class="fa fa-exclamation-triangle" aria-hidden="true"/></span><strong class="fleet_kpi_value" t-esc="state.kpis.incidencias_activas"/><span class="fleet_kpi_hint">Eventos por resolver</span><span class="fleet_kpi_link">Revisar eventos <i class="fa fa-arrow-right" aria-hidden="true"/></span></button>
+   <button class="fleet_kpi tone_cyan" t-on-click="openMetricas"><span class="fleet_kpi_top">Integridad GPS <i class="fa fa-signal" aria-hidden="true"/></span><strong class="fleet_kpi_value"><t t-esc="state.kpis.avg_integridad_gps"/><small>%</small></strong><span class="fleet_kpi_hint">Continuidad de señal registrada</span><span class="fleet_kpi_link">Ver calidad GPS <i class="fa fa-arrow-right" aria-hidden="true"/></span></button>
+  </section>
+  <div class="fleet_content_grid">
+   <section class="fleet_panel" aria-labelledby="fleet_trips_title">
+    <div class="fleet_panel_header"><div><span class="fleet_eyebrow">Seguimiento operativo</span><h2 id="fleet_trips_title">Recorridos en tránsito</h2></div><button class="fleet_button fleet_button_secondary" t-on-click="openRecorridos">Ver todos <i class="fa fa-angle-right" aria-hidden="true"/></button></div>
+    <div t-if="state.kpis.recorridos_activos.length === 0" class="fleet_empty"><span class="fleet_empty_icon"><i class="fa fa-road" aria-hidden="true"/></span><h3>Sin recorridos en curso</h3><p>Los vehículos aparecerán aquí cuando se inicie un recorrido.</p><button class="fleet_button fleet_button_secondary" t-on-click="openRecorridos">Consultar recorridos</button></div>
+    <div t-else="" class="fleet_table_scroll" tabindex="0" aria-label="Tabla de recorridos activos"><table class="fleet_table">
+     <thead><tr><th scope="col">Recorrido / Ruta</th><th scope="col">Vehículo</th><th scope="col">Paradas</th><th scope="col">Estado de ruta</th><th scope="col">Detalle</th></tr></thead>
+     <tbody><tr t-foreach="state.kpis.recorridos_activos" t-as="item" t-key="item.id">
+      <td><strong t-esc="item.name"/><span class="fleet_cell_secondary" t-esc="item.ruta"/></td><td t-esc="item.vehiculo"/><td><span class="fleet_badge" t-esc="item.paradas_cumplidas"/></td>
+      <td><span t-att-class="'fleet_badge ' + (item.desviacion ? 'is_warning' : 'is_success')"><t t-if="item.desviacion">Desviado</t><t t-else="">En corredor</t></span></td>
+      <td><button class="fleet_button fleet_button_secondary" t-on-click="() => this.openRecorridoDetail(item.id)">Abrir <i class="fa fa-angle-right" aria-hidden="true"/></button></td>
+     </tr></tbody>
+    </table></div>
+   </section>
+   <aside class="fleet_panel fleet_shortcuts" aria-labelledby="fleet_shortcuts_title">
+    <div class="fleet_panel_header"><div><span class="fleet_eyebrow">Gestión diaria</span><h2 id="fleet_shortcuts_title">Accesos de operación</h2></div></div>
+    <nav aria-label="Accesos de transporte">
+     <button t-on-click="openRutas"><i class="fa fa-map-signs" aria-hidden="true"/><span><strong>Rutas y paradas</strong><small>Organizar los puntos de control</small></span><i class="fa fa-angle-right" aria-hidden="true"/></button>
+     <button t-on-click="openTelemetria"><i class="fa fa-location-arrow" aria-hidden="true"/><span><strong>Telemetría GPS</strong><small>Consultar posiciones e historial</small></span><i class="fa fa-angle-right" aria-hidden="true"/></button>
+     <button t-on-click="openMetricas"><i class="fa fa-bar-chart" aria-hidden="true"/><span><strong>Reportes y calidad</strong><small>Analizar el desempeño del servicio</small></span><i class="fa fa-angle-right" aria-hidden="true"/></button>
+    </nav>
+   </aside>
+  </div>
+ </div>
 </div>
 `;
-
 registry.category("actions").add("fleet_rutas.dashboard", FleetRutasDashboard);
-

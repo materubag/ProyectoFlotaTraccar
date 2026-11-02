@@ -13,6 +13,7 @@ _logger = logging.getLogger(__name__)
 
 class FleetRuta(models.Model):
     _name = 'fleet.ruta'
+    _inherit = ['mail.thread', 'mail.activity.mixin']
     _description = 'Ruta de Transporte Universitario'
     _order = 'name'
     _rec_name = 'name'
@@ -234,6 +235,7 @@ class FleetParada(models.Model):
 
 class FleetRecorrido(models.Model):
     _name = 'fleet.recorrido'
+    _inherit = ['mail.thread', 'mail.activity.mixin']
     _description = 'Recorrido / Asignación de Ruta'
     _order = 'fecha_inicio desc'
     _rec_name = 'name'
@@ -313,6 +315,11 @@ class FleetRecorrido(models.Model):
         comodel_name='fleet.cumplimiento.parada',
         inverse_name='recorrido_id',
         string='Cumplimiento de Paradas',
+    )
+    metricas_ids = fields.One2many(
+        comodel_name='fleet.metricas.recorrido',
+        inverse_name='recorrido_id',
+        string='Métricas',
     )
     notas = fields.Text(
         string='Notas',

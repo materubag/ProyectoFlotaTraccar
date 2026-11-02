@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- ── Menú principal de Flota (hereda el existente de fleet) ─────────── -->
+    <!-- Conservar los IDs existentes permite actualizar sin perder favoritos. -->
     <menuitem
         id="menu_fleet_reports_root"
-        name="Reportes GPS"
-        parent="fleet.menu_root"
-        sequence="50"
+        name="Grafana"
+        parent="fleet_rutas.menu_fleet_rutas_reportes"
+        sequence="20"
     />
 
     <!-- ── Sub-menú: Dashboard Grafana ───────────────────────────────────── -->
     <menuitem
         id="menu_fleet_reports_grafana_dashboard"
-        name="Dashboard de Flota"
+        name="Monitoreo GPS"
         parent="menu_fleet_reports_root"
         action="action_fleet_reports_grafana"
         sequence="10"
