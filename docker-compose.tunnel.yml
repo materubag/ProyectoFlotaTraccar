@@ -1,0 +1,8 @@
+# Optional development connectivity: use the HTTPS URL printed in the logs.
+services:
+  tunnel-gps:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate --url http://traccar:5055
+    profiles: [connectivity]
+    restart: unless-stopped
+    networks: [flota-net]

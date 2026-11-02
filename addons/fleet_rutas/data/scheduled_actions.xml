@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- Cron 1: Sincronizar Última Posición GPS (cada 1 minuto) -->
+        <record id="ir_cron_sync_traccar_last_position" model="ir.cron">
+            <field name="name">Traccar GPS: Sincronizar Última Posición</field>
+            <field name="model_id" ref="model_fleet_traccar_sync"/>
+            <field name="state">code</field>
+            <field name="code">model.sincronizar_ultima_posicion()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">minutes</field>
+            <field name="numbercall">-1</field>
+            <field name="active">True</field>
+            <field name="doall">False</field>
+            <field name="priority">5</field>
+        </record>
+
+        <!-- Cron 2: Sincronizar Estado de Dispositivos Traccar (cada 5 minutos) -->
+        <record id="ir_cron_sync_traccar_devices" model="ir.cron">
+            <field name="name">Traccar GPS: Sincronizar Estado de Dispositivos</field>
+            <field name="model_id" ref="model_fleet_traccar_sync"/>
+            <field name="state">code</field>
+            <field name="code">model.sincronizar_dispositivos()</field>
+            <field name="interval_number">5</field>
+            <field name="interval_type">minutes</field>
+            <field name="numbercall">-1</field>
+            <field name="active">True</field>
+            <field name="doall">False</field>
+            <field name="priority">10</field>
+        </record>
+
+        <!-- Cron 3: Detección Automática de Pérdida de Señal en Recorridos Activos (cada 10 minutos) -->
+        <record id="ir_cron_detect_signal_loss" model="ir.cron">
+            <field name="name">Traccar GPS: Monitoreo de Pérdida de Señal</field>
+            <field name="model_id" ref="model_fleet_traccar_sync"/>
+            <field name="state">code</field>
+            <field name="code">model.monitorear_perdida_senal_activos()</field>
+            <field name="interval_number">10</field>
+            <field name="interval_type">minutes</field>
+            <field name="numbercall">-1</field>
+            <field name="active">True</field>
+            <field name="doall">False</field>
+            <field name="priority">15</field>
+        </record>
+    </data>
+</odoo>

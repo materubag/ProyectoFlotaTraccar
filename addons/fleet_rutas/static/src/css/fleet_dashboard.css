@@ -1,0 +1,113 @@
+/* Estilos para el Dashboard de Rutas Universitarias */
+.o_fleet_rutas_dashboard {
+    width: 100%;
+    min-width: 0;
+    height: 100%;
+    overflow-y: auto;
+    box-sizing: border-box;
+    padding: 24px;
+    background-color: #f8fafc;
+    min-height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+.o_fleet_rutas_dashboard .dashboard_header { flex-wrap: wrap; gap: 16px; }
+.o_fleet_rutas_dashboard .title_section,
+.o_fleet_rutas_dashboard .kpi_body { min-width: 0; overflow-wrap: anywhere; }
+.o_fleet_rutas_dashboard .action_section { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.o_fleet_rutas_dashboard .table-responsive { max-width: 100%; overflow-x: auto; }
+.o_fleet_rutas_dashboard .table { min-width: 640px; }
+@media (max-width: 767px) {
+    .o_fleet_rutas_dashboard { padding: 12px; min-height: 0; }
+    .o_fleet_rutas_dashboard .title_section h2 { font-size: 1.15rem; }
+    .o_fleet_rutas_dashboard .kpi_grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .o_fleet_rutas_dashboard .kpi_card { padding: 12px; flex-direction: column; align-items: flex-start; }
+    .o_fleet_rutas_dashboard .kpi_icon { font-size: 1.6rem; margin: 0 0 8px; }
+    .o_fleet_rutas_dashboard .btn { min-height: 44px; white-space: normal; }
+    .o_fleet_rutas_dashboard .card-header { flex-wrap: wrap; gap: 8px; }
+}
+@media (max-width: 359px) {
+    .o_fleet_rutas_dashboard .kpi_grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .o_fleet_rutas_dashboard .kpi_card { transition: none; }
+}
+
+.dashboard_header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.title_section h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0;
+}
+
+.title_section .subtitle {
+    font-size: 0.875rem;
+    color: #64748b;
+}
+
+.kpi_grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.kpi_card {
+    display: flex;
+    align-items: center;
+    padding: 18px 20px;
+    border-radius: 12px;
+    background: #ffffff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03);
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.kpi_card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.kpi_icon {
+    font-size: 2.2rem;
+    margin-right: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.kpi_body {
+    display: flex;
+    flex-direction: column;
+}
+
+.kpi_val {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1.1;
+}
+
+.kpi_label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #475569;
+    margin-top: 4px;
+}
+
+.active_trips_panel {
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+}
+
