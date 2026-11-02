@@ -4,7 +4,7 @@
     <menuitem
         id="menu_fleet_reports_root"
         name="Reportes GPS"
-        parent="fleet.fleet_menu_root"
+        parent="fleet.menu_root"
         sequence="50"
     />
 
