@@ -468,7 +468,9 @@ def calcular_metricas_recorrido(historial_gps: List[Dict],
                                 paradas_info: List[Dict],
                                 polyline_ruta: List[Tuple[float, float]],
                                 max_gap_seg: int = 120,
-                                umbral_desviacion_m: float = 100.0) -> Dict:
+                                umbral_desviacion_m: float = 100.0,
+                                inicio_recorrido=None,
+                                fin_recorrido=None) -> Dict:
     """
     Calcula el conjunto completo de métricas de calidad para un recorrido.
 
@@ -484,6 +486,8 @@ def calcular_metricas_recorrido(historial_gps: List[Dict],
         Umbral para detección de pérdida de señal.
     umbral_desviacion_m : float
         Umbral para detección de desviación.
+    inicio_recorrido, fin_recorrido : datetime, optional
+        Ventana real de operación UTC; incluye silencios al inicio y al final.
 
     Retorna
     -------
@@ -522,35 +526,38 @@ def calcular_metricas_recorrido(historial_gps: List[Dict],
         result['paradas_puntuales'] = puntuales
         result['pct_puntualidad'] = round(puntuales / len(paradas_info) * 100.0, 2)
 
-    if not historial_gps:
-        return result
-
-    # ── Distancia total ──────────────────────────────────────────────────────
-    result['distancia_total_km'] = calcular_distancia_total_km(historial_gps)
-
-    # ── Pérdida de señal / integridad GPS ───────────────────────────────────
-    gaps = detectar_perdida_senal(historial_gps, max_gap_seg)
-    result['gaps_senal'] = gaps
-    result['num_gaps'] = len(gaps)
-
     def _parse_ts(val):
-        if isinstance(val, datetime):
-            return val
-        return datetime.fromisoformat(str(val).replace('Z', '+00:00'))
+        from datetime import timezone
+        dt = val if isinstance(val, datetime) else datetime.fromisoformat(str(val).replace('Z', '+00:00'))
+        return dt.astimezone(timezone.utc).replace(tzinfo=None) if dt.tzinfo else dt
 
-    if len(historial_gps) >= 2:
-        t_inicio = _parse_ts(historial_gps[0]['timestamp'])
-        t_fin = _parse_ts(historial_gps[-1]['timestamp'])
-        duracion_total = (t_fin - t_inicio).total_seconds()
-        result['duracion_total_seg'] = duracion_total
+    historial_gps = sorted(historial_gps, key=lambda p: _parse_ts(p['timestamp']))
+    t_inicio = _parse_ts(inicio_recorrido) if inicio_recorrido else (_parse_ts(historial_gps[0]['timestamp']) if historial_gps else None)
+    t_fin = _parse_ts(fin_recorrido) if fin_recorrido else (_parse_ts(historial_gps[-1]['timestamp']) if historial_gps else None)
+    if t_inicio is not None and t_fin is not None:
+        if t_fin < t_inicio:
+            raise ValueError('El fin del recorrido no puede ser anterior al inicio')
+        historial_gps = [p for p in historial_gps if t_inicio <= _parse_ts(p['timestamp']) <= t_fin]
+        timeline = [{'timestamp': t_inicio}]
+        timeline.extend({'timestamp': _parse_ts(p['timestamp'])} for p in historial_gps)
+        timeline.append({'timestamp': t_fin})
+        gaps = detectar_perdida_senal(timeline, max_gap_seg)
+        result['gaps_senal'] = gaps
+        result['num_gaps'] = len(gaps)
+        result['duracion_total_seg'] = (t_fin - t_inicio).total_seconds()
 
         duracion_gaps = sum(g['duracion_seg'] for g in gaps)
         result['duracion_gaps_seg'] = duracion_gaps
 
-        if duracion_total > 0:
+        if result['duracion_total_seg'] > 0 and historial_gps:
             result['integridad_gps_pct'] = round(
-                (1.0 - duracion_gaps / duracion_total) * 100.0, 2
+                max(0.0, 1.0 - duracion_gaps / result['duracion_total_seg']) * 100.0, 2
             )
+
+    if not historial_gps:
+        return result
+
+    result['distancia_total_km'] = calcular_distancia_total_km(historial_gps)
 
     # ── Filtrado de duplicados ───────────────────────────────────────────────
     filtrado = filtrar_posiciones_duplicadas(historial_gps)

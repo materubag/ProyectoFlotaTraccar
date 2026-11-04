@@ -241,15 +241,10 @@ class FleetPosicionGps(models.Model):
             if dist <= parada.radio_proximidad_m:
                 retraso_min = 0
                 if recorrido.fecha_inicio:
-                    tz = pytz.timezone(recorrido.ruta_id.zona_horaria)
-                    inicio_local = pytz.utc.localize(recorrido.fecha_inicio).astimezone(tz)
-                    fecha_ref = inicio_local.date()
-                    local = datetime.combine(fecha_ref, datetime.min.time()) + timedelta(minutes=round(parada.hora_prevista * 60))
-                    # Stops after midnight belong to the following calendar day.
                     primera = recorrido.ruta_id.parada_ids.sorted('secuencia')[:1]
-                    if primera and parada.hora_prevista < primera.hora_prevista:
-                        local += timedelta(days=1)
-                    programado = tz.localize(local).astimezone(pytz.utc).replace(tzinfo=None)
+                    # La primera parada ancla el horario al inicio programado de cada asignación.
+                    offset_min = (round(parada.hora_prevista * 60) - round(primera.hora_prevista * 60)) % 1440
+                    programado = recorrido.fecha_inicio + timedelta(minutes=offset_min)
                     diff_seg = (posicion.timestamp - programado).total_seconds()
                     retraso_min = round(diff_seg / 60, 2)
 

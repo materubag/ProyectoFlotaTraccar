@@ -340,7 +340,7 @@ class TraccarService:
         :param device_id: ID del dispositivo en Traccar.
         :param from_dt: Inicio del rango (datetime naive UTC o aware).
         :param to_dt: Fin del rango (datetime naive UTC o aware).
-        :param max_records: Límite de registros a solicitar (no siempre respetado por el servidor).
+        :param max_records: Umbral de aviso de volumen; no se descartan posiciones recibidas.
         :returns: Lista de dicts de posición en orden cronológico ascendente.
         :raises TraccarAPIError: Ante cualquier error de comunicación o HTTP.
         :raises ValueError: Si los parámetros son inválidos.
@@ -381,11 +381,10 @@ class TraccarService:
 
             if len(result) > max_records:
                 _logger.warning(
-                    "TraccarService.get_position_history: resultado truncado a %d/%d registros.",
+                    "TraccarService.get_position_history: se superó el umbral %d con %d registros; se conservan todos.",
                     max_records,
                     len(result),
                 )
-                result = result[:max_records]
 
             _logger.info(
                 "TraccarService.get_position_history: %d posiciones para device_id=%d.",

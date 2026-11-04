@@ -198,6 +198,8 @@ class FleetMetricasRecorrido(models.Model):
             polyline_ruta=polyline_ruta,
             max_gap_seg=120,
             umbral_desviacion_m=100.0,
+            inicio_recorrido=recorrido.fecha_inicio_real or None,
+            fin_recorrido=(recorrido.fecha_fin_real or fields.Datetime.now()) if recorrido.fecha_inicio_real else None,
         )
 
         total_paradas = len(cumplimientos)

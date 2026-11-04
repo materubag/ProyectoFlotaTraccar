@@ -1,0 +1,528 @@
+=== PAGINA 1 ===
+ 
+PROYECTO FINAL INTEGRADOR 
+Sistema de Monitoreo y Evaluación de Rutas de Transporte Universitario mediante Odoo 
+16 y Traccar 
+Asignatura: Gestión de Calidad del Software 
+Modalidad: Grupal 
+1. Contexto del problema 
+La Universidad Técnica de Ambato dispone de servicios de transporte que realizan 
+recorridos por diferentes sectores de la ciudad, con rutas, horarios y puntos de parada 
+establecidos. 
+Sin embargo, cuando no existe un sistema centralizado de seguimiento vehicular, pueden 
+presentarse inconvenientes como: 
+• Desconocimiento de la ubicación actual de los vehículos. 
+• Dificultad para verificar el cumplimiento de rutas y horarios. 
+• Retrasos en la llegada a los puntos de parada. 
+• Desviaciones de los recorridos establecidos. 
+• Falta de información histórica de los desplazamientos. 
+• Ausencia de mecanismos automáticos para identificar incumplimientos. 
+• Dificultad para comparar el tiempo estimado con el tiempo real de recorrido. 
+• Falta de métricas para evaluar la calidad del servicio de transporte. 
+• Inconsistencias en los datos GPS y dificultades para evaluar la confiabilidad del 
+sistema. 
+Ante esta situación, se requiere implementar una solución que permita monitorear 
+vehículos mediante GPS, administrar diferentes rutas, registrar recorridos y analizar el 
+cumplimiento de horarios y puntos de control. 
+Para ello, se utilizarán Odoo 16, Traccar y Cloudflare Tunnel, integrando sus funcionalidades 
+para disponer de un sistema de seguimiento vehicular con indicadores y reportes accesibles 
+desde Odoo. 
+El proyecto deberá incorporar los conocimientos adquiridos durante la asignatura Gestión 
+de Calidad del Software, aplicando ingeniería de requisitos, métricas, pruebas, análisis de 
+calidad del código y mejora continua. 
+
+=== PAGINA 2 ===
+2. Objetivo general 
+Implementar un sistema de monitoreo y evaluación de rutas de transporte universitario 
+mediante la integración de Odoo 16 y Traccar, que permita administrar vehículos, registrar 
+recorridos, monitorear posiciones GPS, verificar el cumplimiento de rutas y hor arios y 
+generar métricas de calidad, aplicando pruebas de software y metodologías de mejora 
+continua. 
+3. Descripción general de la solución 
+Cada grupo deberá implementar una plataforma que permita simular el funcionamiento de 
+un sistema de seguimiento de buses universitarios. 
+La solución deberá disponer de un servidor Traccar encargado de recibir las posiciones GPS 
+enviadas desde dispositivos móviles y de un sistema Odoo 16 que permita gestionar 
+vehículos, rutas, paradas, recorridos e indicadores. 
+Podrán instalar, adaptar o desarrollar un módulo de Odoo que integre la información de 
+Traccar con las funcionalidades de gestión del transporte. 
+La información deberá almacenarse y procesarse de manera que permita obtener métricas 
+del comportamiento de los recorridos. 
+El usuario deberá poder ingresar a Odoo y consultar dónde se encuentra un vehículo, qué 
+ruta tiene asignada, qué paradas ha visitado, si cumple el horario y cuáles son los 
+principales indicadores de calidad del servicio. 
+Se permitirá desarrollar dashboards directamente en Odoo o incorporar reportes de Power 
+BI dentro de la plataforma. 
+4. Actividades que deberán realizar 
+Actividad 1. Análisis del problema y definición de requisitos 
+Cada grupo deberá analizar el escenario planteado e identificar las necesidades que debe 
+satisfacer el sistema. 
+Deberá elaborar los requisitos funcionales y no funcionales, considerando como mínimo: 
+• Gestión de vehículos. 
+• Administración de múltiples rutas. 
+• Registro de paradas y horarios. 
+• Seguimiento de la ubicación GPS. 
+• Consulta de recorridos históricos. 
+• Detección de retrasos y desviaciones. 
+
+=== PAGINA 3 ===
+• Registro de incidencias. 
+• Generación de métricas. 
+• Visualización de mapas y reportes. 
+• Seguridad, integridad de información y rendimiento. 
+Los requisitos deberán incluir criterios de aceptación que permitan comprobar su 
+cumplimiento durante las pruebas. 
+Evidencia: documento de requisitos funcionales y no funcionales, con identificación y 
+criterios de aceptación. 
+Actividad 2. Instalación y configuración de la infraestructura 
+Cada grupo deberá instalar y configurar los componentes necesarios para el funcionamiento 
+de la solución. 
+Odoo 16 
+Instalar Odoo 16 y configurar el módulo Fleet para registrar y administrar los vehículos. 
+Traccar Server 
+Instalar Traccar Server en una computadora local, máquina virtual o infraestructura 
+disponible. 
+Traccar Client 
+Instalar Traccar Client en uno o más teléfonos móviles para transmitir información GPS 
+durante los recorridos de prueba. 
+Cloudflare Tunnel 
+Configurar Cloudflare Tunnel o una alternativa de conectividad equivalente para permitir la 
+transmisión de datos desde redes externas, sin depender de que el teléfono y el servidor se 
+encuentren conectados a la misma red local. 
+Se deberá verificar que las posiciones GPS lleguen al servidor mediante datos móviles y no 
+únicamente mediante Wi-Fi local. 
+Para el envío de posiciones mediante Traccar Client, deberá validarse el protocolo 
+HTTP/HTTPS admitido por el servidor y el mecanismo de publicación utilizado. 
+No será necesario disponer de una IP pública ni utilizar un bus institucional real. 
+Evidencias: capturas de los servicios funcionando, configuración de conectividad y 
+recepción de posiciones GPS desde una red externa. 
+Actividad 3. Integración entre Odoo 16 y Traccar 
+
+=== PAGINA 4 ===
+Cada grupo deberá implementar la integración de Traccar con Odoo. 
+Para ello, podrá utilizar un módulo existente de integración de vehículos o desarrollar un 
+módulo personalizado que consuma la API de Traccar. 
+La integración deberá permitir: 
+1. Asociar un dispositivo GPS con un vehículo registrado en Odoo. 
+2. Consultar la última posición del vehículo. 
+3. Recuperar la fecha y hora de actualización. 
+4. Consultar el historial de posiciones. 
+5. Obtener información de recorridos realizados. 
+6. Registrar información relevante en Odoo. 
+7. Mostrar la posición y el recorrido sobre un mapa. 
+La sincronización deberá evitar registros duplicados e identificar situaciones en las que los 
+datos GPS estén desactualizados o no disponibles. 
+Evidencia: demostración de la comunicación entre Traccar y Odoo, mostrando posiciones 
+reales recibidas desde el teléfono. 
+Actividad 4. Gestión de vehículos, rutas y paradas 
+Cada grupo deberá implementar las funcionalidades necesarias para administrar las rutas 
+de transporte universitario. 
+Gestión de vehículos 
+Registrar los vehículos de prueba, sus identificadores y los dispositivos GPS asociados. 
+Gestión de rutas 
+Crear diferentes rutas, con su origen, destino, distancia estimada y horarios previstos. 
+Gestión de paradas 
+Registrar puntos de control mediante coordenadas GPS y establecer horarios programados. 
+Asignación de recorridos 
+Permitir asignar una ruta a un vehículo para una fecha y horario específicos. 
+El sistema deberá permitir que un mismo vehículo realice diferentes rutas en distintos 
+horarios. 
+Requisitos mínimos: 
+• 2 vehículos registrados. 
+
+=== PAGINA 5 ===
+• 3 rutas diferentes. 
+• 4 puntos de control por ruta. 
+• Horarios programados para cada recorrido. 
+• Asociación entre vehículo, ruta y dispositivo GPS. 
+Evidencias: formularios de administración, registros creados y demostración de asignación 
+de rutas. 
+Actividad 5. Monitoreo y registro de recorridos 
+Cada grupo deberá realizar pruebas de seguimiento utilizando teléfonos móviles con Traccar 
+Client. 
+El sistema deberá registrar la información generada durante los desplazamientos. 
+Como mínimo deberá conservar: 
+• Vehículo y ruta asignada. 
+• Fecha y hora del recorrido. 
+• Coordenadas GPS. 
+• Velocidad registrada. 
+• Hora programada y real de inicio. 
+• Hora programada y real de llegada. 
+• Distancia estimada y recorrida. 
+• Puntos de control visitados. 
+• Incidencias detectadas. 
+Se deberán realizar al menos 10 recorridos de prueba documentados, distribuidos entre las 
+rutas implementadas. 
+Los recorridos deberán incluir situaciones normales y escenarios que permitan evaluar 
+incumplimientos. 
+Por ejemplo, podrán realizarse recorridos puntuales, atrasados, con paradas omitidas o con 
+desviaciones de la ruta. 
+Cuando no sea posible reproducir físicamente un escenario, se permitirá utilizar datos de 
+prueba identificados como simulados para evaluar la lógica del sistema. 
+Evidencias: historial de recorridos, trazados GPS sobre mapas y registros de los eventos 
+detectados. 
+
+=== PAGINA 6 ===
+Actividad 6. Detección de incumplimientos e incidencias 
+El sistema deberá analizar la información recopilada y determinar si los recorridos cumplen 
+las condiciones establecidas. 
+Se deberán implementar reglas que permitan identificar: 
+• Retrasos respecto al horario programado. 
+• Incumplimiento de puntos de control. 
+• Desviaciones de la ruta. 
+• Recorridos incompletos. 
+• Diferencias entre tiempos estimados y reales. 
+• Interrupciones o pérdida de señal GPS. 
+Cada grupo deberá definir y justificar las tolerancias empleadas. 
+Por ejemplo, si una parada tiene un horario previsto de 08:15 y una tolerancia de 5 minutos, 
+una llegada registrada a las 08:23 deberá identificarse como un retraso de 8 minutos y un 
+incumplimiento de puntualidad. 
+La detección de paradas deberá basarse en las coordenadas GPS, un radio de proximidad y 
+criterios definidos por el grupo. 
+Para identificar desviaciones, deberán comparar las posiciones reales con un trazado o 
+corredor geográfico de referencia de la ruta. 
+Evidencia: demostración de incidencias detectadas automáticamente, con explicación de 
+las reglas implementadas. 
+Actividad 7. Generación de métricas e indicadores 
+Cada grupo deberá implementar métricas que permitan evaluar el comportamiento de las 
+rutas. 
+Métricas de transporte obligatorias: 
+1. Porcentaje de cumplimiento de rutas. 
+2. Porcentaje de puntualidad. 
+3. Retraso promedio. 
+4. Porcentaje de paradas cumplidas. 
+5. Desviación respecto a la ruta programada. 
+6. Diferencia entre distancia estimada y recorrida. 
+
+=== PAGINA 7 ===
+7. Tiempo promedio de recorrido. 
+8. Número y frecuencia de incidencias. 
+Métricas de calidad del software obligatorias: 
+1. Integridad de los registros GPS. 
+2. Exactitud de los datos sincronizados entre Traccar y Odoo. 
+3. Tiempo de respuesta del sistema. 
+4. Porcentaje de detección correcta de incidencias. 
+Cada indicador deberá incluir su fórmula, fuente de datos, unidad de medida, resultado e 
+interpretación. 
+Los indicadores deberán calcularse a partir de información almacenada o consultada por el 
+sistema, sin utilizar valores estáticos. 
+Evidencia: tabla de métricas con fórmulas y resultados, acompañada de consultas o 
+registros que permitan comprobar los cálculos. 
+Actividad 8. Desarrollo del dashboard y reportes 
+Cada grupo deberá implementar un panel de indicadores accesible desde Odoo. 
+Podrá seleccionar una de las siguientes alternativas: 
+Alternativa A: Dashboard desarrollado en Odoo 
+Utilizar vistas, gráficos o componentes personalizados para presentar los indicadores 
+directamente en el módulo. 
+Alternativa B: Power BI integrado con Odoo 
+Construir reportes en Power BI e integrarlos mediante un método de publicación o inserción 
+autorizado, respetando sus requisitos de autenticación y licenciamiento. 
+El dashboard deberá permitir consultar: 
+• Ubicación de vehículos. 
+• Rutas registradas. 
+• Historial de recorridos. 
+• Cumplimiento de rutas. 
+• Puntualidad. 
+• Retrasos. 
+• Distancias recorridas. 
+
+=== PAGINA 8 ===
+• Incidencias detectadas. 
+• Comparaciones entre rutas y períodos. 
+Se deberá demostrar que los indicadores corresponden a la información registrada y que 
+pueden actualizarse cuando se incorporen nuevos recorridos. 
+Evidencia: dashboard funcional accesible desde Odoo. 
+Actividad 9. Aplicación de pruebas y evaluación de calidad del software 
+Cada grupo deberá comprobar el cumplimiento de los requisitos y analizar la calidad del 
+sistema implementado. 
+Se deberán aplicar: 
+Pruebas funcionales y de caja negra 
+Validar las operaciones del sistema utilizando entradas válidas, inválidas y valores límite. 
+Pruebas de caja blanca 
+Evaluar la lógica desarrollada para calcular métricas, determinar retrasos y detectar 
+incumplimientos. 
+Pruebas de integración 
+Verificar la transferencia y consistencia de información entre Traccar y Odoo. 
+Pruebas de rendimiento 
+Medir los tiempos de respuesta al consultar recorridos, mapas y métricas, utilizando 
+diferentes cantidades de registros. 
+Pruebas automatizadas 
+Utilizar Pytest u otra herramienta apropiada para verificar funciones desarrolladas por el 
+grupo. 
+SonarQube 
+Analizar el código propio e identificar defectos, duplicaciones, problemas de mantenibilidad 
+y hallazgos de seguridad. 
+ISO/IEC 25010 
+Relacionar los resultados obtenidos con las características pertinentes de calidad del 
+software. 
+Se deberán documentar al menos 10 casos de prueba con entradas, resultados esperados, 
+resultados obtenidos y evidencias. 
+
+=== PAGINA 9 ===
+Evidencias: matriz de casos de prueba, ejecuciones, resultados automatizados y reporte 
+SonarQube. 
+Actividad 10. Análisis de problemas y mejora continua 
+Cada grupo deberá identificar al menos un problema relevante encontrado durante el 
+desarrollo o las pruebas. 
+Podrá tratarse de errores de sincronización, cálculos incorrectos, problemas de rendimiento, 
+registros duplicados o detección incorrecta de incidencias. 
+Deberán aplicar herramientas de mejora continua: 
+• Ishikawa: identificar posibles causas del problema. 
+• Pareto: priorizar los problemas según su frecuencia o impacto, cuando existan datos 
+suficientes. 
+• PDCA: planificar una mejora, implementarla, verificar sus resultados y establecer las 
+acciones correspondientes. 
+El grupo deberá demostrar qué problema identificó, qué corrección realizó y cuáles fueron 
+los resultados antes y después de la mejora. 
+Evidencia: análisis del problema, herramientas aplicadas y comparación de resultados. 
+5. Restricción importante 
+El proyecto no será evaluado únicamente por instalar Odoo, Traccar y Cloudflare ni por 
+visualizar un vehículo sobre un mapa. 
+Se deberá demostrar el funcionamiento de un sistema integrado capaz de administrar 
+múltiples rutas, registrar información histórica, evaluar el cumplimiento de recorridos y 
+generar métricas verificables. 
+Además, deberán aplicar pruebas de software, analizar resultados, identificar defectos y 
+demostrar mejoras implementadas. 
+No se aceptarán dashboards con indicadores estáticos, datos ficticios presentados como 
+reales o métricas que no puedan comprobarse. 
+6. Resultado esperado 
+Al finalizar el proyecto, cada grupo deberá presentar un sistema funcional que permita 
+responder: 
+• ¿Dónde se encuentra actualmente el vehículo? 
+• ¿Qué ruta está realizando? 
+• ¿Qué paradas ha visitado? 
+
+=== PAGINA 10 ===
+• ¿Está cumpliendo los horarios establecidos? 
+• ¿Cuánto tiempo de retraso ha acumulado? 
+• ¿Se ha desviado de su ruta? 
+• ¿Cuántos recorridos ha realizado? 
+• ¿Qué porcentaje de recorridos se ha cumplido correctamente? 
+• ¿Cuáles son las incidencias más frecuentes? 
+• ¿Qué tan confiable es el sistema implementado? 
+• ¿Qué mejoras se realizaron para incrementar la calidad del software? 
+7. Entregables finales 
+Cada grupo deberá presentar: 
+1. Documento de análisis y requisitos. 
+2. Arquitectura y modelo de datos. 
+3. Sistema Odoo 16 integrado con Traccar. 
+4. Conectividad externa funcional. 
+5. Módulo desarrollado o adaptado para administrar rutas. 
+6. Historial de recorridos y datos GPS. 
+7. Indicadores calculados y dashboard dentro de Odoo. 
+8. Matriz y evidencias de pruebas. 
+9. Análisis de calidad mediante SonarQube. 
+10. Informe de mejora continua y código fuente del proyecto. 
+8. Presentación y defensa 
+Durante la defensa, cada grupo deberá demostrar el sistema utilizando información GPS 
+obtenida mediante Traccar Client. 
+Se verificará el registro del vehículo, la asignación de una ruta, la consulta de posiciones, el 
+historial de recorridos y el cálculo de los indicadores. 
+El grupo deberá demostrar al menos un caso de cumplimiento y uno de incumplimiento, 
+explicar las reglas utilizadas para determinar los resultados y presentar las pruebas 
+realizadas. 
+La presentación deberá incluir una explicación del diseño del sistema, los resultados de 
+calidad del software y las mejoras implementadas. 
+
+=== PAGINA 11 ===
+El objetivo final es demostrar que la solución no solamente permite monitorear vehículos, 
+sino también evaluar de manera objetiva el cumplimiento de rutas y la calidad del sistema 
+desarrollado. 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+=== PAGINA 12 ===
+ 
+
+
+=== PAGINA 13 ===
+ 
+N.º Criterio de 
+evaluación 
+Excelente Bueno Regular Deficiente Puntaje 
+
+
+=== PAGINA 14 ===
+1 Análisis del problema 
+y requisitos 
+Identifica correctamente las necesidades, 
+define requisitos funcionales y no 
+funcionales medibles y establece criterios 
+de aceptación. 
+Identifica la mayoría 
+de los requisitos, con 
+pequeñas omisiones. 
+Presenta requisitos 
+incompletos o 
+ambiguos. 
+No identifica 
+adecuadamente los 
+requisitos. 
+/10 
+2 Arquitectura e 
+infraestructura 
+Odoo 16, Traccar y Cloudflare Tunnel  o 
+alternativa están configurados 
+correctamente y permiten comunicación 
+externa. 
+Infraestructura 
+funcional con 
+problemas menores. 
+Componentes 
+instalados, pero con 
+conectividad parcial. 
+No demuestra 
+funcionamiento de la 
+infraestructura. 
+/10 
+3 Integración Odoo –
+Traccar y monitoreo 
+GPS 
+Integra correctamente dispositivos y 
+vehículos, consulta ubicaciones, muestra 
+mapas y recupera información GPS 
+actualizada. 
+Integración funcional 
+con pequeñas 
+limitaciones. 
+Presenta datos 
+incompletos o 
+dificultades de 
+sincronización. 
+No demuestra 
+integración 
+funcional. 
+/15 
+4 Gestión de rutas, 
+paradas y recorridos 
+Administra múltiples rutas, vehículos, 
+puntos de control, horarios y asignaciones 
+correctamente. 
+Cumple la mayoría de 
+funcionalidades. 
+Registros o 
+funcionalidades 
+incompletas. 
+No implementa 
+adecuadamente la 
+gestión de rutas. 
+/10 
+5 Almacenamiento, 
+historial y detección 
+de incidencias 
+Almacena información consistente, 
+conserva recorridos históricos y detecta 
+retrasos, desviaciones e incumplimientos 
+automáticamente. 
+Registra información 
+y detecta la mayoría 
+de incidencias. 
+Historial incompleto 
+o detección poco 
+confiable. 
+No almacena 
+correctamente los 
+datos ni identifica 
+incidencias. 
+/10 
+6 Métricas y dashboard Calcula correctamente los indicadores 
+obligatorios y los presenta en Odoo o 
+Power BI integrado, con datos verificables. 
+Indicadores y 
+dashboard 
+funcionales con 
+limitaciones 
+menores. 
+Presenta métricas 
+incompletas o 
+cálculos incorrectos. 
+No presenta métricas 
+funcionales o 
+verificables. 
+/15 
+7 Pruebas funcionales, 
+integración y 
+rendimiento 
+Ejecuta pruebas de caja negra, caja blanca, 
+integración, rendimiento y pruebas 
+automatizadas con resultados y evidencias. 
+Aplica pruebas 
+adecuadas, con 
+algunas omisiones. 
+Pruebas limitadas o 
+sin evidencias 
+suficientes. 
+No realiza pruebas 
+verificables. 
+/10 
+
+=== PAGINA 15 ===
+8 Aplicación de calidad 
+del software 
+Aplica ISO/IEC 25010, analiza el código 
+propio con SonarQube e interpreta 
+correctamente los resultados. 
+Aplica herramientas y 
+estándares con 
+pequeñas 
+limitaciones. 
+Aplicación 
+superficial o 
+incompleta. 
+No demuestra 
+aplicación de calidad 
+del software. 
+/10 
+9 Mejora continua Identifica problemas, aplica Ishikawa, 
+Pareto y PDCA cuando corresponda, 
+implementa correcciones y verifica su 
+efectividad. 
+Realiza mejoras 
+justificadas, con 
+evidencias parciales. 
+Propone mejoras sin 
+demostrar 
+resultados. 
+No identifica 
+problemas ni 
+implementa mejoras. 
+/5 
+10 Presentación y 
+defensa técnica 
+Demuestra el sistema completo, explica 
+sus métricas y pruebas y responde 
+correctamente preguntas técnicas. 
+Presentación 
+adecuada con 
+dificultades menores. 
+Demostración 
+parcial o 
+explicaciones 
+insuficientes. 
+No demuestra 
+funcionamiento ni 
+dominio del 
+proyecto. 
+/5 
+ 
+TOTAL 
+    
+/100 
+ 
