@@ -4,9 +4,12 @@
  * Compatible con Odoo 16 (OWL 2)
  */
 
-import { Component, useState, onMounted, onWillUnmount, xml } from "@odoo/owl";
+import { Component, useState, useRef, onMounted, onWillUnmount, xml } from "@odoo/owl";
 import { registry } from "@web/core/registry";
 import { useService } from "@web/core/utils/hooks";
+
+const VIEW_PREFERENCES = "fleet_rutas.dashboard.view.v1";
+const DEFAULT_VIEW = { textScale: 100, compact: false, autoRefresh: true };
 
 class FleetRutasDashboard extends Component {
     static template = "fleet_rutas.FleetDashboardTemplate";
@@ -14,6 +17,11 @@ class FleetRutasDashboard extends Component {
     setup() {
         this.rpc = useService("rpc");
         this.actionService = useService("action");
+        this.tripHeading = useRef("tripHeading");
+        let preferences = {};
+        try {
+            preferences = JSON.parse(window.localStorage.getItem(VIEW_PREFERENCES)) || {};
+        } catch (_) { /* El panel funciona también sin almacenamiento local. */ }
 
         this.state = useState({
             loading: true,
@@ -28,24 +36,33 @@ class FleetRutasDashboard extends Component {
                 avg_integridad_gps: 0.0,
                 recorridos_activos: [],
             },
-            lastUpdated: new Date().toLocaleTimeString(),
+            lastUpdated: null,
+            hasData: false,
+            query: "",
+            textScale: Math.min(140, Math.max(100, Number(preferences.textScale) || 100)),
+            compact: preferences.compact === true,
+            autoRefresh: preferences.autoRefresh !== false,
         });
 
         this.refreshInterval = null;
+        this.inFlight = false;
+        this.disposed = false;
 
         onMounted(() => {
             this.loadKpis();
-            this.refreshInterval = setInterval(() => this.loadKpis(), 30000);
+            this.configureRefresh();
         });
 
         onWillUnmount(() => {
-            if (this.refreshInterval) {
-                clearInterval(this.refreshInterval);
-            }
+            this.disposed = true;
+            clearInterval(this.refreshInterval);
         });
     }
 
     async loadKpis() {
+        if (this.inFlight || this.disposed) return;
+        this.inFlight = true;
+        this.state.loading = true;
         try {
             const data = await this.rpc("/web/dataset/call_kw", {
                 model: "fleet.metricas.recorrido",
@@ -53,20 +70,69 @@ class FleetRutasDashboard extends Component {
                 args: [],
                 kwargs: {},
             });
+            if (this.disposed) return;
             this.state.kpis = data;
+            this.state.hasData = true;
             this.state.error = false;
             this.state.lastUpdated = new Date().toLocaleTimeString();
-            this.state.loading = false;
         } catch (err) {
+            if (this.disposed) return;
             console.error("Error al cargar KPIs del dashboard de rutas:", err);
             this.state.error = true;
-            this.state.loading = false;
+        } finally {
+            this.inFlight = false;
+            if (!this.disposed) this.state.loading = false;
         }
     }
 
     onRefresh() {
-        this.state.loading = true;
         this.loadKpis();
+    }
+
+    configureRefresh() {
+        clearInterval(this.refreshInterval);
+        this.refreshInterval = this.state.autoRefresh
+            ? setInterval(() => this.loadKpis(), 30000) : null;
+    }
+
+    saveView() {
+        const { textScale, compact, autoRefresh } = this.state;
+        try {
+            window.localStorage.setItem(VIEW_PREFERENCES, JSON.stringify({ textScale, compact, autoRefresh }));
+        } catch (_) { /* Preferencias opcionales; no bloquean la navegación. */ }
+    }
+
+    onTextScale(ev) {
+        this.state.textScale = Math.min(140, Math.max(100, Number(ev.target.value) || 100));
+        this.saveView();
+    }
+
+    onCompact(ev) {
+        this.state.compact = ev.target.checked;
+        this.saveView();
+    }
+
+    onAutoRefresh(ev) {
+        this.state.autoRefresh = ev.target.checked;
+        this.configureRefresh();
+        this.saveView();
+    }
+
+    resetView() {
+        Object.assign(this.state, DEFAULT_VIEW, { query: "" });
+        this.configureRefresh();
+        this.saveView();
+    }
+
+    onSearch(ev) { this.state.query = ev.target.value; }
+    clearSearch() { this.state.query = ""; }
+    focusTrips() { this.tripHeading.el?.focus(); }
+
+    get filteredTrips() {
+        const normalize = value => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("es");
+        const query = normalize(this.state.query).trim();
+        return this.state.kpis.recorridos_activos.filter(item =>
+            !query || normalize(`${item.name} ${item.ruta} ${item.vehiculo}`).includes(query));
     }
 
     openRutas() { this.actionService.doAction("fleet_rutas.action_fleet_ruta"); }
@@ -96,8 +162,10 @@ class FleetRutasDashboard extends Component {
 }
 
 FleetRutasDashboard.template = xml/* xml */`
-<div class="o_fleet_rutas_dashboard">
+<div t-att-class="'o_fleet_rutas_dashboard o_action_delegate_scroll' + (state.compact ? ' fleet_compact' : '')" t-att-style="'--fleet-text-scale: ' + state.textScale / 100">
+ <div class="fleet_viewport o_content" tabindex="0" role="region" aria-label="Panel de control de flota, desplazamiento vertical">
  <div class="fleet_workspace">
+  <a class="fleet_skip_link" href="#fleet_trips_title" t-on-click.prevent="focusTrips">Ir a los recorridos</a>
   <header class="fleet_hero">
    <div class="fleet_heading">
     <span class="fleet_eyebrow">Fleet / Transporte universitario</span>
@@ -106,13 +174,19 @@ FleetRutasDashboard.template = xml/* xml */`
     <div class="fleet_hero_stats"><span><strong t-esc="state.kpis.recorridos_hoy"/> programados hoy</span><span><strong t-esc="state.kpis.completados"/> finalizados en el historial</span></div>
    </div>
    <div class="fleet_hero_controls">
-    <span class="fleet_connection" role="status"><i t-att-class="state.error ? 'fa fa-exclamation-circle' : 'fa fa-clock-o'" aria-hidden="true"/><t t-if="state.error">Actualización pendiente</t><t t-elif="state.loading">Actualizando indicadores</t><t t-else="">Actualizado <t t-esc="state.lastUpdated"/></t></span>
+    <span class="fleet_connection" role="status" aria-live="polite"><i t-att-class="state.error ? 'fa fa-exclamation-circle' : 'fa fa-clock-o'" aria-hidden="true"/><t t-if="state.error">Actualización pendiente</t><t t-elif="state.loading">Actualizando indicadores</t><t t-else="">Actualizado <t t-esc="state.lastUpdated"/></t></span>
     <button class="fleet_button fleet_button_primary" t-on-click="onRefresh" t-att-disabled="state.loading"><i class="fa fa-refresh" aria-hidden="true"/> Actualizar panel</button>
-    <span class="fleet_refresh_note">Actualización automática cada 30 s</span>
+    <span class="fleet_refresh_note"><t t-if="state.autoRefresh">Actualización automática cada 30 s</t><t t-else="">Actualización automática pausada</t></span>
    </div>
   </header>
-  <div t-if="state.error" class="fleet_notice is_error" role="alert">No se pudieron actualizar los indicadores. Se conservan los últimos datos recibidos.</div>
-  <div t-if="state.loading" class="fleet_notice" role="status">Actualizando los datos de la flota…</div>
+  <section class="fleet_view_controls" aria-label="Personalizar la vista">
+   <div class="fleet_scale_control"><label for="fleet_text_scale">Tamaño de texto</label><input id="fleet_text_scale" type="range" min="100" max="140" step="5" t-att-value="state.textScale" t-att-aria-valuetext="state.textScale + ' por ciento'" t-on-input="onTextScale"/><output for="fleet_text_scale"><t t-esc="state.textScale"/>%</output></div>
+   <label class="fleet_toggle"><input type="checkbox" t-att-checked="state.compact" t-on-change="onCompact"/> Vista compacta</label>
+   <label class="fleet_toggle"><input type="checkbox" t-att-checked="state.autoRefresh" t-on-change="onAutoRefresh"/> Actualización automática</label>
+   <button class="fleet_button fleet_button_secondary" t-on-click="resetView" title="Restablecer tamaño de texto, densidad y actualización">Restablecer vista</button>
+  </section>
+  <div t-if="state.error" class="fleet_notice is_error" role="alert"><span>No se pudieron actualizar los indicadores. <t t-if="state.hasData">Se muestran los últimos datos recibidos.</t></span><button class="fleet_button fleet_button_secondary" t-on-click="onRefresh" t-att-disabled="state.loading">Reintentar</button></div>
+  <div t-if="state.loading and !state.hasData" class="fleet_notice" role="status">Cargando los datos de la flota…</div>
   <section class="fleet_kpis" aria-label="Indicadores del servicio">
    <button class="fleet_kpi tone_teal" t-on-click="openRecorridos"><span class="fleet_kpi_top">En curso <i class="fa fa-bus" aria-hidden="true"/></span><strong class="fleet_kpi_value" t-esc="state.kpis.en_curso"/><span class="fleet_kpi_hint">Recorridos activos ahora</span><span class="fleet_kpi_link">Ver operación <i class="fa fa-arrow-right" aria-hidden="true"/></span></button>
    <button class="fleet_kpi tone_blue" t-on-click="openMetricas"><span class="fleet_kpi_top">Puntualidad <i class="fa fa-clock-o" aria-hidden="true"/></span><strong class="fleet_kpi_value"><t t-esc="state.kpis.avg_puntualidad"/><small>%</small></strong><span class="fleet_kpi_hint">Tolerancia de cada parada</span><span class="fleet_kpi_link">Consultar métricas <i class="fa fa-arrow-right" aria-hidden="true"/></span></button>
@@ -122,14 +196,18 @@ FleetRutasDashboard.template = xml/* xml */`
   </section>
   <div class="fleet_content_grid">
    <section class="fleet_panel" aria-labelledby="fleet_trips_title">
-    <div class="fleet_panel_header"><div><span class="fleet_eyebrow">Seguimiento operativo</span><h2 id="fleet_trips_title">Recorridos en tránsito</h2></div><button class="fleet_button fleet_button_secondary" t-on-click="openRecorridos">Ver todos <i class="fa fa-angle-right" aria-hidden="true"/></button></div>
-    <div t-if="state.kpis.recorridos_activos.length === 0" class="fleet_empty"><span class="fleet_empty_icon"><i class="fa fa-road" aria-hidden="true"/></span><h3>Sin recorridos en curso</h3><p>Los vehículos aparecerán aquí cuando se inicie un recorrido.</p><button class="fleet_button fleet_button_secondary" t-on-click="openRecorridos">Consultar recorridos</button></div>
-    <div t-else="" class="fleet_table_scroll" tabindex="0" aria-label="Tabla de recorridos activos"><table class="fleet_table">
+    <div class="fleet_panel_header"><div><span class="fleet_eyebrow">Seguimiento operativo</span><h2 id="fleet_trips_title" tabindex="-1" t-ref="tripHeading">Recorridos en tránsito</h2></div><button class="fleet_button fleet_button_secondary" t-on-click="openRecorridos">Ver todos <i class="fa fa-angle-right" aria-hidden="true"/></button></div>
+    <div class="fleet_search"><label for="fleet_trip_search">Buscar en los recorridos del panel</label><div class="fleet_search_input"><i class="fa fa-search" aria-hidden="true"/><input id="fleet_trip_search" type="search" placeholder="Ruta, vehículo o recorrido" t-att-value="state.query" t-on-input="onSearch"/><button t-if="state.query" class="fleet_button fleet_button_secondary" t-on-click="clearSearch" aria-label="Limpiar búsqueda">Limpiar</button></div><span class="fleet_search_count" role="status" aria-live="polite"><t t-esc="filteredTrips.length"/> visibles en el panel. Usa «Ver todos» para consultar el historial completo.</span></div>
+    <div t-if="!state.hasData" class="fleet_empty"><span class="fleet_empty_icon"><i class="fa fa-info-circle" aria-hidden="true"/></span><h3><t t-if="state.loading">Cargando recorridos</t><t t-else="">Datos no disponibles</t></h3><p><t t-if="state.loading">Estamos consultando la información de la flota.</t><t t-else="">Pulsa Actualizar panel para volver a intentarlo.</t></p></div>
+    <div t-elif="state.kpis.recorridos_activos.length === 0" class="fleet_empty"><span class="fleet_empty_icon"><i class="fa fa-road" aria-hidden="true"/></span><h3>Sin recorridos en curso</h3><p>Los vehículos aparecerán aquí cuando se inicie un recorrido.</p><button class="fleet_button fleet_button_secondary" t-on-click="openRecorridos">Consultar recorridos</button></div>
+    <div t-elif="filteredTrips.length === 0" class="fleet_empty"><h3>Sin coincidencias</h3><p>Prueba con otro nombre de ruta o vehículo.</p><button class="fleet_button fleet_button_secondary" t-on-click="clearSearch">Limpiar búsqueda</button></div>
+    <div t-else="" class="fleet_table_scroll" tabindex="0" role="region" aria-label="Tabla de recorridos activos; desplaza horizontalmente si es necesario"><table class="fleet_table">
+     <caption class="fleet_sr_only">Recorridos activos con vehículo, cumplimiento de paradas y estado de ruta</caption>
      <thead><tr><th scope="col">Recorrido / Ruta</th><th scope="col">Vehículo</th><th scope="col">Paradas</th><th scope="col">Estado de ruta</th><th scope="col">Detalle</th></tr></thead>
-     <tbody><tr t-foreach="state.kpis.recorridos_activos" t-as="item" t-key="item.id">
-      <td><strong t-esc="item.name"/><span class="fleet_cell_secondary" t-esc="item.ruta"/></td><td t-esc="item.vehiculo"/><td><span class="fleet_badge" t-esc="item.paradas_cumplidas"/></td>
+     <tbody><tr t-foreach="filteredTrips" t-as="item" t-key="item.id">
+      <td><strong t-esc="item.name"/><span class="fleet_cell_secondary" t-esc="item.ruta"/></td><td class="fleet_vehicle_cell" t-esc="item.vehiculo"/><td><span class="fleet_badge" t-esc="item.paradas_cumplidas"/></td>
       <td><span t-att-class="'fleet_badge ' + (item.desviacion ? 'is_warning' : 'is_success')"><t t-if="item.desviacion">Desviado</t><t t-else="">En corredor</t></span></td>
-      <td><button class="fleet_button fleet_button_secondary" t-on-click="() => this.openRecorridoDetail(item.id)">Abrir <i class="fa fa-angle-right" aria-hidden="true"/></button></td>
+      <td><button class="fleet_button fleet_button_secondary" t-att-aria-label="'Abrir recorrido ' + item.name" t-on-click="() => this.openRecorridoDetail(item.id)">Abrir <i class="fa fa-angle-right" aria-hidden="true"/></button></td>
      </tr></tbody>
     </table></div>
    </section>
@@ -142,6 +220,8 @@ FleetRutasDashboard.template = xml/* xml */`
     </nav>
    </aside>
   </div>
+  <footer class="fleet_footer">Usa la rueda, desliza o pulsa Tab para recorrer el panel. La tabla tiene desplazamiento horizontal independiente.</footer>
+ </div>
  </div>
 </div>
 `;
