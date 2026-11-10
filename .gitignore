@@ -37,3 +37,9 @@ desktop.ini
 .vscode/
 *.swp
 *~
+
+# Generadores de datos de prueba locales
+scripts/generar_datos_completos.py
+scripts/generar_datos_demo.py
+scripts/data_generator.py
+
