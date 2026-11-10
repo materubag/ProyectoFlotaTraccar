@@ -154,6 +154,30 @@ class FleetRutasDashboard extends Component {
     openIncidencias() { this.actionService.doAction("fleet_rutas.action_fleet_incidencia"); }
     openMetricas() { this.actionService.doAction("fleet_rutas.action_fleet_metricas"); }
     openTelemetria() { this.actionService.doAction("fleet_rutas.action_fleet_posicion_gps"); }
+    openNewRuta() {
+        this.actionService.doAction({
+            type: "ir.actions.act_window",
+            res_model: "fleet.ruta",
+            views: [[false, "form"]],
+            target: "current",
+        });
+    }
+    openNewAsignacion() {
+        this.actionService.doAction({
+            type: "ir.actions.act_window",
+            res_model: "fleet.recorrido",
+            views: [[false, "form"]],
+            target: "current",
+        });
+    }
+    openNewVehiculo() {
+        this.actionService.doAction({
+            type: "ir.actions.act_window",
+            res_model: "fleet.vehicle",
+            views: [[false, "form"]],
+            target: "current",
+        });
+    }
 
     openRecorridoDetail(id) {
         if (!id) return;
@@ -504,71 +528,73 @@ FleetRutasDashboard.template = xml/* xml */`
         <!-- ════════════════════ TAB 5: RECORRIDOS E INCIDENCIAS ════════════════════ -->
         <t t-if="state.activeTab === 'recorridos'">
             <div class="hd">
-                <h2>Recorridos e incidencias registradas</h2>
+                <h2>Recorridos e incidencias</h2>
                 <div class="row">
                     <input type="search" placeholder="Filtrar vehículo, ruta o estado..."
                            style="width:240px;padding:6px 10px;"
                            t-on-input="onSearch"/>
+                    <span class="chip">Todas las rutas</span>
+                    <span class="chip">Todos los estados</span>
                     <button class="btn p s" t-on-click="() => this.openRecorridos()">
                         Ver en Odoo
                     </button>
                 </div>
             </div>
 
-            <div class="g g2">
-                <div class="card">
-                    <h3>Historial de recorridos (<t t-esc="filteredHistorial.length"/> mostrados)</h3>
-                    <div class="tw">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Fecha</th>
-                                    <th>Vehículo</th>
-                                    <th>Ruta</th>
-                                    <th>Inicio prog/real</th>
-                                    <th>Llegada prog/real</th>
-                                    <th>Distancia</th>
-                                    <th>Estado</th>
-                                    <th>Detalle</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr t-foreach="filteredHistorial" t-as="r" t-key="r.id">
-                                    <td t-esc="r.fecha"/>
-                                    <td><b t-esc="r.vehiculo"/></td>
-                                    <td t-esc="r.ruta"/>
-                                    <td class="lb" t-esc="r.horario_prog_real"/>
-                                    <td class="lb" t-esc="r.llegada_prog_real"/>
-                                    <td t-esc="r.distancia_est_rec"/>
-                                    <td><span t-att-class="'pill ' + r.estado_code" t-esc="r.estado_label"/></td>
-                                    <td>
-                                        <button class="btn s" t-on-click="() => this.openRecorridoDetail(r.id)">
-                                            Abrir
-                                        </button>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
+            <!-- 1. Tarjeta Ancho Completo: Historial de Recorridos (card nw) -->
+            <div class="card nw">
+                <h3>Historial de recorridos (<t t-esc="filteredHistorial.length"/> registros)</h3>
+                <div class="tw">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Vehículo</th>
+                                <th>Ruta</th>
+                                <th>Inicio prog. / real</th>
+                                <th>Llegada prog. / real</th>
+                                <th>Distancia est. / rec.</th>
+                                <th>Estado</th>
+                                <th>Detalle</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr t-foreach="filteredHistorial" t-as="r" t-key="r.id">
+                                <td t-esc="r.fecha"/>
+                                <td><b t-esc="r.vehiculo"/></td>
+                                <td t-esc="r.ruta"/>
+                                <td class="lb" t-esc="r.horario_prog_real"/>
+                                <td class="lb" t-esc="r.llegada_prog_real"/>
+                                <td t-esc="r.distancia_est_rec"/>
+                                <td><span t-att-class="'pill ' + r.estado_code" t-esc="r.estado_label"/></td>
+                                <td>
+                                    <button class="btn s" t-on-click="() => this.openRecorridoDetail(r.id)">
+                                        Ver detalle
+                                    </button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
+                <p class="note">Selecciona un recorrido con estado Incumple o Con retraso para abrir su ficha completa en Odoo.</p>
+            </div>
 
-                <div class="card">
-                    <h3>Incidencias reales detectadas (<t t-esc="state.kpis.incidencias_lista.length"/> eventos)</h3>
-                    <div t-if="!state.kpis.incidencias_lista.length" class="lb">No hay incidencias registradas.</div>
-                    <div t-foreach="state.kpis.incidencias_lista" t-as="inc" t-key="inc.id" class="li" style="display:block;">
-                        <div class="row" style="justify-content:space-between;margin-bottom:4px;">
-                            <span t-att-class="'pill ' + inc.severidad_code" t-esc="inc.tipo_label"/>
-                            <span class="lb" t-esc="inc.hora"/>
+            <!-- 2. Tarjeta Ancho Completo: Incidencias Registradas en cuadrícula de 3 columnas (g g3) -->
+            <div class="card">
+                <div class="hd" style="margin-bottom:14px;">
+                    <h3 style="margin:0;">Incidencias registradas · <t t-esc="state.kpis.incidencias_lista.length"/> eventos</h3>
+                    <button class="btn s" t-on-click="() => this.openIncidencias()">
+                        Gestionar todas las incidencias en Odoo
+                    </button>
+                </div>
+                <div t-if="!state.kpis.incidencias_lista.length" class="lb">No hay incidencias registradas en el sistema.</div>
+                <div t-if="state.kpis.incidencias_lista.length" class="g g3">
+                    <div t-foreach="state.kpis.incidencias_lista" t-as="inc" t-key="inc.id" class="li" style="display:block;border-bottom:0;padding:0 0 14px;">
+                        <span t-att-class="'pill ' + inc.severidad_code" t-esc="inc.tipo_label"/>
+                        <div class="lb" style="margin-top:6px;font-weight:600;color:var(--tx);">
+                            <t t-esc="inc.vehiculo"/> · <t t-esc="inc.ruta"/> · <span style="font-weight:400;color:var(--mu);"><t t-esc="inc.hora"/></span>
                         </div>
-                        <div class="lb" t-esc="inc.descripcion"/>
-                        <div class="lb" style="margin-top:4px;">
-                            <b><t t-esc="inc.vehiculo"/></b> · <t t-esc="inc.ruta"/> · 
-                            <span t-if="inc.resuelta" class="pill gn" style="padding:1px 4px;font-size:10px;">Resuelta</span>
-                            <span t-else="" class="pill am" style="padding:1px 4px;font-size:10px;">Pendiente</span>
-                        </div>
-                    </div>
-                    <div style="margin-top:16px;">
-                        <button class="btn s" t-on-click="() => this.openIncidencias()">Gestionar todas las incidencias</button>
+                        <div class="lb" style="margin-top:4px;" t-esc="inc.descripcion"/>
                     </div>
                 </div>
             </div>
