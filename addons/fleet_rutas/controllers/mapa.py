@@ -26,6 +26,9 @@ class FleetMapa(http.Controller):
         vehiculo = rec.vehicle_id.name or 'Vehículo'
         ruta = rec.ruta_id.name or 'Ruta'
         
+        is_embed = kwargs.get('embed') == '1'
+        body_class = ' class="is-embed"' if is_embed else ''
+
         html = '''<!doctype html>
 <html lang="es">
 <head>
@@ -46,6 +49,7 @@ body {
   color: var(--tx); background: var(--bg); display: flex; flex-direction: column;
   height: 100vh; height: 100dvh; overflow: hidden;
 }
+body.is-embed header { display: none !important; }
 header {
   background: var(--card); border-bottom: 1px solid var(--bd); padding: 14px 20px;
   display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap;
@@ -72,7 +76,7 @@ header {
 .leaflet-popup-content { margin: 10px 14px; font-family: inherit; font-size: 13px; font-weight: 600; }
 </style>
 </head>
-<body>
+<body__BODY_CLASS__>
 <header>
   <div class="title-block">
     <h1>__TITLE__</h1>
@@ -144,6 +148,7 @@ if (typeof L === 'undefined') {
 </script>
 </body>
 </html>'''
+        html = html.replace('__BODY_CLASS__', body_class)
         html = html.replace('__TITLE__', escape(rec.name or 'Recorrido'))
         html = html.replace('__VEHICULO__', escape(vehiculo))
         html = html.replace('__RUTA__', escape(ruta))
