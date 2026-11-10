@@ -10,6 +10,7 @@
 import { Component, useState, onMounted, onWillUnmount, xml } from "@odoo/owl";
 import { registry } from "@web/core/registry";
 import { useService } from "@web/core/utils/hooks";
+import { applyGlobalTheme } from "./theme_service";
 
 const TABS = [
     { id: "panel", label: "Panel", icon: "fa-dashboard" },
@@ -165,23 +166,7 @@ class FleetRutasDashboard extends Component {
 
     applyTheme(colors) {
         if (!colors) return;
-        const root = document.documentElement;
-        if (colors.primary) {
-            root.style.setProperty("--bl", colors.primary);
-            root.style.setProperty("--blt", colors.primary);
-        }
-        if (colors.primary_soft) {
-            root.style.setProperty("--bls", colors.primary_soft);
-        }
-        if (colors.background) {
-            root.style.setProperty("--bg", colors.background);
-        }
-        if (colors.card) {
-            root.style.setProperty("--card", colors.card);
-        }
-        if (colors.text) {
-            root.style.setProperty("--tx", colors.text);
-        }
+        applyGlobalTheme(colors);
     }
 
     async saveTheme() {

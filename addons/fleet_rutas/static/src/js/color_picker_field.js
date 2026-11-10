@@ -3,10 +3,11 @@
 import { registry } from "@web/core/registry";
 import { standardFieldProps } from "@web/views/fields/standard_field_props";
 import { Component, useState, onWillUpdateProps, xml } from "@odoo/owl";
+import { applyGlobalTheme } from "./theme_service";
 
 /**
  * FleetColorPickerField
- * Componente de campo visual para seleccionar colores en formularios de Odoo.
+ * Componente de campo visual para seleccionar colores en formularios y ajustes de Odoo.
  * Combina un swatch interactivo con selector de color nativo del sistema
  * y una caja con el código hexadecimal para máxima comodidad.
  */
@@ -25,14 +26,34 @@ export class FleetColorPickerField extends Component {
         return Boolean(this.props.readonly || (this.props.record && this.props.record.isReadonly(this.props.name)));
     }
 
+    notifyLiveTheme(val) {
+        const fieldName = this.props.name;
+        if (fieldName === "fleet_color_primary") {
+            applyGlobalTheme({ primary: val });
+        } else if (fieldName === "fleet_color_primary_hover") {
+            applyGlobalTheme({ primary_hover: val });
+        } else if (fieldName === "fleet_color_primary_soft") {
+            applyGlobalTheme({ primary_soft: val });
+        } else if (fieldName === "fleet_color_background") {
+            applyGlobalTheme({ background: val });
+        } else if (fieldName === "fleet_color_card") {
+            applyGlobalTheme({ card: val });
+        } else if (fieldName === "fleet_color_text") {
+            applyGlobalTheme({ text: val });
+        }
+    }
+
     onColorInput(ev) {
-        this.state.color = ev.target.value;
+        const val = ev.target.value;
+        this.state.color = val;
+        this.notifyLiveTheme(val);
     }
 
     onColorChange(ev) {
         const val = ev.target.value;
         this.state.color = val;
         this.props.update(val);
+        this.notifyLiveTheme(val);
     }
 
     onHexChange(ev) {
@@ -44,6 +65,7 @@ export class FleetColorPickerField extends Component {
         if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
             this.state.color = val;
             this.props.update(val);
+            this.notifyLiveTheme(val);
         }
     }
 }

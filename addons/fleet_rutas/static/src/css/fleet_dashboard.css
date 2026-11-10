@@ -352,8 +352,8 @@ html .o_web_client > .o_action_manager > .o_action.o_fleet_rutas_dashboard {
 }
 
 .o_fleet_rutas_dashboard .btn.p:hover {
-    background: #5d3d54;
-    border-color: #5d3d54;
+    background: var(--bl-hover, #5d3d54);
+    border-color: var(--bl-hover, #5d3d54);
 }
 
 .o_fleet_rutas_dashboard .btn.s {
@@ -759,8 +759,8 @@ html .o_web_client > .o_action_manager > .o_action.o_fleet_rutas_dashboard {
 
 .o_control_panel .btn-primary:hover,
 .o_cp_buttons .btn-primary:hover {
-    background: #5d3d54 !important;
-    border-color: #5d3d54 !important;
+    background: var(--bl-hover, #5d3d54) !important;
+    border-color: var(--bl-hover, #5d3d54) !important;
 }
 
 .o_control_panel .btn-secondary,
@@ -961,8 +961,8 @@ body,
 
 /* Barra Superior de Odoo (.o_main_navbar) */
 .o_main_navbar {
-    background-color: #714b67 !important;
-    border-bottom: 1px solid #5a3852 !important;
+    background-color: var(--bl, #714b67) !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.15) !important;
     box-shadow: none !important;
 }
 
@@ -1027,9 +1027,11 @@ body,
 .o_control_panel .btn-primary,
 .o_cp_buttons .btn-primary,
 .o_list_button_add,
-.o_form_button_save {
-    background-color: #714b67 !important;
-    border: 1px solid #714b67 !important;
+.o_form_button_save,
+.o_form_view .btn-primary,
+.o_base_settings .o_control_panel .btn-primary {
+    background-color: var(--bl, #714b67) !important;
+    border: 1px solid var(--bl, #714b67) !important;
     color: #ffffff !important;
 }
 
@@ -1037,9 +1039,11 @@ body,
 .btn-primary:focus,
 .o_control_panel .btn-primary:hover,
 .o_list_button_add:hover,
-.o_form_button_save:hover {
-    background-color: #5d3d54 !important;
-    border-color: #5d3d54 !important;
+.o_form_button_save:hover,
+.o_form_view .btn-primary:hover,
+.o_base_settings .o_control_panel .btn-primary:hover {
+    background-color: var(--bl-hover, #5d3d54) !important;
+    border-color: var(--bl-hover, #5d3d54) !important;
     color: #ffffff !important;
 }
 
@@ -1249,8 +1253,8 @@ i.o_facet_remove:hover {
 
 .o_list_record_selector input[type="checkbox"]:checked,
 .form-check-input:checked {
-    background-color: #714b67 !important;
-    border-color: #714b67 !important;
+    background-color: var(--bl, #714b67) !important;
+    border-color: var(--bl, #714b67) !important;
 }
 
 /* Badges y Pills en todo Odoo (Pastillas con radio de 12px según norma IBM Carbon Transporte UTA) */
@@ -1314,12 +1318,16 @@ i.o_facet_remove:hover {
 .badge.text-bg-primary,
 .badge.bg-primary,
 .text-bg-primary {
-    background-color: #f3ebf1 !important;
-    color: #714b67 !important;
-    border: 1px solid #e2d1de !important;
+    background-color: var(--bls, #f3ebf1) !important;
+    color: var(--bl, #714b67) !important;
+    border: 1px solid rgba(0, 0, 0, 0.1) !important;
 }
 
 /* Vista de Formulario de Odoo (.o_form_view) */
+.o_base_settings .settings_tab .selected {
+    box-shadow: inset 3px 0 0 var(--bl, #714b67) !important;
+}
+
 .o_form_view {
     background-color: #f4f4f4 !important;
 }
