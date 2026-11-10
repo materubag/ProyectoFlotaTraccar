@@ -4,7 +4,7 @@
    Inspirado en el prototipo de monitoreo de rutas universitarias
 ══════════════════════════════════════════════════════════════════════════════ */
 
-.o_fleet_rutas_dashboard {
+:root {
     --bg: #f5f6f8;
     --card: #ffffff;
     --bd: #e6e8ec;
@@ -24,7 +24,9 @@
     --trk: #cfdcf6;
     --bar: #eceef2;
     --ref: #8c93a3;
+}
 
+.o_fleet_rutas_dashboard {
     box-sizing: border-box;
     width: 100%;
     height: 100%;
@@ -672,13 +674,357 @@ html .o_web_client > .o_action_manager > .o_action.o_fleet_rutas_dashboard {
     }
 }
 
-/* ── REGLAS GLOBALES PARA VISTAS RELACIONADAS A FLOTA (SIN BORDES REDONDEADOS) ── */
-.o_view_controller .badge,
-.o_view_controller .btn,
-.o_view_controller .o_form_view .o_form_sheet,
-.o_view_controller .o_searchview,
-.o_view_controller .o_statusbar_status,
-.o_view_controller .dropdown-menu {
+/* ══════════════════════════════════════════════════════════════════════════════
+   ESTILO TÉCNICO GLOBAL PARA VISTAS DE ODOO (TABLAS, CONTROL PANEL, FORMULARIOS)
+   Diseño inspirado en el prototipo Transporte UTA — Sin bordes redondeados (0-radius)
+══════════════════════════════════════════════════════════════════════════════ */
+
+/* 1. REGLA ESTRICTA DE BORDES PLANOS EN TODA LA APLICACIÓN */
+.o_web_client .o_action_manager .btn,
+.o_web_client .o_action_manager .badge,
+.o_web_client .o_action_manager .o_badge,
+.o_web_client .o_action_manager input,
+.o_web_client .o_action_manager select,
+.o_web_client .o_action_manager textarea,
+.o_web_client .o_action_manager .o_searchview,
+.o_web_client .o_action_manager .o_searchview_facet,
+.o_web_client .o_action_manager .o_form_sheet,
+.o_web_client .o_action_manager .o_list_table,
+.o_web_client .o_action_manager .table-responsive,
+.o_web_client .o_action_manager .dropdown-menu,
+.o_web_client .o_action_manager .modal-content,
+.o_web_client .o_action_manager .nav-tabs .nav-link,
+.o_web_client .o_action_manager .o_kanban_record,
+.o_web_client .o_action_manager .o_statusbar_status > button,
+.o_control_panel,
+.o_control_panel * {
     border-radius: 0 !important;
 }
+
+/* 2. BARRA DE CONTROL PANEL / CABECERA DE VISTAS (BREADCRUMB Y ACCIONES) */
+.o_control_panel {
+    background: var(--card) !important;
+    border-bottom: 1px solid var(--bd) !important;
+    padding: 12px 24px !important;
+    font-family: 'Inter', -apple-system, system-ui, sans-serif !important;
+}
+
+.o_control_panel .breadcrumb {
+    font-size: 20px !important;
+    font-weight: 700 !important;
+    color: var(--tx) !important;
+    letter-spacing: -0.02em !important;
+    margin: 0 !important;
+}
+
+.o_control_panel .breadcrumb-item a {
+    color: var(--mu) !important;
+    text-decoration: none !important;
+    font-weight: 500 !important;
+}
+
+.o_control_panel .breadcrumb-item.active {
+    color: var(--tx) !important;
+    font-weight: 700 !important;
+}
+
+/* Botones en el Control Panel (NUEVO, ACCIONES, ETC.) */
+.o_control_panel .btn-primary,
+.o_cp_buttons .btn-primary {
+    background: var(--bl) !important;
+    border: 1px solid var(--bl) !important;
+    color: #ffffff !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    padding: 7px 16px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+    box-shadow: none !important;
+    transition: background 0.15s, border-color 0.15s !important;
+}
+
+.o_control_panel .btn-primary:hover,
+.o_cp_buttons .btn-primary:hover {
+    background: var(--blt) !important;
+    border-color: var(--blt) !important;
+}
+
+.o_control_panel .btn-secondary,
+.o_cp_buttons .btn-secondary {
+    background: var(--card) !important;
+    border: 1px solid var(--bd) !important;
+    color: var(--tx) !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    padding: 7px 14px !important;
+    box-shadow: none !important;
+    transition: background 0.15s, border-color 0.15s !important;
+}
+
+.o_control_panel .btn-secondary:hover,
+.o_cp_buttons .btn-secondary:hover {
+    background: var(--bg) !important;
+    border-color: var(--bd) !important;
+    color: var(--tx) !important;
+}
+
+/* Buscador de Odoo en Control Panel */
+.o_control_panel .o_searchview {
+    background: var(--card) !important;
+    border: 1px solid var(--bd) !important;
+    padding: 4px 10px !important;
+}
+
+.o_control_panel .o_searchview:focus-within {
+    border-color: var(--bl) !important;
+    box-shadow: 0 0 0 1px var(--bl) !important;
+}
+
+.o_control_panel .o_searchview_facet {
+    background: var(--bls) !important;
+    border: 1px solid var(--bl) !important;
+    color: var(--blt) !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    padding: 2px 6px !important;
+    margin: 2px 4px 2px 0 !important;
+}
+
+.o_control_panel .o_searchview_facet .o_searchview_facet_label {
+    background: var(--bl) !important;
+    color: #ffffff !important;
+    padding: 0 4px !important;
+}
+
+/* 3. TABLAS DE VISTA LISTA / TREE VIEW (DISEÑO TÉCNICO UTA) */
+.o_action_manager > .o_view_controller > .o_content > .o_list_view,
+.o_list_view {
+    background: var(--bg) !important;
+    padding: 20px 24px 40px !important;
+    font-family: 'Inter', -apple-system, system-ui, sans-serif !important;
+}
+
+.o_list_view .table-responsive {
+    background: var(--card) !important;
+    border: 1px solid var(--bd) !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02) !important;
+    margin-bottom: 24px !important;
+}
+
+.o_list_table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    font-size: 13.5px !important;
+    color: var(--tx) !important;
+    margin: 0 !important;
+}
+
+.o_list_table thead {
+    background: var(--card) !important;
+    border-bottom: 1px solid var(--bd) !important;
+}
+
+.o_list_table thead th {
+    background: var(--card) !important;
+    color: var(--mu) !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+    padding: 12px 14px !important;
+    border-bottom: 1px solid var(--bd) !important;
+    border-top: none !important;
+    white-space: nowrap !important;
+}
+
+.o_list_table thead th.o_column_sortable:hover {
+    background: var(--bg) !important;
+    color: var(--tx) !important;
+}
+
+.o_list_table tbody td {
+    padding: 12px 14px !important;
+    border-bottom: 1px solid var(--bd) !important;
+    color: var(--tx) !important;
+    vertical-align: middle !important;
+    font-size: 13.5px !important;
+}
+
+.o_list_table tbody tr:hover td {
+    background: var(--bg) !important;
+}
+
+.o_list_table tbody tr:last-child td {
+    border-bottom: none !important;
+}
+
+/* Casillas de selección en tablas */
+.o_list_table input[type="checkbox"],
+.o_list_record_selector input[type="checkbox"] {
+    width: 16px !important;
+    height: 16px !important;
+    border: 1px solid var(--bd) !important;
+    accent-color: var(--bl) !important;
+    cursor: pointer !important;
+}
+
+/* 4. STATUS PILLS / BADGES TÉCNICOS (0-RADIUS Y COLORES UTA) */
+.o_list_table .badge,
+.o_list_table .o_badge,
+.o_view_controller .badge,
+.o_view_controller .o_badge,
+.o_field_badge,
+.badge {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    padding: 3px 10px !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    border: 1px solid transparent !important;
+    white-space: nowrap !important;
+    text-transform: none !important;
+}
+
+/* Verde: Activa, Cumple, Online, Resuelta, En curso */
+.badge.bg-success,
+.badge.text-bg-success,
+.badge.text-success,
+.o_badge.text-success,
+.badge.border-success,
+[decoration-success="1"] {
+    background: var(--gns) !important;
+    color: var(--gn) !important;
+    border-color: rgba(30, 122, 76, 0.25) !important;
+}
+
+/* Amarillo/Ámbar: Mantenimiento, Con retraso, Media, Advertencia */
+.badge.bg-warning,
+.badge.text-bg-warning,
+.badge.text-warning,
+.o_badge.text-warning,
+.badge.border-warning,
+[decoration-warning="1"] {
+    background: var(--ams) !important;
+    color: var(--am) !important;
+    border-color: rgba(138, 90, 0, 0.25) !important;
+}
+
+/* Rojo: Suspendida, Incumple, Alta, Crítica, Desviación */
+.badge.bg-danger,
+.badge.text-bg-danger,
+.badge.text-danger,
+.o_badge.text-danger,
+.badge.border-danger,
+[decoration-danger="1"] {
+    background: var(--rds) !important;
+    color: var(--rd) !important;
+    border-color: rgba(180, 42, 42, 0.25) !important;
+}
+
+/* Azul: Programado, Baja, Intermedia, Info */
+.badge.bg-info,
+.badge.text-bg-info,
+.badge.text-info,
+.o_badge.text-info,
+.badge.border-info,
+.badge.bg-primary,
+[decoration-info="1"] {
+    background: var(--bls) !important;
+    color: var(--blt) !important;
+    border-color: rgba(47, 109, 240, 0.25) !important;
+}
+
+/* 5. FORM VIEWS / FORMULARIOS DE EDICIÓN */
+.o_form_view {
+    background: var(--bg) !important;
+    font-family: 'Inter', -apple-system, system-ui, sans-serif !important;
+}
+
+.o_form_view .o_form_sheet_bg {
+    background: var(--bg) !important;
+    padding: 20px 24px 40px !important;
+}
+
+.o_form_view .o_form_sheet {
+    background: var(--card) !important;
+    border: 1px solid var(--bd) !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02) !important;
+    padding: 24px 28px !important;
+    max-width: 1200px !important;
+    margin: 0 auto !important;
+}
+
+.o_form_view .o_form_statusbar {
+    background: var(--card) !important;
+    border-bottom: 1px solid var(--bd) !important;
+    padding: 8px 16px !important;
+}
+
+.o_form_view .o_statusbar_status > button {
+    font-size: 12px !important;
+    font-weight: 500 !important;
+    padding: 6px 14px !important;
+    border: 1px solid var(--bd) !important;
+    background: var(--card) !important;
+    color: var(--mu) !important;
+}
+
+.o_form_view .o_statusbar_status > button.btn-primary {
+    background: var(--bls) !important;
+    color: var(--blt) !important;
+    border-color: var(--bl) !important;
+    font-weight: 600 !important;
+}
+
+.o_form_view input,
+.o_form_view select,
+.o_form_view textarea {
+    background: var(--card) !important;
+    border: 1px solid var(--bd) !important;
+    padding: 7px 10px !important;
+    font: inherit !important;
+    color: var(--tx) !important;
+}
+
+.o_form_view input:focus,
+.o_form_view select:focus,
+.o_form_view textarea:focus {
+    border-color: var(--bl) !important;
+    box-shadow: 0 0 0 1px var(--bl) !important;
+    outline: none !important;
+}
+
+.o_form_view .nav-tabs {
+    border-bottom: 1px solid var(--bd) !important;
+    margin-bottom: 16px !important;
+}
+
+.o_form_view .nav-tabs .nav-link {
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    color: var(--mu) !important;
+    border: 1px solid transparent !important;
+    padding: 8px 16px !important;
+}
+
+.o_form_view .nav-tabs .nav-link.active {
+    background: var(--bls) !important;
+    color: var(--blt) !important;
+    border-color: var(--bl) !important;
+    font-weight: 600 !important;
+}
+
+/* 6. BARRA SUPERIOR DE MENÚS ODOO */
+.o_main_navbar {
+    background: #1a2230 !important;
+    border-bottom: 1px solid var(--bd) !important;
+    font-family: 'Inter', -apple-system, system-ui, sans-serif !important;
+}
+
+.o_main_navbar .o_nav_entry,
+.o_main_navbar .dropdown-toggle {
+    font-size: 13.5px !important;
+}
+
 
