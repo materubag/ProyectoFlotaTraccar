@@ -8,25 +8,74 @@
         <field name="arch" type="xml">
             <xpath expr="//div[@id='fleet']" position="inside">
                 <h2 class="mt16">Personalización de Colores · Transporte UTA</h2>
+                <div class="row mt8 o_settings_container">
+                    <div class="col-12 o_setting_box">
+                        <div class="o_setting_right_pane">
+                            <span class="o_form_label">Paletas Rápidas Predeterminadas</span>
+                            <div class="text-muted">
+                                Haz clic en una paleta para aplicar la combinación armónica completa en un solo clic, o personaliza los selectores abajo.
+                            </div>
+                            <div class="mt8 d-flex flex-wrap gap-2">
+                                <button name="action_apply_theme_odoo"
+                                        type="object"
+                                        string="Morado Odoo"
+                                        class="btn btn-secondary btn-sm"
+                                        icon="fa-circle"
+                                        style="color:#714b67; font-weight:600;"/>
+                                <button name="action_apply_theme_ibm"
+                                        type="object"
+                                        string="Azul IBM Carbon"
+                                        class="btn btn-secondary btn-sm"
+                                        icon="fa-circle"
+                                        style="color:#0f62fe; font-weight:600;"/>
+                                <button name="action_apply_theme_transito"
+                                        type="object"
+                                        string="Verde Tránsito"
+                                        class="btn btn-secondary btn-sm"
+                                        icon="fa-circle"
+                                        style="color:#0e6027; font-weight:600;"/>
+                                <button name="action_apply_theme_marino"
+                                        type="object"
+                                        string="Azul Marino"
+                                        class="btn btn-secondary btn-sm"
+                                        icon="fa-circle"
+                                        style="color:#1d4ed8; font-weight:600;"/>
+                                <button name="action_apply_theme_carbon"
+                                        type="object"
+                                        string="Gris Carbón"
+                                        class="btn btn-secondary btn-sm"
+                                        icon="fa-circle"
+                                        style="color:#393939; font-weight:600;"/>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="row mt16 o_settings_container" id="fleet_rutas_theme_settings">
                     <div class="col-12 col-lg-6 o_setting_box">
                         <div class="o_setting_right_pane">
                             <span class="o_form_label">Colores de Acento y Selección</span>
                             <div class="text-muted">
-                                Personaliza la paleta visual del Centro de Control de Rutas.
+                                Haz clic en el recuadro de color para abrir el selector visual interactivo.
                             </div>
                             <div class="content-group mt8">
-                                <div class="row mt4">
-                                    <label for="fleet_color_primary" class="col-lg-5 o_light_label"/>
-                                    <field name="fleet_color_primary" class="col-lg-7" placeholder="#714b67"/>
+                                <div class="row mt8 align-items-center">
+                                    <label for="fleet_color_primary" class="col-lg-6 o_light_label"/>
+                                    <div class="col-lg-6">
+                                        <field name="fleet_color_primary" widget="fleet_color_picker"/>
+                                    </div>
                                 </div>
-                                <div class="row mt4">
-                                    <label for="fleet_color_primary_hover" class="col-lg-5 o_light_label"/>
-                                    <field name="fleet_color_primary_hover" class="col-lg-7" placeholder="#5d3d54"/>
+                                <div class="row mt8 align-items-center">
+                                    <label for="fleet_color_primary_hover" class="col-lg-6 o_light_label"/>
+                                    <div class="col-lg-6">
+                                        <field name="fleet_color_primary_hover" widget="fleet_color_picker"/>
+                                    </div>
                                 </div>
-                                <div class="row mt4">
-                                    <label for="fleet_color_primary_soft" class="col-lg-5 o_light_label"/>
-                                    <field name="fleet_color_primary_soft" class="col-lg-7" placeholder="#f3ebf1"/>
+                                <div class="row mt8 align-items-center">
+                                    <label for="fleet_color_primary_soft" class="col-lg-6 o_light_label"/>
+                                    <div class="col-lg-6">
+                                        <field name="fleet_color_primary_soft" widget="fleet_color_picker"/>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -36,20 +85,26 @@
                         <div class="o_setting_right_pane">
                             <span class="o_form_label">Colores de Estructura y Capas</span>
                             <div class="text-muted">
-                                Fondo general, tarjetas/paneles y texto principal.
+                                Fondo general, tarjetas/paneles y texto principal legible.
                             </div>
                             <div class="content-group mt8">
-                                <div class="row mt4">
-                                    <label for="fleet_color_background" class="col-lg-5 o_light_label"/>
-                                    <field name="fleet_color_background" class="col-lg-7" placeholder="#f4f4f4"/>
+                                <div class="row mt8 align-items-center">
+                                    <label for="fleet_color_background" class="col-lg-6 o_light_label"/>
+                                    <div class="col-lg-6">
+                                        <field name="fleet_color_background" widget="fleet_color_picker"/>
+                                    </div>
                                 </div>
-                                <div class="row mt4">
-                                    <label for="fleet_color_card" class="col-lg-5 o_light_label"/>
-                                    <field name="fleet_color_card" class="col-lg-7" placeholder="#ffffff"/>
+                                <div class="row mt8 align-items-center">
+                                    <label for="fleet_color_card" class="col-lg-6 o_light_label"/>
+                                    <div class="col-lg-6">
+                                        <field name="fleet_color_card" widget="fleet_color_picker"/>
+                                    </div>
                                 </div>
-                                <div class="row mt4">
-                                    <label for="fleet_color_text" class="col-lg-5 o_light_label"/>
-                                    <field name="fleet_color_text" class="col-lg-7" placeholder="#161616"/>
+                                <div class="row mt8 align-items-center">
+                                    <label for="fleet_color_text" class="col-lg-6 o_light_label"/>
+                                    <div class="col-lg-6">
+                                        <field name="fleet_color_text" widget="fleet_color_picker"/>
+                                    </div>
                                 </div>
                             </div>
                         </div>

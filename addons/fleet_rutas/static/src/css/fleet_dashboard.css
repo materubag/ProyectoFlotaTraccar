@@ -1000,13 +1000,13 @@ body,
 }
 
 /* Botones Técnicos de Odoo (NUEVO, Guardar, Descartar, Filtros, etc.) */
-.o_control_panel .btn,
-.o_cp_buttons .btn,
+.o_control_panel .btn:not(.o_facet_remove),
+.o_cp_buttons .btn:not(.o_facet_remove),
 .o_statusbar_buttons .btn,
 .o_form_view .btn,
-.o_list_view .btn,
-.btn-primary,
-.btn-secondary {
+.o_list_view .btn:not(.o_facet_remove),
+.btn-primary:not(.o_facet_remove),
+.btn-secondary:not(.o_facet_remove) {
     border-radius: 0 !important;
     height: 36px !important;
     padding: 0 16px !important;
@@ -1066,33 +1066,118 @@ body,
 
 /* Barra de Búsqueda y Filtros de Odoo */
 .o_searchview {
-    background-color: #ffffff !important;
-    border: 1px solid #e0e0e0 !important;
+    background-color: var(--card, #ffffff) !important;
+    border: 1px solid var(--bd, #e0e0e0) !important;
     border-radius: 0 !important;
     min-height: 36px !important;
     padding: 2px 8px !important;
     box-shadow: none !important;
+    display: flex !important;
+    align-items: center !important;
+    flex-wrap: wrap !important;
+    gap: 4px !important;
 }
 
 .o_searchview:focus-within {
-    border-color: #714b67 !important;
-    outline: 1px solid #714b67 !important;
+    border-color: var(--bl, #714b67) !important;
+    outline: 1px solid var(--bl, #714b67) !important;
 }
 
+/* Facets (filtros activos en la barra de búsqueda) */
 .o_searchview_facet {
-    background-color: #f3ebf1 !important;
-    border: 1px solid #e2d1de !important;
+    display: inline-flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    vertical-align: middle !important;
+    background-color: var(--bls, #f3ebf1) !important;
+    border: 1px solid rgba(113, 75, 103, 0.25) !important;
     border-radius: 0 !important;
-    color: #714b67 !important;
-    margin: 2px !important;
+    color: var(--bl, #714b67) !important;
+    margin: 1px 3px 1px 0 !important;
+    height: 24px !important;
+    min-height: 24px !important;
+    max-height: 24px !important;
+    line-height: 24px !important;
+    padding: 0 !important;
+    position: relative !important;
+    overflow: hidden !important;
 }
 
 .o_searchview_facet .o_searchview_facet_label {
-    background-color: #714b67 !important;
+    background-color: var(--bl, #714b67) !important;
     color: #ffffff !important;
     border-radius: 0 !important;
-    padding: 2px 6px !important;
+    padding: 0 6px !important;
+    height: 24px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
     font-size: 11px !important;
+    font-weight: 600 !important;
+    line-height: 1 !important;
+    flex: 0 0 auto !important;
+}
+
+.o_searchview_facet .o_facet_values {
+    padding: 0 4px 0 6px !important;
+    height: 24px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    font-size: 12px !important;
+    color: var(--tx, #161616) !important;
+    line-height: 1 !important;
+    flex: 0 0 auto !important;
+}
+
+.o_searchview_facet .o_facet_value {
+    display: inline-flex !important;
+    align-items: center !important;
+    line-height: 1 !important;
+}
+
+/* Ícono X para quitar filtro: centrado absoluto y perfecto vertical y horizontal */
+.o_searchview_facet .o_facet_remove,
+.o_control_panel .o_searchview_facet .o_facet_remove,
+.o_searchview .o_searchview_facet .o_facet_remove,
+i.o_facet_remove {
+    position: relative !important;
+    top: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 20px !important;
+    min-width: 20px !important;
+    max-width: 20px !important;
+    height: 24px !important;
+    min-height: 24px !important;
+    max-height: 24px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    font-size: 11px !important;
+    line-height: 1 !important;
+    vertical-align: middle !important;
+    border: none !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    color: var(--bl, #714b67) !important;
+    opacity: 0.65 !important;
+    cursor: pointer !important;
+    flex: 0 0 20px !important;
+    transform: none !important;
+    transition: opacity 0.15s, background-color 0.15s !important;
+}
+
+.o_searchview_facet .o_facet_remove:hover,
+.o_control_panel .o_searchview_facet .o_facet_remove:hover,
+.o_searchview .o_searchview_facet .o_facet_remove:hover,
+i.o_facet_remove:hover {
+    opacity: 1 !important;
+    background-color: rgba(0, 0, 0, 0.08) !important;
+    color: var(--rd, #a2191f) !important;
 }
 
 /* Vista de Lista / Tabla de Odoo (.o_list_view) */
@@ -1352,4 +1437,67 @@ body,
     border: 1px solid var(--bd);
     background: transparent;
     cursor: pointer;
+}
+
+/* ── Widget de Selector de Color Personalizado en Formularios y Ajustes ── */
+.uta-color-picker-field {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+}
+
+.uta-color-picker-field .uta-color-swatch-wrapper {
+    position: relative !important;
+    width: 36px !important;
+    height: 32px !important;
+    border: 1px solid #c6c6c6 !important;
+    border-radius: 0 !important;
+    cursor: pointer !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+    overflow: hidden !important;
+    transition: transform 0.15s ease, border-color 0.15s ease !important;
+    flex: 0 0 36px !important;
+}
+
+.uta-color-picker-field .uta-color-swatch-wrapper:hover {
+    border-color: var(--bl, #714b67) !important;
+    transform: scale(1.06);
+}
+
+.uta-color-picker-field .uta-color-swatch-wrapper.disabled {
+    cursor: not-allowed !important;
+    opacity: 0.6 !important;
+}
+
+.uta-color-picker-field .uta-native-color-input {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    opacity: 0 !important;
+    cursor: pointer !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+}
+
+.uta-color-picker-field .uta-hex-text-input {
+    width: 86px !important;
+    height: 32px !important;
+    padding: 2px 8px !important;
+    font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    border: 1px solid #d0d0d0 !important;
+    border-radius: 0 !important;
+    background: #f8f9fa !important;
+    color: #161616 !important;
+    text-transform: uppercase !important;
+}
+
+.uta-color-picker-field .uta-hex-text-input:focus {
+    border-color: var(--bl, #714b67) !important;
+    outline: none !important;
+    background: #ffffff !important;
 }

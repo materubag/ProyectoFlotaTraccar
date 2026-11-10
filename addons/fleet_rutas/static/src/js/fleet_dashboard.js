@@ -1049,36 +1049,36 @@ FleetRutasDashboard.template = xml/* xml */`
                 <div class="uta-color-row">
                     <span class="lb uta-label" style="font-weight:600;">Color de Acento / Primario (--bl):</span>
                     <div style="display:flex;align-items:center;gap:8px;">
-                        <input type="color" t-model="state.themeColors.primary" t-on-change="() => this.applyTheme(state.themeColors)"/>
-                        <span class="lb" t-esc="state.themeColors.primary"/>
+                        <input type="color" t-model="state.themeColors.primary" t-on-input="() => this.applyTheme(state.themeColors)" t-on-change="() => this.applyTheme(state.themeColors)"/>
+                        <span class="lb" style="font-family:monospace;font-weight:600;" t-esc="state.themeColors.primary"/>
                     </div>
                 </div>
                 <div class="uta-color-row">
                     <span class="lb uta-label" style="font-weight:600;">Selección Suave (--bls):</span>
                     <div style="display:flex;align-items:center;gap:8px;">
-                        <input type="color" t-model="state.themeColors.primary_soft" t-on-change="() => this.applyTheme(state.themeColors)"/>
-                        <span class="lb" t-esc="state.themeColors.primary_soft"/>
+                        <input type="color" t-model="state.themeColors.primary_soft" t-on-input="() => this.applyTheme(state.themeColors)" t-on-change="() => this.applyTheme(state.themeColors)"/>
+                        <span class="lb" style="font-family:monospace;font-weight:600;" t-esc="state.themeColors.primary_soft"/>
                     </div>
                 </div>
                 <div class="uta-color-row">
                     <span class="lb uta-label" style="font-weight:600;">Fondo de Página (--bg):</span>
                     <div style="display:flex;align-items:center;gap:8px;">
-                        <input type="color" t-model="state.themeColors.background" t-on-change="() => this.applyTheme(state.themeColors)"/>
-                        <span class="lb" t-esc="state.themeColors.background"/>
+                        <input type="color" t-model="state.themeColors.background" t-on-input="() => this.applyTheme(state.themeColors)" t-on-change="() => this.applyTheme(state.themeColors)"/>
+                        <span class="lb" style="font-family:monospace;font-weight:600;" t-esc="state.themeColors.background"/>
                     </div>
                 </div>
                 <div class="uta-color-row">
                     <span class="lb uta-label" style="font-weight:600;">Paneles y Tarjetas (--card):</span>
                     <div style="display:flex;align-items:center;gap:8px;">
-                        <input type="color" t-model="state.themeColors.card" t-on-change="() => this.applyTheme(state.themeColors)"/>
-                        <span class="lb" t-esc="state.themeColors.card"/>
+                        <input type="color" t-model="state.themeColors.card" t-on-input="() => this.applyTheme(state.themeColors)" t-on-change="() => this.applyTheme(state.themeColors)"/>
+                        <span class="lb" style="font-family:monospace;font-weight:600;" t-esc="state.themeColors.card"/>
                     </div>
                 </div>
                 <div class="uta-color-row">
                     <span class="lb uta-label" style="font-weight:600;">Texto Principal (--tx):</span>
                     <div style="display:flex;align-items:center;gap:8px;">
-                        <input type="color" t-model="state.themeColors.text" t-on-change="() => this.applyTheme(state.themeColors)"/>
-                        <span class="lb" t-esc="state.themeColors.text"/>
+                        <input type="color" t-model="state.themeColors.text" t-on-input="() => this.applyTheme(state.themeColors)" t-on-change="() => this.applyTheme(state.themeColors)"/>
+                        <span class="lb" style="font-family:monospace;font-weight:600;" t-esc="state.themeColors.text"/>
                     </div>
                 </div>
             </div>

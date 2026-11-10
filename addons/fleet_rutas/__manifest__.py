@@ -41,6 +41,7 @@ Características implementadas:
     'assets': {
         'web.assets_backend': [
             'fleet_rutas/static/src/css/fleet_dashboard.css',
+            'fleet_rutas/static/src/js/color_picker_field.js',
             'fleet_rutas/static/src/js/fleet_dashboard.js',
         ],
     },

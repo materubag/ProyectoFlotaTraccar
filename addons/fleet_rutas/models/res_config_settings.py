@@ -73,3 +73,59 @@ class ResConfigSettings(models.TransientModel):
             'card': ICP.get_param('fleet_rutas.color_card', '#ffffff'),
             'text': ICP.get_param('fleet_rutas.color_text', '#161616'),
         }
+
+    def action_apply_theme_odoo(self):
+        """Aplica la paleta oficial Morado Odoo."""
+        self.set_values()
+        ICP = self.env['ir.config_parameter'].sudo()
+        ICP.set_param('fleet_rutas.color_primary', '#714b67')
+        ICP.set_param('fleet_rutas.color_primary_hover', '#5d3d54')
+        ICP.set_param('fleet_rutas.color_primary_soft', '#f3ebf1')
+        ICP.set_param('fleet_rutas.color_background', '#f4f4f4')
+        ICP.set_param('fleet_rutas.color_card', '#ffffff')
+        ICP.set_param('fleet_rutas.color_text', '#161616')
+
+    def action_apply_theme_ibm(self):
+        """Aplica la paleta Azul IBM Carbon."""
+        self.set_values()
+        ICP = self.env['ir.config_parameter'].sudo()
+        ICP.set_param('fleet_rutas.color_primary', '#0f62fe')
+        ICP.set_param('fleet_rutas.color_primary_hover', '#0353e9')
+        ICP.set_param('fleet_rutas.color_primary_soft', '#edf5ff')
+        ICP.set_param('fleet_rutas.color_background', '#f4f4f4')
+        ICP.set_param('fleet_rutas.color_card', '#ffffff')
+        ICP.set_param('fleet_rutas.color_text', '#161616')
+
+    def action_apply_theme_transito(self):
+        """Aplica la paleta Verde Tránsito."""
+        self.set_values()
+        ICP = self.env['ir.config_parameter'].sudo()
+        ICP.set_param('fleet_rutas.color_primary', '#0e6027')
+        ICP.set_param('fleet_rutas.color_primary_hover', '#09411a')
+        ICP.set_param('fleet_rutas.color_primary_soft', '#defbe6')
+        ICP.set_param('fleet_rutas.color_background', '#f4f4f4')
+        ICP.set_param('fleet_rutas.color_card', '#ffffff')
+        ICP.set_param('fleet_rutas.color_text', '#161616')
+
+    def action_apply_theme_marino(self):
+        """Aplica la paleta Azul Marino."""
+        self.set_values()
+        ICP = self.env['ir.config_parameter'].sudo()
+        ICP.set_param('fleet_rutas.color_primary', '#1d4ed8')
+        ICP.set_param('fleet_rutas.color_primary_hover', '#1e40af')
+        ICP.set_param('fleet_rutas.color_primary_soft', '#e8eefc')
+        ICP.set_param('fleet_rutas.color_background', '#f4f4f4')
+        ICP.set_param('fleet_rutas.color_card', '#ffffff')
+        ICP.set_param('fleet_rutas.color_text', '#161616')
+
+    def action_apply_theme_carbon(self):
+        """Aplica la paleta Gris Carbón."""
+        self.set_values()
+        ICP = self.env['ir.config_parameter'].sudo()
+        ICP.set_param('fleet_rutas.color_primary', '#393939')
+        ICP.set_param('fleet_rutas.color_primary_hover', '#262626')
+        ICP.set_param('fleet_rutas.color_primary_soft', '#e8e8e8')
+        ICP.set_param('fleet_rutas.color_background', '#f4f4f4')
+        ICP.set_param('fleet_rutas.color_card', '#ffffff')
+        ICP.set_param('fleet_rutas.color_text', '#161616')
+
