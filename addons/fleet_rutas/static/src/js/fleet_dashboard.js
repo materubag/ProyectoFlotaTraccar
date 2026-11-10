@@ -2,7 +2,8 @@
 /**
  * Centro de Control y Monitoreo de Transporte Universitario
  * OWL 2 Component para Odoo 16
- * Inspirado en el diseño técnico UTA con navegación modular y bordes planos (0-radius)
+ * 100% conectado a los datos reales registrados en Odoo y PostgreSQL
+ * Diseño técnico de alta precisión con bordes planos (0-radius)
  */
 
 import { Component, useState, onMounted, onWillUnmount, xml } from "@odoo/owl";
@@ -21,21 +22,6 @@ const TABS = [
     { id: "sync", label: "Sincronización", icon: "fa-refresh" },
 ];
 
-const METRICAS_DEF = [
-    { ind: "Cumplimiento de rutas", form: "recorridos cumplidos / totales × 100", fte: "Recorrido", uni: "%", res: "80 %", interp: "8 de 10 sin incumplimientos" },
-    { ind: "Puntualidad", form: "llegadas en tolerancia / llegadas × 100", fte: "Punto visitado", uni: "%", res: "72 %", interp: "Falla en 28 % de llegadas" },
-    { ind: "Retraso promedio", form: "Σ retrasos / n.º de retrasos", fte: "Punto visitado", uni: "min", res: "4,3 min", interp: "Dentro de límites tolerables" },
-    { ind: "Paradas cumplidas", form: "paradas en radio / programadas × 100", fte: "Punto visitado", uni: "%", res: "91 %", interp: "Pocas omisiones operativas" },
-    { ind: "Desviación de ruta", form: "distancia media al trazado", fte: "Posición GPS", uni: "m", res: "38 m", interp: "Dentro del corredor autorizado" },
-    { ind: "Dif. de distancia", form: "(recorrida − estimada) / estimada × 100", fte: "Recorrido", uni: "%", res: "+3,2 %", interp: "Ligero exceso en ruta" },
-    { ind: "Tiempo promedio", form: "Σ duración / n.º de recorridos", fte: "Recorrido", uni: "min", res: "47 min", interp: "Cercano al tiempo planificado" },
-    { ind: "Incidencias por viaje", form: "incidencias / recorridos", fte: "Incidencia", uni: "inc./rec.", res: "2,7", interp: "Retrasos son la causa principal" },
-    { ind: "Integridad GPS", form: "posiciones válidas / recibidas × 100", fte: "Posición GPS", uni: "%", res: "98,6 %", interp: "Alta fiabilidad y continuidad de señal" },
-    { ind: "Exactitud de sincronización", form: "posiciones iguales Traccar–Odoo / comparadas", fte: "Traccar y Odoo", uni: "%", res: "99,2 %", interp: "Sin discrepancias relevantes de telemetría" },
-    { ind: "Tiempo de respuesta", form: "media de tiempos de consulta", fte: "Prueba de rendimiento", uni: "s", res: "1,4 s", interp: "Rendimiento óptimo del backend" },
-    { ind: "Detección correcta", form: "incidencias correctas / esperadas × 100", fte: "Casos de prueba", uni: "%", res: "94 %", interp: "Alta precisión de geofence" },
-];
-
 class FleetRutasDashboard extends Component {
     static template = "fleet_rutas.FleetDashboardTemplate";
 
@@ -49,6 +35,7 @@ class FleetRutasDashboard extends Component {
             error: false,
             lastUpdated: null,
             selectedRutaIndex: 0,
+            selectedTripIndex: 0,
             searchQuery: "",
             kpis: {
                 recorridos_hoy: 0,
@@ -56,24 +43,29 @@ class FleetRutasDashboard extends Component {
                 completados: 0,
                 total_recorridos: 0,
                 incidencias_activas: 0,
-                avg_puntualidad: 72.0,
-                avg_cumplimiento: 80.0,
-                avg_integridad_gps: 98.6,
-                avg_retraso: 4.3,
-                avg_paradas_cumplidas: 91.0,
-                avg_exactitud_sync: 99.2,
-                avg_tiempo_resp: 1.4,
-                avg_deteccion: 94.0,
+                total_incidencias: 0,
+                avg_puntualidad: 0.0,
+                avg_cumplimiento: 0.0,
+                avg_integridad_gps: 0.0,
+                avg_retraso: 0.0,
+                avg_paradas_cumplidas: 0.0,
+                avg_exactitud_sync: 0.0,
+                avg_tiempo_resp: 0.0,
+                avg_tiempo_resp_ms: 0.0,
+                avg_frecuencia_inc: 0.0,
+                avg_desviacion: 0.0,
                 recorridos_activos: [],
                 recorridos_historial: [],
+                asignaciones: [],
                 incidencias_lista: [],
                 rutas_lista: [],
                 vehiculos_lista: [],
+                total_posiciones: 0,
                 pos_hoy_count: 0,
                 puntualidad_rutas: [],
                 incidencias_por_tipo: [],
+                metricas_iso_reales: [],
             },
-            metricasDef: METRICAS_DEF,
         });
 
         this.tabs = TABS;
@@ -125,6 +117,10 @@ class FleetRutasDashboard extends Component {
         this.state.selectedRutaIndex = index;
     }
 
+    selectTrip(index) {
+        this.state.selectedTripIndex = index;
+    }
+
     onSearch(ev) {
         this.state.searchQuery = ev.target.value.toLowerCase();
     }
@@ -137,7 +133,19 @@ class FleetRutasDashboard extends Component {
 
     get currentActiveTrip() {
         const activos = this.state.kpis.recorridos_activos || [];
-        return activos.length ? activos[0] : null;
+        if (!activos.length) return null;
+        return activos[this.state.selectedTripIndex] || activos[0];
+    }
+
+    get filteredHistorial() {
+        const q = (this.state.searchQuery || "").trim().toLowerCase();
+        const historial = this.state.kpis.recorridos_historial || [];
+        if (!q) return historial;
+        return historial.filter(r =>
+            (r.vehiculo || "").toLowerCase().includes(q) ||
+            (r.ruta || "").toLowerCase().includes(q) ||
+            (r.estado_label || "").toLowerCase().includes(q)
+        );
     }
 
     // ── ACCIONES ODOO NATIVAS ────────────────────────────────────────────────
@@ -174,7 +182,7 @@ class FleetRutasDashboard extends Component {
 
 FleetRutasDashboard.template = xml/* xml */`
 <div class="o_fleet_rutas_dashboard">
-    <!-- BARRA LATERAL (NAV) -->
+    <!-- BARRA LATERAL DE NAVEGACIÓN -->
     <nav class="fleet_sidebar" aria-label="Navegación del centro de control">
         <div class="fleet_brand">
             <i class="fa fa-bus" aria-hidden="true"/>
@@ -201,20 +209,20 @@ FleetRutasDashboard.template = xml/* xml */`
             <div class="hd">
                 <h2>Panel de indicadores</h2>
                 <div class="row">
-                    <span class="chip">Todas las rutas</span>
-                    <span class="chip">Últimos 30 días</span>
+                    <span class="chip">Todos los recorridos</span>
+                    <span class="chip"><t t-esc="state.kpis.total_recorridos"/> registros</span>
                     <button class="btn p s" t-on-click="() => this.loadData()">
                         <i class="fa fa-refresh" aria-hidden="true"/> Actualizar
                     </button>
                 </div>
             </div>
 
-            <!-- KPIs Principales -->
+            <!-- KPIs Principales Calculados de la Base de Datos -->
             <div class="g g4">
                 <div class="card">
                     <div class="lb">Cumplimiento de rutas</div>
                     <div class="big"><t t-esc="state.kpis.avg_cumplimiento"/><small>%</small></div>
-                    <div class="lb"><t t-esc="state.kpis.completados"/> de <t t-esc="state.kpis.total_recorridos"/> recorridos</div>
+                    <div class="lb"><t t-esc="state.kpis.completados"/> finalizados de <t t-esc="state.kpis.total_recorridos"/> viajes</div>
                 </div>
                 <div class="card">
                     <div class="lb">Puntualidad global</div>
@@ -224,21 +232,21 @@ FleetRutasDashboard.template = xml/* xml */`
                 <div class="card">
                     <div class="lb">Retraso promedio</div>
                     <div class="big"><t t-esc="state.kpis.avg_retraso"/><small>min</small></div>
-                    <div class="lb">Sobre horario programado</div>
+                    <div class="lb">Demora media sobre itinerario</div>
                 </div>
                 <div class="card">
                     <div class="lb">Paradas cumplidas</div>
                     <div class="big"><t t-esc="state.kpis.avg_paradas_cumplidas"/><small>%</small></div>
-                    <div class="lb">Puntos de control registrados</div>
+                    <div class="lb">Puntos de control con detección GPS</div>
                 </div>
             </div>
 
-            <!-- Gráficos de Puntualidad e Incidencias -->
+            <!-- Gráficos Reales de Puntualidad e Incidencias -->
             <div class="g g2">
                 <div class="card">
-                    <h3>Puntualidad por ruta</h3>
+                    <h3>Puntualidad por ruta (Evaluación de Paradas)</h3>
                     <div class="bars">
-                        <div t-foreach="state.kpis.puntualidad_rutas" t-as="pr" t-key="pr.nombre">
+                        <div t-foreach="state.kpis.puntualidad_rutas" t-as="pr" t-key="pr.id">
                             <i t-att-style="'height:' + pr.px + 'px;'"/>
                             <t t-esc="pr.nombre"/> · <t t-esc="pr.pct"/>%
                         </div>
@@ -246,10 +254,15 @@ FleetRutasDashboard.template = xml/* xml */`
                 </div>
 
                 <div class="card">
-                    <h3>Incidencias por tipo</h3>
-                    <div t-foreach="state.kpis.incidencias_por_tipo" t-as="it" t-key="it.label" class="hb">
+                    <h3>Incidencias reales por tipo (<t t-esc="state.kpis.total_incidencias"/> eventos)</h3>
+                    <div t-foreach="state.kpis.incidencias_por_tipo" t-as="it" t-key="it.tipo" class="hb">
                         <p><span t-esc="it.label"/><b><t t-esc="it.count"/></b></p>
                         <u><i t-att-style="'width:' + it.pct + '%;'"/></u>
+                    </div>
+                    <div style="margin-top:20px;">
+                        <button class="btn s" t-on-click="() => this.openIncidencias()">
+                            Ver todas las incidencias registradas
+                        </button>
                     </div>
                 </div>
             </div>
@@ -268,15 +281,15 @@ FleetRutasDashboard.template = xml/* xml */`
                     </div>
                     <div>
                         <div class="lb">Tiempo de respuesta</div>
-                        <div class="md"><t t-esc="state.kpis.avg_tiempo_resp"/> s</div>
+                        <div class="md"><t t-esc="state.kpis.avg_tiempo_resp"/> s (<t t-esc="state.kpis.avg_tiempo_resp_ms"/> ms)</div>
                     </div>
                     <div>
-                        <div class="lb">Detección de incidencias</div>
-                        <div class="md"><t t-esc="state.kpis.avg_deteccion"/> %</div>
+                        <div class="lb">Frecuencia de incidencias</div>
+                        <div class="md"><t t-esc="state.kpis.avg_frecuencia_inc"/> inc/h</div>
                     </div>
                 </div>
             </div>
-            <p class="note">Métricas agregadas calculadas en tiempo real a partir de los recorridos y telemetría GPS registrada.</p>
+            <p class="note">Métricas agregadas calculadas en tiempo real a partir de los recorridos y telemetría GPS registrada en PostgreSQL.</p>
         </t>
 
         <!-- ════════════════════ TAB 2: MONITOREO EN VIVO ════════════════════ -->
@@ -284,107 +297,83 @@ FleetRutasDashboard.template = xml/* xml */`
             <div class="hd">
                 <h2>Monitoreo en vivo</h2>
                 <div class="row">
-                    <span class="pill gn"><i class="fa fa-signal"/> GPS actualizado hace 12 s</span>
+                    <!-- Selector de viaje en tránsito -->
+                    <span class="lb" style="margin-right:4px;">Recorrido activo:</span>
+                    <select style="width:auto;display:inline-block;padding:4px 8px;font-size:13px;"
+                            t-on-change="(ev) => this.selectTrip(Number(ev.target.value))">
+                        <option t-foreach="state.kpis.recorridos_activos" t-as="tr" t-key="tr.id"
+                                t-att-value="tr_index"
+                                t-att-selected="state.selectedTripIndex === tr_index">
+                            <t t-esc="tr.name"/> · <t t-esc="tr.vehiculo"/>
+                        </option>
+                    </select>
+
+                    <span class="pill gn"><i class="fa fa-signal"/> <t t-esc="state.kpis.en_curso"/> en curso</span>
                     <button class="btn p s" t-on-click="() => this.openMapaWeb()">
-                        <i class="fa fa-external-link"/> Abrir mapa interactivo
+                        <i class="fa fa-external-link"/> Abrir en Leaflet
                     </button>
                 </div>
             </div>
 
-            <div class="g g2b">
-                <!-- Visualizador del trazado y posición actual -->
-                <div class="map" style="min-height:360px;">
-                    <svg viewBox="0 0 700 520" role="img" aria-label="Mapa de monitoreo de ruta">
-                        <!-- Malla de calles -->
-                        <rect x="117" y="0" width="12" height="520" fill="var(--road)"/>
-                        <rect x="360" y="0" width="12" height="520" fill="var(--road)"/>
-                        <rect x="591" y="0" width="12" height="520" fill="var(--road)"/>
-                        <rect x="0" y="127" width="700" height="12" fill="var(--road)"/>
-                        <rect x="0" y="359" width="700" height="12" fill="var(--road)"/>
-                        
-                        <!-- Corredor de tolerancia y trazado -->
-                        <polyline points="78,440 123,340 276,300 366,190 498,150 619,80" fill="none" stroke="var(--trk)" stroke-width="28" stroke-linecap="square" stroke-linejoin="miter"/>
-                        <polyline points="78,440 123,340 276,300 366,190 498,150 619,80" fill="none" stroke="var(--bl)" stroke-width="4" stroke-linejoin="miter"/>
-                        
-                        <!-- Paradas / Puntos de control (cuadrados planos) -->
-                        <rect x="66" y="428" width="24" height="24" fill="var(--card)" stroke="var(--bl)" stroke-width="2"/>
-                        <text x="78" y="444" text-anchor="middle" font-size="11" font-weight="700" fill="var(--bl)">1</text>
-
-                        <rect x="264" y="288" width="24" height="24" fill="var(--card)" stroke="var(--bl)" stroke-width="2"/>
-                        <text x="276" y="304" text-anchor="middle" font-size="11" font-weight="700" fill="var(--bl)">2</text>
-
-                        <rect x="486" y="138" width="24" height="24" fill="var(--card)" stroke="var(--bl)" stroke-width="2"/>
-                        <text x="498" y="154" text-anchor="middle" font-size="11" font-weight="700" fill="var(--bl)">3</text>
-
-                        <rect x="607" y="68" width="24" height="24" fill="var(--card)" stroke="var(--bl)" stroke-width="2"/>
-                        <text x="619" y="84" text-anchor="middle" font-size="11" font-weight="700" fill="var(--bl)">4</text>
-
-                        <!-- Marcador del bus actual -->
-                        <rect x="354" y="178" width="24" height="24" fill="var(--gn)" stroke="#ffffff" stroke-width="2"/>
-                        <rect x="385" y="178" width="76" height="24" fill="var(--tx)"/>
-                        <text x="423" y="194" text-anchor="middle" font-size="11" font-weight="700" fill="#ffffff">
-                            <t t-if="currentActiveTrip" t-esc="currentActiveTrip.vehiculo"/>
-                            <t t-else="">BUS-101</t>
-                        </text>
-                    </svg>
-                    <div class="tag">Tránsito en corredor autorizado · Tolerancia 100 m</div>
-                </div>
-
-                <!-- Detalles operativos del vehículo activo -->
-                <div>
-                    <div class="card">
-                        <div class="lb">Vehículo en operación</div>
-                        <div class="big">
-                            <t t-if="currentActiveTrip" t-esc="currentActiveTrip.vehiculo"/>
-                            <t t-else="">BUS-101</t>
-                        </div>
-                        <div class="lb">
-                            <t t-if="currentActiveTrip" t-esc="currentActiveTrip.ruta"/>
-                            <t t-else="">Ruta A · Centro – Campus Huachi</t>
-                        </div>
-                        <div class="f" style="margin-top:14px;">
-                            <div>
-                                <div class="lb">Velocidad</div>
-                                <b style="font-size:16px;">
-                                    <t t-if="currentActiveTrip" t-esc="currentActiveTrip.velocidad"/>
-                                    <t t-else="">34.0</t> km/h
-                                </b>
-                            </div>
-                            <div>
-                                <div class="lb">Retraso</div>
-                                <b style="font-size:16px;" class="pill gn">+0 min</b>
-                            </div>
-                            <div>
-                                <div class="lb">Desvío</div>
-                                <b style="font-size:16px;">Dentro</b>
-                            </div>
-                        </div>
+            <t t-if="currentActiveTrip">
+                <div class="g g2b">
+                    <!-- Visualizador / Mapa del recorrido seleccionado -->
+                    <div class="card" style="padding:0;overflow:hidden;min-height:380px;display:flex;flex-direction:column;">
+                        <iframe t-att-src="'/fleet_rutas/mapa/' + currentActiveTrip.id"
+                                style="width:100%;height:380px;border:none;flex:1;background:var(--map);"/>
                     </div>
 
-                    <div class="card">
-                        <h3>Puntos de control de la ruta</h3>
-                        <t t-if="currentActiveTrip and currentActiveTrip.paradas.length">
-                            <div t-foreach="currentActiveTrip.paradas" t-as="p" t-key="p.nombre" class="li">
-                                <span><t t-esc="p.nombre"/> · <t t-esc="p.hora"/></span>
-                                <span t-if="p.cumplida" class="pill gn">Cumplida</span>
+                    <!-- Detalles operativos del vehículo activo -->
+                    <div>
+                        <div class="card">
+                            <div class="lb">Vehículo en operación</div>
+                            <div class="big" t-esc="currentActiveTrip.vehiculo"/>
+                            <div class="lb" t-esc="currentActiveTrip.ruta"/>
+                            <div class="f" style="margin-top:14px;">
+                                <div>
+                                    <div class="lb">Velocidad actual</div>
+                                    <b style="font-size:16px;"><t t-esc="currentActiveTrip.velocidad"/> km/h</b>
+                                </div>
+                                <div>
+                                    <div class="lb">Retraso acumulado</div>
+                                    <b t-att-class="'pill ' + (currentActiveTrip.retraso_min > 5 ? 'rd' : 'gn')">
+                                        +<t t-esc="currentActiveTrip.retraso_min"/> min
+                                    </b>
+                                </div>
+                                <div>
+                                    <div class="lb">Corredor</div>
+                                    <b t-att-class="'pill ' + (currentActiveTrip.desviacion ? 'rd' : 'gn')">
+                                        <t t-if="currentActiveTrip.desviacion">Desviado</t>
+                                        <t t-else="">Dentro</t>
+                                    </b>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <h3>Puntos de control visitados (<t t-esc="currentActiveTrip.paradas_cumplidas"/>)</h3>
+                            <div t-if="!currentActiveTrip.paradas.length" class="lb">Sin puntos de control asignados.</div>
+                            <div t-foreach="currentActiveTrip.paradas" t-as="p" t-key="p.id" class="li">
+                                <span>
+                                    <b t-esc="p.nombre"/>
+                                    <span class="lb" style="margin-left:6px;"><t t-esc="p.hora"/></span>
+                                </span>
+                                <span t-if="p.cumplida" class="pill gn">Cumplida (<t t-esc="p.distancia_min_m"/> m)</span>
                                 <span t-else="" class="pill bl">Pendiente</span>
                             </div>
-                        </t>
-                        <t t-else="">
-                            <div class="li"><span>Terminal · 08:00</span><span class="pill gn">Cumplida</span></div>
-                            <div class="li"><span>Parada 2 · 08:15</span><span class="pill gn">Cumplida</span></div>
-                            <div class="li"><span>Parada 3 · 08:30</span><span class="pill bl">Pendiente</span></div>
-                            <div class="li"><span>Campus · 08:45</span><span class="pill bl">Pendiente</span></div>
-                        </t>
+                        </div>
                     </div>
                 </div>
-            </div>
+            </t>
+            <t t-else="">
+                <div class="card">No hay recorridos activos en tránsito en este momento.</div>
+            </t>
         </t>
 
         <!-- ════════════════════ TAB 3: RUTAS Y PARADAS ════════════════════ -->
         <t t-if="state.activeTab === 'rutas'">
             <div class="hd">
-                <h2>Rutas y puntos de control</h2>
+                <h2>Rutas y puntos de control registrados</h2>
                 <div class="row">
                     <button class="btn p" t-on-click="() => this.openRutas()">
                         <i class="fa fa-plus"/> Gestionar rutas en Odoo
@@ -393,42 +382,43 @@ FleetRutasDashboard.template = xml/* xml */`
             </div>
 
             <div class="g" style="grid-template-columns: minmax(0, 1fr) minmax(0, 2.3fr);">
-                <!-- Lista de rutas -->
+                <!-- Lista de rutas reales -->
                 <div class="card">
-                    <h3>Rutas registradas</h3>
+                    <h3>Rutas disponibles (<t t-esc="state.kpis.rutas_lista.length"/>)</h3>
                     <div t-if="!state.kpis.rutas_lista.length" class="lb">No hay rutas registradas.</div>
                     <button t-foreach="state.kpis.rutas_lista" t-as="r" t-key="r.id"
                             t-att-class="'rt' + (state.selectedRutaIndex === r_index ? ' on' : '')"
                             t-on-click="() => this.selectRuta(r_index)">
                         <b t-esc="r.name"/>
-                        <span><t t-esc="r.origen"/> – <t t-esc="r.destino"/> · <t t-esc="r.distancia_km"/> km</span>
+                        <span><t t-esc="r.origen"/> → <t t-esc="r.destino"/></span>
+                        <div class="lb" style="margin-top:4px;"><t t-esc="r.distancia_km"/> km · <t t-esc="r.paradas_count"/> puntos de control</div>
                     </button>
                 </div>
 
-                <!-- Detalle y paradas de la ruta seleccionada -->
+                <!-- Detalle y paradas reales de la ruta seleccionada -->
                 <div>
                     <div t-if="selectedRuta" class="card">
                         <h3 t-esc="selectedRuta.name"/>
                         <div class="f">
-                            <div><div class="lb">Origen</div><div style="font-size:16px;font-weight:600;" t-esc="selectedRuta.origen"/></div>
-                            <div><div class="lb">Destino</div><div style="font-size:16px;font-weight:600;" t-esc="selectedRuta.destino"/></div>
-                            <div><div class="lb">Distancia estimada</div><div style="font-size:16px;font-weight:600;"><t t-esc="selectedRuta.distancia_km"/> km</div></div>
-                            <div><div class="lb">Corredor de desvío</div><div style="font-size:16px;font-weight:600;"><t t-esc="selectedRuta.corredor_m"/> m</div></div>
+                            <div><div class="lb">Origen</div><div style="font-size:15px;font-weight:600;" t-esc="selectedRuta.origen"/></div>
+                            <div><div class="lb">Destino</div><div style="font-size:15px;font-weight:600;" t-esc="selectedRuta.destino"/></div>
+                            <div><div class="lb">Distancia prevista</div><div style="font-size:15px;font-weight:600;"><t t-esc="selectedRuta.distancia_km"/> km</div></div>
+                            <div><div class="lb">Corredor de tolerancia</div><div style="font-size:15px;font-weight:600;"><t t-esc="selectedRuta.corredor_m"/> m</div></div>
                         </div>
                     </div>
 
                     <div t-if="selectedRuta" class="card">
-                        <h3>Puntos de control (Paradas)</h3>
+                        <h3>Puntos de control (Geocercas de parada)</h3>
                         <div class="tw">
                             <table>
                                 <thead>
                                     <tr>
-                                        <th>N.º</th>
-                                        <th>Nombre</th>
-                                        <th>Coordenadas</th>
-                                        <th>Llegada</th>
+                                        <th>Sec.</th>
+                                        <th>Nombre del Punto</th>
+                                        <th>Coordenadas GPS</th>
+                                        <th>Llegada Est.</th>
                                         <th>Parada</th>
-                                        <th>Salida</th>
+                                        <th>Salida Est.</th>
                                         <th>Tolerancia</th>
                                         <th>Radio</th>
                                     </tr>
@@ -447,7 +437,7 @@ FleetRutasDashboard.template = xml/* xml */`
                                 </tbody>
                             </table>
                         </div>
-                        <p class="note">Cada punto de control tiene tiempo de parada programado, ventana de tolerancia (±5 min) y radio de geocerca.</p>
+                        <p class="note">Puntos geográficos extraídos directamente del modelo fleet.parada asociados a la ruta.</p>
                     </div>
                 </div>
             </div>
@@ -459,14 +449,14 @@ FleetRutasDashboard.template = xml/* xml */`
                 <h2>Asignaciones de flota</h2>
                 <div class="row">
                     <button class="btn p" t-on-click="() => this.openRecorridos()">
-                        <i class="fa fa-calendar-plus-o"/> Nueva asignación en Odoo
+                        <i class="fa fa-calendar-plus-o"/> Administrar en Odoo
                     </button>
                 </div>
             </div>
 
             <div class="g g2b">
                 <div class="card">
-                    <h3>Programación operativa semanal</h3>
+                    <h3>Programación de recorridos (<t t-esc="state.kpis.asignaciones.length"/> asignaciones)</h3>
                     <div class="tw">
                         <table>
                             <thead>
@@ -476,28 +466,36 @@ FleetRutasDashboard.template = xml/* xml */`
                                     <th>Vehículo</th>
                                     <th>Ruta</th>
                                     <th>Estado</th>
+                                    <th>Acción</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr><td>Lun 10</td><td>08:00 – 08:45</td><td>BUS-101</td><td>Ruta A · Huachi</td><td><span class="pill bl">Programado</span></td></tr>
-                                <tr><td>Lun 10</td><td>09:00 – 09:35</td><td>BUS-102</td><td>Ruta B · Ingahurco</td><td><span class="pill bl">Programado</span></td></tr>
-                                <tr><td>Lun 10</td><td>10:00 – 11:45</td><td>BUS-103</td><td>Ruta C · Quero</td><td><span class="pill bl">Programado</span></td></tr>
-                                <tr><td>Dom 09</td><td>08:00 – 08:45</td><td>BUS-101</td><td>Ruta A · Huachi</td><td><span class="pill gn">Finalizado</span></td></tr>
-                                <tr><td>Dom 09</td><td>09:00 – 09:35</td><td>BUS-102</td><td>Ruta B · Ingahurco</td><td><span class="pill am">En curso</span></td></tr>
+                                <tr t-foreach="state.kpis.asignaciones" t-as="a" t-key="a.id">
+                                    <td t-esc="a.fecha"/>
+                                    <td class="lb" t-esc="a.horario"/>
+                                    <td><b t-esc="a.vehiculo"/></td>
+                                    <td t-esc="a.ruta"/>
+                                    <td><span t-att-class="'pill ' + a.estado_code" t-esc="a.estado_label"/></td>
+                                    <td>
+                                        <button class="btn s" t-on-click="() => this.openRecorridoDetail(a.id)">
+                                            Ver
+                                        </button>
+                                    </td>
+                                </tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
 
                 <div class="card">
-                    <h3>Regla de validación de asignaciones</h3>
+                    <h3>Validación de asignaciones operativas</h3>
                     <div style="display:grid;gap:12px;">
                         <div class="li"><span>1. Un vehículo solo puede asignarse a un recorrido a la vez.</span></div>
-                        <div class="li"><span>2. Se valida superposición temporal entre rutas del mismo bus.</span></div>
-                        <div class="li"><span>3. El GPS de Traccar reporta posiciones asignadas automáticamente al recorrido activo.</span></div>
+                        <div class="li"><span>2. Se valida la superposición temporal entre itinerarios del mismo bus.</span></div>
+                        <div class="li"><span>3. Telemetría GPS de Traccar vinculada automáticamente por IMEI.</span></div>
                     </div>
                     <div style="margin-top:16px;">
-                        <button class="btn p s" t-on-click="() => this.openRecorridos()">Abrir recorridos</button>
+                        <button class="btn p s" t-on-click="() => this.openRecorridos()">Abrir recorridos de flota</button>
                     </div>
                 </div>
             </div>
@@ -506,9 +504,11 @@ FleetRutasDashboard.template = xml/* xml */`
         <!-- ════════════════════ TAB 5: RECORRIDOS E INCIDENCIAS ════════════════════ -->
         <t t-if="state.activeTab === 'recorridos'">
             <div class="hd">
-                <h2>Recorridos e incidencias</h2>
+                <h2>Recorridos e incidencias registradas</h2>
                 <div class="row">
-                    <span class="chip">Todas las rutas</span>
+                    <input type="search" placeholder="Filtrar vehículo, ruta o estado..."
+                           style="width:240px;padding:6px 10px;"
+                           t-on-input="onSearch"/>
                     <button class="btn p s" t-on-click="() => this.openRecorridos()">
                         Ver en Odoo
                     </button>
@@ -517,7 +517,7 @@ FleetRutasDashboard.template = xml/* xml */`
 
             <div class="g g2">
                 <div class="card">
-                    <h3>Historial de recorridos</h3>
+                    <h3>Historial de recorridos (<t t-esc="filteredHistorial.length"/> mostrados)</h3>
                     <div class="tw">
                         <table>
                             <thead>
@@ -533,7 +533,7 @@ FleetRutasDashboard.template = xml/* xml */`
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr t-foreach="state.kpis.recorridos_historial" t-as="r" t-key="r.id">
+                                <tr t-foreach="filteredHistorial" t-as="r" t-key="r.id">
                                     <td t-esc="r.fecha"/>
                                     <td><b t-esc="r.vehiculo"/></td>
                                     <td t-esc="r.ruta"/>
@@ -553,15 +553,19 @@ FleetRutasDashboard.template = xml/* xml */`
                 </div>
 
                 <div class="card">
-                    <h3>Incidencias activas detectadas</h3>
-                    <div t-if="!state.kpis.incidencias_lista.length" class="lb">No hay incidencias activas pendientes.</div>
+                    <h3>Incidencias reales detectadas (<t t-esc="state.kpis.incidencias_lista.length"/> eventos)</h3>
+                    <div t-if="!state.kpis.incidencias_lista.length" class="lb">No hay incidencias registradas.</div>
                     <div t-foreach="state.kpis.incidencias_lista" t-as="inc" t-key="inc.id" class="li" style="display:block;">
                         <div class="row" style="justify-content:space-between;margin-bottom:4px;">
-                            <span t-att-class="'pill ' + (inc.severidad === 'critica' or inc.severidad === 'alta' ? 'rd' : 'am')" t-esc="inc.name"/>
+                            <span t-att-class="'pill ' + inc.severidad_code" t-esc="inc.tipo_label"/>
                             <span class="lb" t-esc="inc.hora"/>
                         </div>
                         <div class="lb" t-esc="inc.descripcion"/>
-                        <div class="lb" style="margin-top:4px;"><t t-esc="inc.vehiculo"/> · <t t-esc="inc.ruta"/></div>
+                        <div class="lb" style="margin-top:4px;">
+                            <b><t t-esc="inc.vehiculo"/></b> · <t t-esc="inc.ruta"/> · 
+                            <span t-if="inc.resuelta" class="pill gn" style="padding:1px 4px;font-size:10px;">Resuelta</span>
+                            <span t-else="" class="pill am" style="padding:1px 4px;font-size:10px;">Pendiente</span>
+                        </div>
                     </div>
                     <div style="margin-top:16px;">
                         <button class="btn s" t-on-click="() => this.openIncidencias()">Gestionar todas las incidencias</button>
@@ -573,111 +577,97 @@ FleetRutasDashboard.template = xml/* xml */`
         <!-- ════════════════════ TAB 6: LÍNEA DE TIEMPO ════════════════════ -->
         <t t-if="state.activeTab === 'tiempo'">
             <div class="hd">
-                <h2>Línea de tiempo · Análisis temporal de recorrido</h2>
+                <h2>Línea de tiempo · Análisis temporal del viaje</h2>
                 <div class="row">
-                    <span class="pill am">Comparativa Previsto vs Real</span>
+                    <span class="lb" style="margin-right:4px;">Recorrido seleccionado:</span>
+                    <select style="width:auto;display:inline-block;padding:4px 8px;font-size:13px;"
+                            t-on-change="(ev) => this.selectTrip(Number(ev.target.value))">
+                        <option t-foreach="state.kpis.recorridos_activos" t-as="tr" t-key="tr.id"
+                                t-att-value="tr_index"
+                                t-att-selected="state.selectedTripIndex === tr_index">
+                            <t t-esc="tr.name"/> · <t t-esc="tr.vehiculo"/>
+                        </option>
+                    </select>
                 </div>
             </div>
 
-            <div class="card">
-                <div class="hd" style="margin-bottom:12px;">
-                    <h3 style="margin:0;">Línea de tiempo de viaje (Previsto vs Real)</h3>
-                    <span class="lb">
-                        <i class="sw" style="background:#fee2a4;border:1px solid #e8c25f;"/> Parada en punto de control
-                        <i class="sw" style="background:var(--bls);border:1px solid var(--bd);"/> En movimiento por ruta
-                    </span>
-                </div>
-
-                <div class="tw">
-                    <div style="min-width:680px;padding:10px 20px 20px 0;">
-                        <div class="tl">
-                            <!-- Eje horario -->
-                            <div class="ax">
-                                <span style="left:0%;">10:00</span>
-                                <span style="left:12.5%;">10:15</span>
-                                <span style="left:25%;">10:30</span>
-                                <span style="left:37.5%;">10:45</span>
-                                <span style="left:50%;">11:00</span>
-                                <span style="left:62.5%;">11:15</span>
-                                <span style="left:75%;">11:30</span>
-                                <span style="left:87.5%;">11:45</span>
-                                <span style="left:100%;">12:00</span>
-                            </div>
-
-                            <!-- Barra Previsto -->
-                            <div class="tr">
-                                <em>Previsto</em>
-                                <div class="sg p" style="left:0%;width:4.1%;">1</div>
-                                <div class="sg m" style="left:4.1%;width:8.3%;">10 min</div>
-                                <div class="sg p" style="left:12.5%;width:4.1%;">2</div>
-                                <div class="sg m" style="left:16.6%;width:8.3%;">10 min</div>
-                                <div class="sg p" style="left:25%;width:50%;">Parada 3 · 60 min</div>
-                                <div class="sg m" style="left:75%;width:12.5%;">15 min</div>
-                                <div class="sg e" style="left:87.5%;width:0.5%;"/>
-                            </div>
-
-                            <!-- Barra Real -->
-                            <div class="tr">
-                                <em>Real</em>
-                                <div class="sg p" style="left:0.8%;width:4.1%;">1</div>
-                                <div class="sg m" style="left:4.9%;width:8.3%;">10 min</div>
-                                <div class="sg p" style="left:13.3%;width:4.1%;">2</div>
-                                <div class="sg m" style="left:17.4%;width:10%;">12 min</div>
-                                <div class="sg p" style="left:27.4%;width:54.1%;">Parada 3 · 65 min</div>
-                                <div class="sg m" style="left:81.5%;width:12.5%;">15 min</div>
-                                <div class="sg x" style="left:94%;width:0.5%;"/>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="g g2b">
+            <t t-if="currentActiveTrip">
                 <div class="card">
-                    <h3>Detalle por punto de control</h3>
+                    <div class="hd" style="margin-bottom:12px;">
+                        <h3 style="margin:0;">
+                            Progreso de viaje: <t t-esc="currentActiveTrip.name"/> (<t t-esc="currentActiveTrip.vehiculo"/>)
+                        </h3>
+                        <span class="lb">
+                            <i class="sw" style="background:#fee2a4;border:1px solid #e8c25f;"/> Puntos cumplidos
+                            <i class="sw" style="background:var(--bls);border:1px solid var(--bd);"/> En tránsito
+                        </span>
+                    </div>
+
+                    <!-- Detalle por punto de control real del recorrido -->
                     <div class="tw">
                         <table>
                             <thead>
                                 <tr>
-                                    <th>Punto</th>
-                                    <th>Llegada prev / real</th>
-                                    <th>Parada prev / real</th>
-                                    <th>Salida prev / real</th>
-                                    <th>Estado</th>
+                                    <th>Secuencia</th>
+                                    <th>Punto de Control</th>
+                                    <th>Hora Llegada Real</th>
+                                    <th>Retraso en Punto</th>
+                                    <th>Distancia al Centroide</th>
+                                    <th>Estado de Detección</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr><td>1 Norte</td><td>10:00 / 10:01</td><td>5 / 5 min</td><td>10:05 / 10:06</td><td><span class="pill gn">Cumple</span></td></tr>
-                                <tr><td>2 Parada 2</td><td>10:15 / 10:16</td><td>5 / 5 min</td><td>10:20 / 10:21</td><td><span class="pill gn">Cumple</span></td></tr>
-                                <tr><td>3 Parada 3</td><td>10:30 / 10:33</td><td>60 / 65 min</td><td>11:30 / 11:38</td><td><span class="pill gn">Cumple</span></td></tr>
-                                <tr><td>4 Campus</td><td>11:45 / 11:53</td><td>—</td><td>—</td><td><span class="pill rd">Retraso +8 min</span></td></tr>
+                                <tr t-foreach="currentActiveTrip.paradas" t-as="cp" t-key="cp.id">
+                                    <td><span class="pill bl" t-esc="cp.secuencia"/></td>
+                                    <td><b t-esc="cp.nombre"/></td>
+                                    <td t-esc="cp.hora"/>
+                                    <td>
+                                        <span t-att-class="'pill ' + (cp.retraso_min > 5 ? 'rd' : (cp.retraso_min > 0 ? 'am' : 'gn'))">
+                                            +<t t-esc="cp.retraso_min"/> min
+                                        </span>
+                                    </td>
+                                    <td><t t-esc="cp.distancia_min_m"/> m</td>
+                                    <td>
+                                        <span t-if="cp.cumplida" class="pill gn">Cumplida</span>
+                                        <span t-else="" class="pill bl">Pendiente</span>
+                                    </td>
+                                </tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
 
-                <div class="card">
-                    <h3>Reglas de tiempo de transporte</h3>
-                    <div class="li" style="display:block;">
-                        <b>Llegada:</b> Primera posición registrada dentro del radio geográfico del punto.
+                <div class="g g2b">
+                    <div class="card">
+                        <h3>Resumen del viaje en curso</h3>
+                        <div class="f">
+                            <div><div class="lb">Ruta</div><b t-esc="currentActiveTrip.ruta"/></div>
+                            <div><div class="lb">Inicio del viaje</div><b t-esc="currentActiveTrip.fecha_inicio"/></div>
+                            <div><div class="lb">Velocidad promedio</div><b><t t-esc="currentActiveTrip.velocidad"/> km/h</b></div>
+                            <div><div class="lb">Cumplimiento paradas</div><b><t t-esc="currentActiveTrip.paradas_cumplidas"/></b></div>
+                        </div>
                     </div>
-                    <div class="li" style="display:block;">
-                        <b>Salida:</b> Primera posición fuera del radio del punto tras haberse registrado la llegada.
-                    </div>
-                    <div class="li" style="display:block;">
-                        <b>Parada:</b> Tiempo entre salida y llegada. Se compara contra el programado con ±10 min de tolerancia.
-                    </div>
-                    <div class="li" style="display:block;">
-                        Un bus detenido dentro del radio durante la parada prevista no genera incidencia de detención indebida.
+
+                    <div class="card">
+                        <h3>Reglas de tiempo de transporte</h3>
+                        <div class="li" style="display:block;">
+                            <b>Llegada:</b> Primera posición registrada dentro del radio geográfico de la parada.
+                        </div>
+                        <div class="li" style="display:block;">
+                            <b>Tolerancia:</b> Margen de ±5 min sobre el horario programado sin considerarse retraso.
+                        </div>
                     </div>
                 </div>
-            </div>
+            </t>
+            <t t-else="">
+                <div class="card">No hay datos de viaje para mostrar en este momento.</div>
+            </t>
         </t>
 
         <!-- ════════════════════ TAB 7: VEHÍCULOS Y GPS ════════════════════ -->
         <t t-if="state.activeTab === 'vehiculos'">
             <div class="hd">
-                <h2>Vehículos y dispositivos GPS</h2>
+                <h2>Vehículos y dispositivos GPS registrados</h2>
                 <div class="row">
                     <button class="btn p" t-on-click="() => this.openTelemetria()">
                         <i class="fa fa-map-marker"/> Historial de telemetría GPS
@@ -687,22 +677,24 @@ FleetRutasDashboard.template = xml/* xml */`
 
             <div class="g g2b">
                 <div class="card">
-                    <h3>Vehículos registrados en la flota</h3>
+                    <h3>Flota registrada (<t t-esc="state.kpis.vehiculos_lista.length"/> vehículos)</h3>
                     <div class="tw">
                         <table>
                             <thead>
                                 <tr>
-                                    <th>Vehículo</th>
+                                    <th>Placa / Bus</th>
+                                    <th>Modelo</th>
                                     <th>Dispositivo Traccar</th>
                                     <th>IMEI / ID</th>
                                     <th>Velocidad</th>
                                     <th>Última posición</th>
-                                    <th>Estado</th>
+                                    <th>Estado GPS</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr t-foreach="state.kpis.vehiculos_lista" t-as="v" t-key="v.id">
                                     <td><b t-esc="v.name"/></td>
+                                    <td class="lb" t-esc="v.modelo"/>
                                     <td t-esc="v.dispositivo"/>
                                     <td class="lb" t-esc="v.imei"/>
                                     <td t-esc="v.velocidad"/>
@@ -715,19 +707,15 @@ FleetRutasDashboard.template = xml/* xml */`
                 </div>
 
                 <div class="card">
-                    <h3>Asociación Traccar Server</h3>
+                    <h3>Dispositivos GPS asociados</h3>
                     <div style="display:grid;gap:12px;">
-                        <label>
-                            <span class="lb">Vehículo seleccionado</span>
-                            <input value="BUS-103" readonly="1"/>
-                        </label>
-                        <label>
-                            <span class="lb">Dispositivo GPS Traccar</span>
-                            <input value="Traccar ID 3 · Teléfono GPS 3" readonly="1"/>
-                        </label>
-                        <p class="note" style="margin:0;">Cada vehículo se vincula con un dispositivo único de Traccar mediante su ID numérico e IMEI.</p>
+                        <div t-foreach="state.kpis.vehiculos_lista" t-as="vh" t-key="vh.id" class="li">
+                            <span><b t-esc="vh.name"/> · <t t-esc="vh.modelo"/></span>
+                            <span class="pill gn" t-esc="vh.dispositivo"/>
+                        </div>
+                        <p class="note" style="margin:0;">Los vehículos están asociados directamente por ID numérico en Traccar Server.</p>
                         <div>
-                            <button class="btn p s" t-on-click="() => this.loadData()">Verificar enlace</button>
+                            <button class="btn p s" t-on-click="() => this.loadData()">Comprobar enlaces</button>
                         </div>
                     </div>
                 </div>
@@ -737,7 +725,7 @@ FleetRutasDashboard.template = xml/* xml */`
         <!-- ════════════════════ TAB 8: MÉTRICAS ISO 25010 ════════════════════ -->
         <t t-if="state.activeTab === 'metricas'">
             <div class="hd">
-                <h2>Métricas de calidad ISO/IEC 25010</h2>
+                <h2>Métricas reales ISO/IEC 25010</h2>
                 <div class="row">
                     <button class="btn p s" t-on-click="() => this.openMetricas()">
                         <i class="fa fa-table"/> Ver tabla relacional en Odoo
@@ -754,12 +742,12 @@ FleetRutasDashboard.template = xml/* xml */`
                                 <th>Fórmula matemática</th>
                                 <th>Fuente de datos</th>
                                 <th>Unidad</th>
-                                <th>Resultado actual</th>
+                                <th>Resultado real calculado</th>
                                 <th>Interpretación operativa</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr t-foreach="state.metricasDef" t-as="m" t-key="m.ind">
+                            <tr t-foreach="state.kpis.metricas_iso_reales" t-as="m" t-key="m.ind">
                                 <td><b t-esc="m.ind"/></td>
                                 <td class="lb" t-esc="m.form"/>
                                 <td t-esc="m.fte"/>
@@ -771,7 +759,7 @@ FleetRutasDashboard.template = xml/* xml */`
                     </table>
                 </div>
             </div>
-            <p class="note">Catálogo formal de indicadores según el estándar internacional ISO/IEC 25010 para calidad de software y auditoría de servicio.</p>
+            <p class="note">Todos los resultados mostrados provienen del cálculo relacional en tiempo real del modelo fleet.metricas.recorrido.</p>
         </t>
 
         <!-- ════════════════════ TAB 9: SINCRONIZACIÓN TRACCAR ════════════════════ -->
@@ -790,34 +778,35 @@ FleetRutasDashboard.template = xml/* xml */`
                 <div class="card">
                     <div class="lb">Última sincronización</div>
                     <div class="big" style="font-size:22px;"><t t-esc="state.lastUpdated or 'hace 30 s'"/></div>
-                    <div class="lb">API REST de Traccar / Webhook</div>
+                    <div class="lb">API REST Traccar / Webhook</div>
                 </div>
                 <div class="card">
-                    <div class="lb">Posiciones procesadas hoy</div>
+                    <div class="lb">Posiciones GPS procesadas hoy</div>
                     <div class="big"><t t-esc="state.kpis.pos_hoy_count"/></div>
-                    <div class="lb">Registros validados en PostgreSQL</div>
+                    <div class="lb"><t t-esc="state.kpis.total_posiciones"/> totales registradas</div>
                 </div>
                 <div class="card">
-                    <div class="lb">Duplicados prevenidos</div>
-                    <div class="big">37</div>
-                    <div class="lb">Por ID único de posición</div>
-                </div>
-                <div class="card">
-                    <div class="lb">Dispositivos activos</div>
+                    <div class="lb">Dispositivos GPS enlazados</div>
                     <div class="big"><t t-esc="state.kpis.vehiculos_lista.length"/></div>
-                    <div class="lb">Rastreadores vinculados</div>
+                    <div class="lb">Todos operativos</div>
+                </div>
+                <div class="card">
+                    <div class="lb">Recorridos auditados</div>
+                    <div class="big"><t t-esc="state.kpis.total_recorridos"/></div>
+                    <div class="lb"><t t-esc="state.kpis.en_curso"/> en curso actualmente</div>
                 </div>
             </div>
 
             <div class="g g2b">
                 <div class="card">
-                    <h3>Dispositivos GPS configurados</h3>
+                    <h3>Dispositivos GPS configurados en Traccar</h3>
                     <div class="tw">
                         <table>
                             <thead>
                                 <tr>
                                     <th>Dispositivo</th>
                                     <th>Vehículo</th>
+                                    <th>Velocidad</th>
                                     <th>Última posición</th>
                                     <th>Estado</th>
                                 </tr>
@@ -825,7 +814,8 @@ FleetRutasDashboard.template = xml/* xml */`
                             <tbody>
                                 <tr t-foreach="state.kpis.vehiculos_lista" t-as="v" t-key="v.id">
                                     <td><b t-esc="v.dispositivo"/></td>
-                                    <td t-esc="v.name"/>
+                                    <td><b t-esc="v.name"/> (<t t-esc="v.modelo"/>)</td>
+                                    <td t-esc="v.velocidad"/>
                                     <td class="lb" t-esc="v.ultima_pos"/>
                                     <td><span t-att-class="'pill ' + v.estado_code" t-esc="v.estado_gps"/></td>
                                 </tr>
@@ -835,11 +825,11 @@ FleetRutasDashboard.template = xml/* xml */`
                 </div>
 
                 <div class="card">
-                    <h3>Infraestructura de conectividad</h3>
+                    <h3>Infraestructura de microservicios</h3>
                     <div class="li"><span>Traccar Server (Puerto 8082 / 5055)</span><span class="pill gn">Activo</span></div>
                     <div class="li"><span>PostgreSQL 15 (Puerto 5432)</span><span class="pill gn">Conectado</span></div>
                     <div class="li"><span>Grafana 11.4 (Puerto 3000)</span><span class="pill gn">Activo</span></div>
-                    <div class="li"><span>Tolerancia a desconexión</span><span class="pill bl">Buffering activo</span></div>
+                    <div class="li"><span>Odoo 16 (Puerto 8069 / 8070)</span><span class="pill gn">En servicio</span></div>
                     <div style="margin-top:16px;">
                         <button class="btn p s" t-on-click="() => this.triggerSync()">Forzar verificación</button>
                     </div>
