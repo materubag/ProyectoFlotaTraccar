@@ -1,0 +1,406 @@
+{
+  "__inputs": [],
+  "__requires": [
+    { "type": "datasource", "id": "postgres", "name": "PostgreSQL", "version": "1.0.0" }
+  ],
+  "annotations": { "list": [] },
+  "description": "Dashboard de flota vehicular — posición GPS, velocidad y estado de dispositivos Traccar",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 100,
+      "title": "Resumen de Flota",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "traccar-pg" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 80 }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 1 },
+      "id": 1,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "pluginVersion": "10.4.0",
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "traccar-pg" },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT COUNT(*) AS \"Total Dispositivos\" FROM tc_devices WHERE disabled = false;",
+          "refId": "A"
+        }
+      ],
+      "title": "Dispositivos Activos",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "traccar-pg" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 1 },
+      "id": 2,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "pluginVersion": "10.4.0",
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "traccar-pg" },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT COUNT(*) AS \"En Línea\"\nFROM tc_devices d\nJOIN tc_positions p ON p.id = d.positionid\nWHERE d.disabled = false\n  AND p.fixtime >= NOW() - INTERVAL '10 minutes';",
+          "refId": "A"
+        }
+      ],
+      "title": "Vehículos En Línea (últimos 10 min)",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "traccar-pg" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 60 },
+              { "color": "red", "value": 100 }
+            ]
+          },
+          "unit": "velocitykmh"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 1 },
+      "id": 3,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "pluginVersion": "10.4.0",
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "traccar-pg" },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT ROUND(AVG(p.speed * 1.852)::numeric, 1) AS \"Velocidad Promedio (km/h)\"\nFROM tc_positions p\nJOIN tc_devices d ON d.positionid = p.id\nWHERE d.disabled = false AND p.speed > 0;",
+          "refId": "A"
+        }
+      ],
+      "title": "Velocidad Promedio Flota",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "traccar-pg" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 1 },
+      "id": 4,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "pluginVersion": "10.4.0",
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "traccar-pg" },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT COUNT(*) AS \"Alertas Hoy\"\nFROM tc_events\nWHERE type IN ('deviceOverspeed','deviceStopped','geofenceExit','geofenceEnter')\n  AND eventtime >= CURRENT_DATE;",
+          "refId": "A"
+        }
+      ],
+      "title": "Alertas Hoy",
+      "type": "stat"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
+      "id": 101,
+      "title": "Estado en Tiempo Real por Vehículo",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "traccar-pg" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "custom": {
+            "align": "auto",
+            "displayMode": "color-background",
+            "inspect": false,
+            "minWidth": 80
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 60 },
+              { "color": "red", "value": 100 }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Estado" },
+            "properties": [
+              {
+                "id": "custom.displayMode",
+                "value": "color-background"
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  { "options": { "En línea": { "color": "green", "index": 0 } }, "type": "value" },
+                  { "options": { "Sin señal": { "color": "red", "index": 1 } }, "type": "value" }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Velocidad (km/h)" },
+            "properties": [
+              {
+                "id": "custom.displayMode",
+                "value": "gradient-gauge"
+              },
+              {
+                "id": "min",
+                "value": 0
+              },
+              {
+                "id": "max",
+                "value": 120
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 6 },
+      "id": 10,
+      "options": {
+        "footer": { "fields": "", "reducer": ["sum"], "show": false },
+        "showHeader": true,
+        "sortBy": [{ "desc": true, "displayName": "Última Posición" }]
+      },
+      "pluginVersion": "10.4.0",
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "traccar-pg" },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  d.name AS \"Vehículo\",\n  d.uniqueid AS \"IMEI/ID\",\n  ROUND((p.speed * 1.852)::numeric, 1) AS \"Velocidad (km/h)\",\n  ROUND(p.latitude::numeric, 6) AS \"Latitud\",\n  ROUND(p.longitude::numeric, 6) AS \"Longitud\",\n  p.course AS \"Rumbo (°)\",\n  p.fixtime AS \"Última Posición\",\n  CASE\n    WHEN p.fixtime >= NOW() - INTERVAL '10 minutes' THEN 'En línea'\n    ELSE 'Sin señal'\n  END AS \"Estado\"\nFROM tc_devices d\nJOIN tc_positions p ON p.id = d.positionid\nWHERE d.disabled = false\nORDER BY p.fixtime DESC;",
+          "refId": "A"
+        }
+      ],
+      "title": "Posición Actual de la Flota",
+      "transformations": [
+        {
+          "id": "sortBy",
+          "options": { "fields": [{ "desc": true, "displayName": "Última Posición" }] }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 16 },
+      "id": 102,
+      "title": "Velocidad por Vehículo — Serie de Tiempo",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "traccar-pg" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "km/h",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "gradientMode": "opacity",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "line" }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 100 }
+            ]
+          },
+          "unit": "velocitykmh"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 17 },
+      "id": 20,
+      "options": {
+        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "traccar-pg" },
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  p.fixtime AS time,\n  d.name AS metric,\n  ROUND((p.speed * 1.852)::numeric, 1) AS value\nFROM tc_positions p\nJOIN tc_devices d ON d.id = p.deviceid\nWHERE p.fixtime BETWEEN $__timeFrom() AND $__timeTo()\n  AND d.disabled = false\nORDER BY p.fixtime ASC;",
+          "refId": "A"
+        }
+      ],
+      "title": "Velocidad en el Tiempo por Vehículo",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 27 },
+      "id": 103,
+      "title": "Alertas y Eventos",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "traccar-pg" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto",
+            "inspect": false
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "green", "value": null }]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Tipo de Evento" },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  { "options": { "deviceOverspeed": { "color": "red", "index": 0, "text": "🚨 Exceso Velocidad" } }, "type": "value" },
+                  { "options": { "deviceStopped": { "color": "orange", "index": 1, "text": "⏸ Detenido" } }, "type": "value" },
+                  { "options": { "geofenceExit": { "color": "purple", "index": 2, "text": "📤 Salida Geocerca" } }, "type": "value" },
+                  { "options": { "geofenceEnter": { "color": "blue", "index": 3, "text": "📥 Entrada Geocerca" } }, "type": "value" },
+                  { "options": { "deviceOnline": { "color": "green", "index": 4, "text": "✅ En Línea" } }, "type": "value" },
+                  { "options": { "deviceOffline": { "color": "gray", "index": 5, "text": "❌ Fuera de Línea" } }, "type": "value" }
+                ]
+              },
+              { "id": "custom.displayMode", "value": "color-background" }
+            ]
+          }
+        ]
+      },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 28 },
+      "id": 30,
+      "options": {
+        "footer": { "fields": "", "reducer": ["sum"], "show": false },
+        "showHeader": true
+      },
+      "pluginVersion": "10.4.0",
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "traccar-pg" },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  e.eventtime AS \"Fecha/Hora\",\n  d.name AS \"Vehículo\",\n  e.type AS \"Tipo de Evento\"\nFROM tc_events e\nJOIN tc_devices d ON d.id = e.deviceid\nWHERE e.eventtime BETWEEN $__timeFrom() AND $__timeTo()\nORDER BY e.eventtime DESC\nLIMIT 200;",
+          "refId": "A"
+        }
+      ],
+      "title": "Eventos de la Flota",
+      "type": "table"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": ["flota", "traccar", "gps"],
+  "templating": { "list": [] },
+  "time": { "from": "now-6h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Flota Vehicular — GPS Traccar",
+  "uid": "fleet-traccar-main",
+  "version": 1
+}

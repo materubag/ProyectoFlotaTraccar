@@ -1,0 +1,17 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_fleet_ruta_user,fleet.ruta.user,model_fleet_ruta,fleet.fleet_group_user,1,1,1,0
+access_fleet_ruta_manager,fleet.ruta.manager,model_fleet_ruta,fleet.fleet_group_manager,1,1,1,1
+access_fleet_parada_user,fleet.parada.user,model_fleet_parada,fleet.fleet_group_user,1,1,1,0
+access_fleet_parada_manager,fleet.parada.manager,model_fleet_parada,fleet.fleet_group_manager,1,1,1,1
+access_fleet_recorrido_user,fleet.recorrido.user,model_fleet_recorrido,fleet.fleet_group_user,1,1,1,0
+access_fleet_recorrido_manager,fleet.recorrido.manager,model_fleet_recorrido,fleet.fleet_group_manager,1,1,1,1
+access_fleet_posicion_gps_user,fleet.posicion.gps.user,model_fleet_posicion_gps,fleet.fleet_group_user,1,1,1,0
+access_fleet_posicion_gps_manager,fleet.posicion.gps.manager,model_fleet_posicion_gps,fleet.fleet_group_manager,1,1,1,1
+access_fleet_incidencia_user,fleet.incidencia.user,model_fleet_incidencia,fleet.fleet_group_user,1,1,1,0
+access_fleet_incidencia_manager,fleet.incidencia.manager,model_fleet_incidencia,fleet.fleet_group_manager,1,1,1,1
+access_fleet_cumplimiento_parada_user,fleet.cumplimiento.parada.user,model_fleet_cumplimiento_parada,fleet.fleet_group_user,1,1,1,0
+access_fleet_cumplimiento_parada_manager,fleet.cumplimiento.parada.manager,model_fleet_cumplimiento_parada,fleet.fleet_group_manager,1,1,1,1
+access_fleet_metricas_recorrido_user,fleet.metricas.recorrido.user,model_fleet_metricas_recorrido,fleet.fleet_group_user,1,0,0,0
+access_fleet_metricas_recorrido_manager,fleet.metricas.recorrido.manager,model_fleet_metricas_recorrido,fleet.fleet_group_manager,1,1,1,1
+access_fleet_traccar_sync_user,fleet.traccar.sync.user,model_fleet_traccar_sync,fleet.fleet_group_user,1,1,1,0
+access_fleet_traccar_sync_manager,fleet.traccar.sync.manager,model_fleet_traccar_sync,fleet.fleet_group_manager,1,1,1,1

@@ -1,5 +1,7 @@
 # Proyecto Flota Traccar (Odoo 16 + Traccar + PostgreSQL)
 
+Revisión de requisitos, correcciones, resultados y tabla de pendientes: [docs/REVISION_PROYECTO.md](docs/REVISION_PROYECTO.md). Matriz automatizada: [docs/MATRIZ_PRUEBAS.md](docs/MATRIZ_PRUEBAS.md).
+
 Plataforma de gestión de flota vehicular y monitoreo GPS que integra **Odoo 16**, **Traccar 6.16** y **PostgreSQL 15** bajo contenedores Docker aislados.
 
 ---

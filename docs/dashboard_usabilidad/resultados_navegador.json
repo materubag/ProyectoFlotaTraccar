@@ -1,0 +1,150 @@
+{
+  "entorno": "Chrome aislado, Owl y CSS backend reales; RPC simulado, sin datos de usuario",
+  "viewports": [
+    {
+      "width": 320,
+      "height": 640,
+      "documentWidth": 320,
+      "viewportWidth": 305,
+      "viewportHeight": 594,
+      "scrollHeight": 4175,
+      "overflowY": "auto",
+      "tableScroll": true,
+      "footer_alcanzable": true
+    },
+    {
+      "width": 360,
+      "height": 740,
+      "documentWidth": 360,
+      "viewportWidth": 345,
+      "viewportHeight": 694,
+      "scrollHeight": 3774,
+      "overflowY": "auto",
+      "tableScroll": true,
+      "footer_alcanzable": true
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "documentWidth": 390,
+      "viewportWidth": 375,
+      "viewportHeight": 798,
+      "scrollHeight": 3624,
+      "overflowY": "auto",
+      "tableScroll": true,
+      "footer_alcanzable": true
+    },
+    {
+      "width": 768,
+      "height": 800,
+      "documentWidth": 768,
+      "viewportWidth": 753,
+      "viewportHeight": 754,
+      "scrollHeight": 3044,
+      "overflowY": "auto",
+      "tableScroll": true,
+      "footer_alcanzable": true
+    },
+    {
+      "width": 1024,
+      "height": 768,
+      "documentWidth": 1024,
+      "viewportWidth": 1009,
+      "viewportHeight": 722,
+      "scrollHeight": 2519,
+      "overflowY": "auto",
+      "tableScroll": false,
+      "footer_alcanzable": true
+    },
+    {
+      "width": 1440,
+      "height": 900,
+      "documentWidth": 1440,
+      "viewportWidth": 1425,
+      "viewportHeight": 854,
+      "scrollHeight": 2118,
+      "overflowY": "auto",
+      "tableScroll": false,
+      "footer_alcanzable": true
+    },
+    {
+      "width": 1920,
+      "height": 1080,
+      "documentWidth": 1920,
+      "viewportWidth": 1905,
+      "viewportHeight": 1034,
+      "scrollHeight": 2118,
+      "overflowY": "auto",
+      "tableScroll": false,
+      "footer_alcanzable": true
+    },
+    {
+      "width": 844,
+      "height": 390,
+      "documentWidth": 844,
+      "viewportWidth": 829,
+      "viewportHeight": 344,
+      "scrollHeight": 2816,
+      "overflowY": "auto",
+      "tableScroll": false,
+      "footer_alcanzable": true
+    },
+    {
+      "width": 1280,
+      "height": 256,
+      "documentWidth": 1280,
+      "viewportWidth": 1265,
+      "viewportHeight": 210,
+      "scrollHeight": 2330,
+      "overflowY": "auto",
+      "tableScroll": false,
+      "footer_alcanzable": true
+    }
+  ],
+  "controles": [
+    "Saltar a recorridos por teclado sin modificar la ruta de Odoo",
+    "Deslizador por teclado hasta 140%, sin desbordamiento global",
+    "Vista compacta operativa",
+    "Búsqueda sin sensibilidad a tildes, estado sin coincidencias y limpiar",
+    "Pausa, actualización manual y reanudación de actualización cada 30 s",
+    "No se superponen peticiones mientras una actualización está pendiente",
+    "Error recuperable con datos anteriores y reintento",
+    "Restablecer vista y guardar preferencias locales",
+    "Tabla móvil con scroll horizontal independiente",
+    "Temporizador eliminado al salir del panel"
+  ],
+  "contraste": [
+    {
+      "selector": ".fleet_kpi_hint",
+      "color": "rgb(186, 201, 221)",
+      "background": "rgb(23, 38, 58)",
+      "ratio": 9.082630419810835
+    },
+    {
+      "selector": ".fleet_vehicle_cell",
+      "color": "rgb(228, 237, 249)",
+      "background": "rgb(20, 34, 55)",
+      "ratio": 13.534350193970186
+    },
+    {
+      "selector": ".fleet_cell_secondary",
+      "color": "rgb(186, 201, 221)",
+      "background": "rgb(20, 34, 55)",
+      "ratio": 9.504723575462917
+    },
+    {
+      "selector": ".fleet_search_count",
+      "color": "rgb(186, 201, 221)",
+      "background": "rgb(20, 34, 55)",
+      "ratio": 9.504723575462917
+    },
+    {
+      "selector": ".fleet_button_primary",
+      "color": "rgb(16, 46, 53)",
+      "background": "rgb(129, 224, 208)",
+      "ratio": 9.224251257167532
+    }
+  ],
+  "errores_javascript": [],
+  "resultado": "aprobado"
+}

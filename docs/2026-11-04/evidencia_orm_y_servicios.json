@@ -1,0 +1,17 @@
+{
+  "fecha_revision": "2026-11-04",
+  "base": "odoo_flota",
+  "tipo_prueba": "ORM real con rollback por caso; sin envio a Traccar",
+  "casos": [
+    {"caso": "GPS manual multiple", "resultado": "aprobado"},
+    {"caso": "Lote con numero invalido", "resultado": "aprobado"},
+    {"caso": "Horario de otro turno", "resultado": "aprobado"},
+    {"caso": "Conteo e idempotencia de silencio final", "resultado": "aprobado"},
+    {"caso": "Integridad de recorrido sin GPS", "resultado": "aprobado"},
+    {"caso": "Error global de sincronizacion", "resultado": "aprobado"}
+  ],
+  "conteos_antes": {"vehiculos": 7, "rutas": 3, "paradas": 12, "recorridos": 2, "posiciones": 0, "incidencias": 2, "metricas": 0},
+  "conteos_despues": {"vehiculos": 7, "rutas": 3, "paradas": 12, "recorridos": 2, "posiciones": 0, "incidencias": 2, "metricas": 0},
+  "http_despues_de_reinicio": {"odoo": 200, "grafana": 200, "traccar": 200},
+  "alcance_http": "disponibilidad; no es validacion visual ni integracion GPS de extremo a extremo"
+}
