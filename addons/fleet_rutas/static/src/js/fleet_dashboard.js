@@ -3,8 +3,8 @@
  * Centro de Control y Monitoreo de Transporte Universitario UTA
  * OWL 2 Component para Odoo 16
  * 100% conectado a los datos reales registrados en Odoo y PostgreSQL
- * Diseño IBM Carbon + Acento Odoo Morado (#714b67)
- * Interfaz ejecutiva: sólo información esencial y de alta lectura rápida
+ * Persistencia de pestaña activa al navegar y volver atrás
+ * Colores de diseño editables y sincronizados con la configuración de Odoo
  */
 
 import { Component, useState, onMounted, onWillUnmount, xml } from "@odoo/owl";
@@ -23,6 +23,14 @@ const TABS = [
     { id: "sync", label: "Sincronización", icon: "fa-refresh" },
 ];
 
+const THEME_PRESETS = [
+    { id: "odoo", name: "Morado Odoo", primary: "#714b67", primary_soft: "#f3ebf1", background: "#f4f4f4", card: "#ffffff", text: "#161616" },
+    { id: "ibm", name: "Azul IBM Carbon", primary: "#0f62fe", primary_soft: "#edf5ff", background: "#f4f4f4", card: "#ffffff", text: "#161616" },
+    { id: "transito", name: "Verde Tránsito", primary: "#0e6027", primary_soft: "#defbe6", background: "#f4f4f4", card: "#ffffff", text: "#161616" },
+    { id: "marino", name: "Azul Marino", primary: "#1d4ed8", primary_soft: "#e8eefc", background: "#f4f4f4", card: "#ffffff", text: "#161616" },
+    { id: "carbon", name: "Gris Carbón", primary: "#393939", primary_soft: "#e8e8e8", background: "#f4f4f4", card: "#ffffff", text: "#161616" },
+];
+
 class FleetRutasDashboard extends Component {
     static template = "fleet_rutas.FleetDashboardTemplate";
 
@@ -30,14 +38,34 @@ class FleetRutasDashboard extends Component {
         this.rpc = useService("rpc");
         this.actionService = useService("action");
 
+        // Recuperar pestaña activa guardada para no resetear a 'panel' al volver atrás
+        const savedTab = window.sessionStorage.getItem("fleet_dashboard_tab") ||
+                         window.localStorage.getItem("fleet_dashboard_tab") ||
+                         "panel";
+
+        // Recuperar colores en caché local si existen
+        let initialColors = {
+            primary: "#714b67",
+            primary_soft: "#f3ebf1",
+            background: "#f4f4f4",
+            card: "#ffffff",
+            text: "#161616",
+        };
+        try {
+            const cached = window.localStorage.getItem("fleet_theme_colors");
+            if (cached) Object.assign(initialColors, JSON.parse(cached));
+        } catch (e) {}
+
         this.state = useState({
-            activeTab: "panel",
+            activeTab: TABS.some(t => t.id === savedTab) ? savedTab : "panel",
             loading: true,
             error: false,
             lastUpdated: null,
             selectedRutaIndex: 0,
             selectedTripIndex: 0,
             searchQuery: "",
+            showColorModal: false,
+            themeColors: initialColors,
             kpis: {
                 recorridos_hoy: 0,
                 en_curso: 0,
@@ -70,19 +98,119 @@ class FleetRutasDashboard extends Component {
         });
 
         this.tabs = TABS;
+        this.themePresets = THEME_PRESETS;
         this.refreshInterval = null;
         this.inFlight = false;
         this.disposed = false;
 
         onMounted(() => {
+            // Aplicar colores inmediatamente
+            this.applyTheme(this.state.themeColors);
+
+            // Reafirmar pestaña guardada
+            const currentSaved = window.sessionStorage.getItem("fleet_dashboard_tab") ||
+                                 window.localStorage.getItem("fleet_dashboard_tab");
+            if (currentSaved && this.tabs.some(t => t.id === currentSaved)) {
+                this.state.activeTab = currentSaved;
+            }
+
             this.loadData();
             this.refreshInterval = setInterval(() => this.loadData(), 30000);
         });
 
         onWillUnmount(() => {
             this.disposed = true;
+            this.saveActiveTab();
             clearInterval(this.refreshInterval);
         });
+    }
+
+    saveActiveTab() {
+        try {
+            window.sessionStorage.setItem("fleet_dashboard_tab", this.state.activeTab);
+            window.localStorage.setItem("fleet_dashboard_tab", this.state.activeTab);
+        } catch (e) {}
+    }
+
+    setTab(tabId) {
+        this.state.activeTab = tabId;
+        this.saveActiveTab();
+    }
+
+    selectRuta(index) {
+        this.state.selectedRutaIndex = index;
+    }
+
+    selectTrip(index) {
+        this.state.selectedTripIndex = index;
+    }
+
+    onSearch(ev) {
+        this.state.searchQuery = ev.target.value.toLowerCase();
+    }
+
+    // ── GESTIÓN DE TEMA Y COLORES EDITABLES ────────────────────────────────────
+    toggleColorModal() {
+        this.state.showColorModal = !this.state.showColorModal;
+    }
+
+    selectPreset(preset) {
+        this.state.themeColors.primary = preset.primary;
+        this.state.themeColors.primary_soft = preset.primary_soft;
+        this.state.themeColors.background = preset.background;
+        this.state.themeColors.card = preset.card;
+        this.state.themeColors.text = preset.text;
+        this.applyTheme(this.state.themeColors);
+    }
+
+    applyTheme(colors) {
+        if (!colors) return;
+        const root = document.documentElement;
+        if (colors.primary) {
+            root.style.setProperty("--bl", colors.primary);
+            root.style.setProperty("--blt", colors.primary);
+        }
+        if (colors.primary_soft) {
+            root.style.setProperty("--bls", colors.primary_soft);
+        }
+        if (colors.background) {
+            root.style.setProperty("--bg", colors.background);
+        }
+        if (colors.card) {
+            root.style.setProperty("--card", colors.card);
+        }
+        if (colors.text) {
+            root.style.setProperty("--tx", colors.text);
+        }
+    }
+
+    async saveTheme() {
+        try {
+            this.applyTheme(this.state.themeColors);
+            window.localStorage.setItem("fleet_theme_colors", JSON.stringify(this.state.themeColors));
+            await this.rpc("/web/dataset/call_kw", {
+                model: "res.config.settings",
+                method: "set_theme_colors",
+                args: [this.state.themeColors],
+                kwargs: {},
+            });
+            this.state.showColorModal = false;
+        } catch (err) {
+            console.error("Error al guardar tema de colores:", err);
+            this.state.showColorModal = false;
+        }
+    }
+
+    async resetTheme() {
+        const def = THEME_PRESETS[0];
+        this.selectPreset(def);
+        await this.saveTheme();
+    }
+
+    openConfigSettings() {
+        this.saveActiveTab();
+        this.state.showColorModal = false;
+        this.actionService.doAction("fleet_rutas.action_fleet_rutas_config_settings");
     }
 
     async loadData() {
@@ -98,6 +226,13 @@ class FleetRutasDashboard extends Component {
             });
             if (this.disposed) return;
             Object.assign(this.state.kpis, data);
+
+            // Sincronizar colores si vienen del servidor
+            if (data.theme_colors) {
+                Object.assign(this.state.themeColors, data.theme_colors);
+                this.applyTheme(this.state.themeColors);
+            }
+
             this.state.error = false;
             this.state.lastUpdated = new Date().toLocaleTimeString();
         } catch (err) {
@@ -108,22 +243,6 @@ class FleetRutasDashboard extends Component {
             this.inFlight = false;
             if (!this.disposed) this.state.loading = false;
         }
-    }
-
-    setTab(tabId) {
-        this.state.activeTab = tabId;
-    }
-
-    selectRuta(index) {
-        this.state.selectedRutaIndex = index;
-    }
-
-    selectTrip(index) {
-        this.state.selectedTripIndex = index;
-    }
-
-    onSearch(ev) {
-        this.state.searchQuery = ev.target.value.toLowerCase();
     }
 
     get selectedRuta() {
@@ -214,16 +333,35 @@ class FleetRutasDashboard extends Component {
         return { axis, pv, rl, paradas };
     }
 
-    // ── ACCIONES ODOO NATIVAS ────────────────────────────────────────────────
-    openRutas() { this.actionService.doAction("fleet_rutas.action_fleet_ruta"); }
-    openRecorridos() { this.actionService.doAction("fleet_rutas.action_fleet_recorrido"); }
-    openIncidencias() { this.actionService.doAction("fleet_rutas.action_fleet_incidencia"); }
-    openMetricas() { this.actionService.doAction("fleet_rutas.action_fleet_metricas"); }
-    openTelemetria() { this.actionService.doAction("fleet_rutas.action_fleet_posicion_gps"); }
-    openVehiculos() { this.actionService.doAction("fleet.fleet_vehicle_action"); }
+    // ── ACCIONES ODOO NATIVAS CON GUARDADO DE PESTAÑA ─────────────────────────
+    openRutas() {
+        this.saveActiveTab();
+        this.actionService.doAction("fleet_rutas.action_fleet_ruta");
+    }
+    openRecorridos() {
+        this.saveActiveTab();
+        this.actionService.doAction("fleet_rutas.action_fleet_recorrido");
+    }
+    openIncidencias() {
+        this.saveActiveTab();
+        this.actionService.doAction("fleet_rutas.action_fleet_incidencia");
+    }
+    openMetricas() {
+        this.saveActiveTab();
+        this.actionService.doAction("fleet_rutas.action_fleet_metricas");
+    }
+    openTelemetria() {
+        this.saveActiveTab();
+        this.actionService.doAction("fleet_rutas.action_fleet_posicion_gps");
+    }
+    openVehiculos() {
+        this.saveActiveTab();
+        this.actionService.doAction("fleet.fleet_vehicle_action");
+    }
 
     openRecorridoDetail(id) {
         if (!id) return;
+        this.saveActiveTab();
         this.actionService.doAction({
             type: "ir.actions.act_window",
             res_model: "fleet.recorrido",
@@ -278,6 +416,9 @@ FleetRutasDashboard.template = xml/* xml */`
                 <div class="row">
                     <span class="chip">Todos los recorridos</span>
                     <span class="chip"><t t-esc="state.kpis.total_recorridos"/> registros</span>
+                    <button class="btn s" title="Personalizar colores del diseño" t-on-click="() => this.toggleColorModal()">
+                        <i class="fa fa-paint-brush"/> Colores
+                    </button>
                     <button class="btn p s uta-btn-primary" t-on-click="() => this.loadData()">
                         <i class="fa fa-refresh" aria-hidden="true"/> Actualizar
                     </button>
@@ -363,7 +504,7 @@ FleetRutasDashboard.template = xml/* xml */`
             <div class="hd">
                 <h2>Monitoreo en vivo</h2>
                 <div class="row">
-                    <span class="lb uta-label">Recorrido activo:</span>
+                    <span class="lb uta-label">Recorrido:</span>
                     <select t-on-change="(ev) => this.selectTrip(Number(ev.target.value))">
                         <option t-foreach="state.kpis.recorridos_activos" t-as="tr" t-key="tr.id"
                                 t-att-value="tr_index"
@@ -735,7 +876,7 @@ FleetRutasDashboard.template = xml/* xml */`
                 </div>
             </div>
 
-            <!-- Tabla de Vehículos a Ancho Completo sin paneles redundantes -->
+            <!-- Tabla de Vehículos a Ancho Completo -->
             <div class="card nw uta-tile">
                 <div class="hd" style="margin-bottom:12px;">
                     <h3 style="margin:0;">Flota universitaria (<t t-esc="state.kpis.vehiculos_lista.length"/> vehículos)</h3>
@@ -882,6 +1023,75 @@ FleetRutasDashboard.template = xml/* xml */`
             </div>
         </t>
     </main>
+
+    <!-- MODAL DE PERSONALIZACIÓN DE COLORES -->
+    <div t-if="state.showColorModal" class="uta-theme-backdrop" t-on-click.self="() => this.toggleColorModal()">
+        <div class="uta-theme-dialog">
+            <div class="hd" style="margin-bottom:12px;">
+                <h3 style="margin:0;"><i class="fa fa-paint-brush" style="color:var(--bl);"/> Personalizar colores del diseño</h3>
+                <button class="btn s" t-on-click="() => this.toggleColorModal()"><i class="fa fa-times"/></button>
+            </div>
+            <p class="lb uta-label" style="margin:0 0 10px;">Selecciona una paleta predeterminada o edita los colores individualmente. Los cambios se guardan permanentemente en la configuración de Odoo.</p>
+
+            <!-- Paletas Predefinidas -->
+            <div class="lb uta-label" style="font-weight:600;">Paletas recomendadas:</div>
+            <div class="uta-theme-presets">
+                <button t-foreach="themePresets" t-as="tp" t-key="tp.id"
+                        class="uta-preset-btn"
+                        t-on-click="() => this.selectPreset(tp)">
+                    <span class="uta-preset-dot" t-att-style="'background:' + tp.primary + ';'"/>
+                    <span t-esc="tp.name"/>
+                </button>
+            </div>
+
+            <!-- Selectores individuales de color -->
+            <div style="margin-bottom:16px;">
+                <div class="uta-color-row">
+                    <span class="lb uta-label" style="font-weight:600;">Color de Acento / Primario (--bl):</span>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <input type="color" t-model="state.themeColors.primary" t-on-change="() => this.applyTheme(state.themeColors)"/>
+                        <span class="lb" t-esc="state.themeColors.primary"/>
+                    </div>
+                </div>
+                <div class="uta-color-row">
+                    <span class="lb uta-label" style="font-weight:600;">Selección Suave (--bls):</span>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <input type="color" t-model="state.themeColors.primary_soft" t-on-change="() => this.applyTheme(state.themeColors)"/>
+                        <span class="lb" t-esc="state.themeColors.primary_soft"/>
+                    </div>
+                </div>
+                <div class="uta-color-row">
+                    <span class="lb uta-label" style="font-weight:600;">Fondo de Página (--bg):</span>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <input type="color" t-model="state.themeColors.background" t-on-change="() => this.applyTheme(state.themeColors)"/>
+                        <span class="lb" t-esc="state.themeColors.background"/>
+                    </div>
+                </div>
+                <div class="uta-color-row">
+                    <span class="lb uta-label" style="font-weight:600;">Paneles y Tarjetas (--card):</span>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <input type="color" t-model="state.themeColors.card" t-on-change="() => this.applyTheme(state.themeColors)"/>
+                        <span class="lb" t-esc="state.themeColors.card"/>
+                    </div>
+                </div>
+                <div class="uta-color-row">
+                    <span class="lb uta-label" style="font-weight:600;">Texto Principal (--tx):</span>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <input type="color" t-model="state.themeColors.text" t-on-change="() => this.applyTheme(state.themeColors)"/>
+                        <span class="lb" t-esc="state.themeColors.text"/>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row" style="justify-content:space-between;margin-top:16px;">
+                <button class="btn s" t-on-click="() => this.resetTheme()">Restablecer</button>
+                <div class="row">
+                    <button class="btn s" t-on-click="() => this.openConfigSettings()" title="Abrir formulario completo en Odoo">Ajustes en Odoo</button>
+                    <button class="btn p s uta-btn-primary" t-on-click="() => this.saveTheme()">Guardar cambios</button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 `;
 

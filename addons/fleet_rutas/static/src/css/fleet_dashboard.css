@@ -13,25 +13,25 @@ body,
 .o_web_client,
 .o_fleet_rutas_dashboard {
     color-scheme: light !important;
-    --bg: #f4f4f4 !important;
-    --card: #ffffff !important;
-    --bd: #e0e0e0 !important;
-    --tx: #161616 !important;
-    --mu: #525252 !important;
-    --bl: #714b67 !important;
-    --bls: #f3ebf1 !important;
-    --blt: #714b67 !important;
-    --gn: #0e6027 !important;
-    --gns: #defbe6 !important;
-    --rd: #a2191f !important;
-    --rds: #ffd7d9 !important;
-    --am: #684e00 !important;
-    --ams: #fcf4d6 !important;
-    --map: #e8e8e8 !important;
-    --road: #d0d0d0 !important;
-    --trk: #e3d3de !important;
-    --bar: #e0e0e0 !important;
-    --ref: #6f6f6f !important;
+    --bg: #f4f4f4;
+    --card: #ffffff;
+    --bd: #e0e0e0;
+    --tx: #161616;
+    --mu: #525252;
+    --bl: #714b67;
+    --bls: #f3ebf1;
+    --blt: #714b67;
+    --gn: #0e6027;
+    --gns: #defbe6;
+    --rd: #a2191f;
+    --rds: #ffd7d9;
+    --am: #684e00;
+    --ams: #fcf4d6;
+    --map: #e8e8e8;
+    --road: #d0d0d0;
+    --trk: #e3d3de;
+    --bar: #e0e0e0;
+    --ref: #6f6f6f;
 
     font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif !important;
     letter-spacing: 0.16px !important;
@@ -411,11 +411,11 @@ html .o_web_client > .o_action_manager > .o_action.o_fleet_rutas_dashboard {
 .o_uta .uta-label { color: #525252; font-size: 12px; line-height: 1.4; }
 .o_uta .uta-tile { background: #ffffff; border: 1px solid #e0e0e0; border-radius: 0; padding: 16px; margin-bottom: 16px; }
 .o_uta .uta-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
-.o_uta .uta-route { display: block; width: 100%; text-align: left; background: #ffffff; border: 1px solid #e0e0e0; border-radius: 0; border-left: 3px solid transparent; padding: 12px 14px; margin-bottom: 8px; cursor: pointer; color: #161616; }
-.o_uta .uta-route.on { background: #f3ebf1; border-left-color: #714b67; }
-.o_uta .uta-btn { border-radius: 0; height: 40px; padding: 0 16px; font-weight: 400; border: 1px solid #e0e0e0; background: #ffffff; color: #161616; cursor: pointer; }
-.o_uta .uta-btn-primary { background: #714b67; border-color: #714b67; color: #ffffff; }
-.o_uta .uta-btn-primary:hover { background: #5d3d54; }
+.o_uta .uta-route { display: block; width: 100%; text-align: left; background: var(--card); border: 1px solid var(--bd); border-radius: 0; border-left: 3px solid transparent; padding: 12px 14px; margin-bottom: 8px; cursor: pointer; color: var(--tx); }
+.o_uta .uta-route.on { background: var(--bls) !important; border-left-color: var(--bl) !important; }
+.o_uta .uta-btn { border-radius: 0; height: 40px; padding: 0 16px; font-weight: 400; border: 1px solid var(--bd); background: var(--card); color: var(--tx); cursor: pointer; }
+.o_uta .uta-btn-primary { background: var(--bl) !important; border-color: var(--bl) !important; color: #ffffff !important; }
+.o_uta .uta-btn-primary:hover { opacity: 0.9; }
 
 /* Tablas técnicas (.tw, table, th, td) */
 .o_fleet_rutas_dashboard .tw {
@@ -1279,6 +1279,77 @@ body,
 .o_form_view select:focus,
 .o_form_view textarea:focus,
 .o_input:focus {
-    border-bottom: 2px solid #714b67 !important;
+    border-bottom: 2px solid var(--bl) !important;
     outline: none !important;
+}
+
+/* ── MODAL DE PERSONALIZACIÓN DE COLORES Y TEMA ────────────────────────── */
+.o_fleet_rutas_dashboard .uta-theme-backdrop {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.o_fleet_rutas_dashboard .uta-theme-dialog {
+    background: var(--card);
+    border: 1px solid var(--bd);
+    width: 500px;
+    max-width: 95vw;
+    padding: 24px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+
+.o_fleet_rutas_dashboard .uta-theme-presets {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 8px;
+    margin: 12px 0 16px;
+}
+
+.o_fleet_rutas_dashboard .uta-preset-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border: 1px solid var(--bd);
+    background: var(--bg);
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--tx);
+    transition: background 0.15s;
+}
+
+.o_fleet_rutas_dashboard .uta-preset-btn:hover {
+    background: #e8e8e8;
+}
+
+.o_fleet_rutas_dashboard .uta-preset-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 0;
+    display: inline-block;
+    flex: none;
+    border: 1px solid rgba(0,0,0,0.1);
+}
+
+.o_fleet_rutas_dashboard .uta-color-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--bd);
+}
+
+.o_fleet_rutas_dashboard .uta-color-row input[type="color"] {
+    width: 44px;
+    height: 32px;
+    padding: 0;
+    border: 1px solid var(--bd);
+    background: transparent;
+    cursor: pointer;
 }

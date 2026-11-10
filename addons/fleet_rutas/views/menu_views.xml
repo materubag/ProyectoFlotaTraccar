@@ -70,5 +70,19 @@
               parent="menu_fleet_rutas_configuracion"
               action="action_fleet_traccar_sync"
               sequence="20"/>
+
+    <record id="action_fleet_rutas_config_settings" model="ir.actions.act_window">
+        <field name="name">Ajustes y Colores</field>
+        <field name="res_model">res.config.settings</field>
+        <field name="view_mode">form</field>
+        <field name="target">inline</field>
+        <field name="context">{'module': 'fleet'}</field>
+    </record>
+
+    <menuitem id="menu_fleet_rutas_settings_action"
+              name="Ajustes y Colores"
+              parent="menu_fleet_rutas_configuracion"
+              action="action_fleet_rutas_config_settings"
+              sequence="30"/>
 </odoo>
 

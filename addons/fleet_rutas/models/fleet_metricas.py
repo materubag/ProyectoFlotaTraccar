@@ -599,5 +599,6 @@ class FleetMetricasRecorrido(models.Model):
             'puntualidad_rutas': puntualidad_rutas,
             'incidencias_por_tipo': incidencias_por_tipo,
             'metricas_iso_reales': metricas_iso_reales,
+            'theme_colors': self.env['res.config.settings'].get_theme_colors(),
         }
 

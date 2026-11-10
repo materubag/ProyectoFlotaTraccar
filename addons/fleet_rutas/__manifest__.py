@@ -34,6 +34,7 @@ Características implementadas:
         'views/fleet_metricas_views.xml',
         'views/fleet_recorrido_views.xml',
         'views/fleet_ruta_views.xml',
+        'views/res_config_settings_views.xml',
         'views/menu_views.xml',
     ],
     'demo': ['data/fleet_rutas_demo.xml'],
