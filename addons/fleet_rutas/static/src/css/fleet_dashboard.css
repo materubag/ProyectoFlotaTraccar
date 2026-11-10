@@ -38,13 +38,12 @@ body,
 }
 
 /* ── 2. REGLA ESTRICTA GLOBAL: BORDES TOTALMENTE PLANOS (0-RADIUS) ────────── */
+/* Excepción única según norma IBM Carbon Transporte UTA: Etiquetas de estado (pastillas) */
 .o_fleet_rutas_dashboard,
 .o_fleet_rutas_dashboard *,
 .o_fleet_rutas_dashboard *::before,
 .o_fleet_rutas_dashboard *::after,
 .o_web_client .o_action_manager .btn,
-.o_web_client .o_action_manager .badge,
-.o_web_client .o_action_manager .o_badge,
 .o_web_client .o_action_manager input,
 .o_web_client .o_action_manager select,
 .o_web_client .o_action_manager textarea,
@@ -62,6 +61,19 @@ body,
 .o_control_panel * {
     border-radius: 0 !important;
     box-sizing: border-box;
+}
+
+/* Excepción: Etiquetas de estado (Pastillas con radio de 12px) */
+.o_fleet_rutas_dashboard .pill,
+.o_fleet_rutas_dashboard .uta-tag-ok,
+.o_fleet_rutas_dashboard .uta-tag-err,
+.o_fleet_rutas_dashboard .uta-tag-warn,
+.o_fleet_rutas_dashboard .uta-tag-info,
+.o_web_client .o_action_manager .badge,
+.o_web_client .o_action_manager .o_badge,
+.o_web_client .o_action_manager .o_field_badge,
+.o_web_client .o_action_manager .o_field_widget.badge {
+    border-radius: 12px !important;
 }
 
 /* Odoo Action Container */
@@ -325,12 +337,17 @@ html .o_web_client > .o_action_manager > .o_action.o_fleet_rutas_dashboard {
     cursor: wait;
 }
 
-/* Badges / Status Pills */
-.o_fleet_rutas_dashboard .pill {
+/* Badges / Status Pills (Radio 12px estricto según norma IBM Carbon Transporte UTA) */
+.o_fleet_rutas_dashboard .pill,
+.o_uta .pill,
+.o_uta .uta-tag-ok,
+.o_uta .uta-tag-err,
+.o_uta .uta-tag-warn,
+.o_uta .uta-tag-info {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    border-radius: 0 !important;
+    border-radius: 12px !important;
     padding: 2px 8px;
     font-size: 12px;
     font-weight: 400;
@@ -339,11 +356,36 @@ html .o_web_client > .o_action_manager > .o_action.o_fleet_rutas_dashboard {
     border: 1px solid transparent;
 }
 
-.o_fleet_rutas_dashboard .pill.gn { background: var(--gns); color: var(--gn); border-color: rgba(14,96,39,0.2); }
-.o_fleet_rutas_dashboard .pill.rd { background: var(--rds); color: var(--rd); border-color: rgba(162,25,31,0.2); }
-.o_fleet_rutas_dashboard .pill.am { background: var(--ams); color: var(--am); border-color: rgba(104,78,0,0.2); }
-.o_fleet_rutas_dashboard .pill.bl { background: #d0e2ff; color: #0043ce; border-color: rgba(0,67,206,0.2); }
-.o_fleet_rutas_dashboard .pill.mu { background: var(--bd); color: var(--mu); }
+/* Colores Semánticos Estrictos:
+   - Correcto (gn): Cumple, Cumplida, En ruta, Actualizado, Activo, Finalizado
+   - Error (rd): Incumple, Retraso grave, Retraso
+   - Advertencia (am): Con retraso, Desviación, Sin GPS, Desactualizado, En curso
+   - Información (bl): Pendiente, Programado, Detenido
+*/
+.o_fleet_rutas_dashboard .pill.gn,
+.o_uta .uta-tag-ok { background: #defbe6 !important; color: #0e6027 !important; border-color: rgba(14,96,39,0.2) !important; }
+
+.o_fleet_rutas_dashboard .pill.rd,
+.o_uta .uta-tag-err { background: #ffd7d9 !important; color: #a2191f !important; border-color: rgba(162,25,31,0.2) !important; }
+
+.o_fleet_rutas_dashboard .pill.am,
+.o_uta .uta-tag-warn { background: #fcf4d6 !important; color: #684e00 !important; border-color: rgba(104,78,0,0.2) !important; }
+
+.o_fleet_rutas_dashboard .pill.bl,
+.o_uta .uta-tag-info { background: #d0e2ff !important; color: #0043ce !important; border-color: rgba(0,67,206,0.2) !important; }
+
+.o_fleet_rutas_dashboard .pill.mu { background: #e0e0e0; color: #525252; }
+
+/* Clases oficiales de la especificación Transporte UTA */
+.o_uta .uta-kpi { font-size: 36px; font-weight: 300; letter-spacing: 0; color: #161616; line-height: 1.1; margin: 4px 0; }
+.o_uta .uta-label { color: #525252; font-size: 12px; line-height: 1.4; }
+.o_uta .uta-tile { background: #ffffff; border: 1px solid #e0e0e0; border-radius: 0; padding: 16px; margin-bottom: 16px; }
+.o_uta .uta-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.o_uta .uta-route { display: block; width: 100%; text-align: left; background: #ffffff; border: 1px solid #e0e0e0; border-radius: 0; border-left: 3px solid transparent; padding: 12px 14px; margin-bottom: 8px; cursor: pointer; color: #161616; }
+.o_uta .uta-route.on { background: #f3ebf1; border-left-color: #714b67; }
+.o_uta .uta-btn { border-radius: 0; height: 40px; padding: 0 16px; font-weight: 400; border: 1px solid #e0e0e0; background: #ffffff; color: #161616; cursor: pointer; }
+.o_uta .uta-btn-primary { background: #714b67; border-color: #714b67; color: #ffffff; }
+.o_uta .uta-btn-primary:hover { background: #5d3d54; }
 
 /* Tablas técnicas (.tw, table, th, td) */
 .o_fleet_rutas_dashboard .tw {
@@ -732,8 +774,8 @@ html .o_web_client > .o_action_manager > .o_action.o_fleet_rutas_dashboard {
     color: var(--tx) !important;
     font-size: 12px !important;
     font-weight: 600 !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.5px !important;
+    text-transform: none !important;
+    letter-spacing: 0.16px !important;
     height: 40px !important;
     padding: 0 16px !important;
     border-bottom: 1px solid #c6c6c6 !important;
@@ -752,7 +794,7 @@ html .o_web_client > .o_action_manager > .o_action.o_fleet_rutas_dashboard {
     background: #e8e8e8 !important;
 }
 
-/* Badges de Odoo */
+/* Badges de Odoo (Pastillas con radio de 12px) */
 .o_list_table .badge,
 .o_list_table .o_badge,
 .o_view_controller .badge,
@@ -761,7 +803,7 @@ html .o_web_client > .o_action_manager > .o_action.o_fleet_rutas_dashboard {
 .badge {
     display: inline-flex !important;
     align-items: center !important;
-    border-radius: 0 !important;
+    border-radius: 12px !important;
     padding: 2px 8px !important;
     font-size: 12px !important;
     font-weight: 400 !important;
@@ -1096,18 +1138,19 @@ body,
     border-color: #714b67 !important;
 }
 
-/* Badges y Pills en todo Odoo (sin bordes redondeados) */
+/* Badges y Pills en todo Odoo (Pastillas con radio de 12px según norma IBM Carbon Transporte UTA) */
 .badge,
 .rounded-pill,
 .o_badge,
 .badge-pill,
-.o_field_badge {
+.o_field_badge,
+.o_field_widget.badge {
     display: inline-flex !important;
     align-items: center !important;
-    border-radius: 0 !important;
+    border-radius: 12px !important;
     padding: 2px 8px !important;
     font-size: 12px !important;
-    font-weight: 500 !important;
+    font-weight: 400 !important;
     line-height: 18px !important;
     border: 1px solid transparent !important;
     text-transform: none !important;
@@ -1121,7 +1164,7 @@ body,
 .badge.gn {
     background-color: #defbe6 !important;
     color: #0e6027 !important;
-    border: 1px solid #a7f0ba !important;
+    border: 1px solid rgba(14,96,39,0.2) !important;
 }
 
 .badge.text-bg-warning,
@@ -1131,7 +1174,7 @@ body,
 .badge.am {
     background-color: #fcf4d6 !important;
     color: #684e00 !important;
-    border: 1px solid #fde08b !important;
+    border: 1px solid rgba(104,78,0,0.2) !important;
 }
 
 .badge.text-bg-danger,
@@ -1141,16 +1184,21 @@ body,
 .badge.rd {
     background-color: #ffd7d9 !important;
     color: #a2191f !important;
-    border: 1px solid #ffb3b8 !important;
+    border: 1px solid rgba(162,25,31,0.2) !important;
 }
 
 .badge.text-bg-info,
 .badge.bg-info,
 .text-bg-info,
+.badge.bl {
+    background-color: #d0e2ff !important;
+    color: #0043ce !important;
+    border: 1px solid rgba(0,67,206,0.2) !important;
+}
+
 .badge.text-bg-primary,
 .badge.bg-primary,
-.text-bg-primary,
-.badge.bl {
+.text-bg-primary {
     background-color: #f3ebf1 !important;
     color: #714b67 !important;
     border: 1px solid #e2d1de !important;

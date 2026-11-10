@@ -10,11 +10,7 @@
         <field name="name">fleet.recorrido.tree</field>
         <field name="model">fleet.recorrido</field>
         <field name="arch" type="xml">
-            <tree string="Recorridos"
-                  decoration-success="estado == 'completado'"
-                  decoration-info="estado == 'en_curso'"
-                  decoration-warning="estado == 'programado'"
-                  decoration-danger="estado == 'cancelado'">
+            <tree string="Recorridos">
                 <field name="name" string="Referencia"/>
                 <field name="ruta_id" string="Ruta"/>
                 <field name="vehicle_id" string="Vehículo"/>

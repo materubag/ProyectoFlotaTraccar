@@ -10,9 +10,7 @@
         <field name="name">fleet.ruta.tree</field>
         <field name="model">fleet.ruta</field>
         <field name="arch" type="xml">
-            <tree string="Rutas" decoration-success="estado == 'activa'"
-                  decoration-warning="estado == 'mantenimiento'"
-                  decoration-danger="estado == 'suspendida'">
+            <tree string="Rutas">
                 <field name="code" string="Código"/>
                 <field name="name" string="Nombre de Ruta"/>
                 <field name="origen" string="Origen"/>
