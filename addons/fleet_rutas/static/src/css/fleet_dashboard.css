@@ -7,11 +7,7 @@
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300%3B400%3B500%3B600%3B700&display=swap');
 
 /* ── 1. PALETA TÉCNICA Y VARIABLES FORZADAS EN MODO CLARO ─────────────────── */
-:root,
-html,
-body,
-.o_web_client,
-.o_fleet_rutas_dashboard {
+:root {
     color-scheme: light !important;
     --bg: #f4f4f4;
     --card: #ffffff;
@@ -19,6 +15,7 @@ body,
     --tx: #161616;
     --mu: #525252;
     --bl: #714b67;
+    --bl-hover: #5d3d54;
     --bls: #f3ebf1;
     --blt: #714b67;
     --gn: #0e6027;
@@ -150,10 +147,14 @@ html .o_web_client > .o_action_manager > .o_action.o_fleet_rutas_dashboard {
 }
 
 .o_fleet_rutas_dashboard .fleet_nav_item.on {
-    background: var(--bg);
-    color: var(--tx);
-    border-left-color: var(--bl);
-    font-weight: 600;
+    background: var(--bls) !important;
+    color: var(--bl) !important;
+    border-left-color: var(--bl) !important;
+    font-weight: 600 !important;
+}
+
+.o_fleet_rutas_dashboard .fleet_nav_item.on i {
+    color: var(--bl) !important;
 }
 
 .o_fleet_rutas_dashboard .fleet_nav_item i {
@@ -485,7 +486,7 @@ html .o_web_client > .o_action_manager > .o_action.o_fleet_rutas_dashboard {
 .o_fleet_rutas_dashboard .bars i {
     display: block;
     width: 44px;
-    background: var(--bl);
+    background: var(--bl) !important;
     border-radius: 0;
     margin: 0 auto 8px;
     transition: height 0.3s ease;
@@ -519,7 +520,7 @@ html .o_web_client > .o_action_manager > .o_action.o_fleet_rutas_dashboard {
     display: block;
     height: 100%;
     border-radius: 0;
-    background: var(--bl);
+    background: var(--bl) !important;
     transition: width 0.3s ease;
 }
 

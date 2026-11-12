@@ -76,7 +76,6 @@ class ResConfigSettings(models.TransientModel):
 
     def action_apply_theme_odoo(self):
         """Aplica la paleta oficial Morado Odoo."""
-        self.set_values()
         ICP = self.env['ir.config_parameter'].sudo()
         ICP.set_param('fleet_rutas.color_primary', '#714b67')
         ICP.set_param('fleet_rutas.color_primary_hover', '#5d3d54')
@@ -84,10 +83,10 @@ class ResConfigSettings(models.TransientModel):
         ICP.set_param('fleet_rutas.color_background', '#f4f4f4')
         ICP.set_param('fleet_rutas.color_card', '#ffffff')
         ICP.set_param('fleet_rutas.color_text', '#161616')
+        return {'type': 'ir.actions.client', 'tag': 'reload'}
 
     def action_apply_theme_ibm(self):
         """Aplica la paleta Azul IBM Carbon."""
-        self.set_values()
         ICP = self.env['ir.config_parameter'].sudo()
         ICP.set_param('fleet_rutas.color_primary', '#0f62fe')
         ICP.set_param('fleet_rutas.color_primary_hover', '#0353e9')
@@ -95,10 +94,10 @@ class ResConfigSettings(models.TransientModel):
         ICP.set_param('fleet_rutas.color_background', '#f4f4f4')
         ICP.set_param('fleet_rutas.color_card', '#ffffff')
         ICP.set_param('fleet_rutas.color_text', '#161616')
+        return {'type': 'ir.actions.client', 'tag': 'reload'}
 
     def action_apply_theme_transito(self):
         """Aplica la paleta Verde Tránsito."""
-        self.set_values()
         ICP = self.env['ir.config_parameter'].sudo()
         ICP.set_param('fleet_rutas.color_primary', '#0e6027')
         ICP.set_param('fleet_rutas.color_primary_hover', '#09411a')
@@ -106,10 +105,10 @@ class ResConfigSettings(models.TransientModel):
         ICP.set_param('fleet_rutas.color_background', '#f4f4f4')
         ICP.set_param('fleet_rutas.color_card', '#ffffff')
         ICP.set_param('fleet_rutas.color_text', '#161616')
+        return {'type': 'ir.actions.client', 'tag': 'reload'}
 
     def action_apply_theme_marino(self):
         """Aplica la paleta Azul Marino."""
-        self.set_values()
         ICP = self.env['ir.config_parameter'].sudo()
         ICP.set_param('fleet_rutas.color_primary', '#1d4ed8')
         ICP.set_param('fleet_rutas.color_primary_hover', '#1e40af')
@@ -117,10 +116,10 @@ class ResConfigSettings(models.TransientModel):
         ICP.set_param('fleet_rutas.color_background', '#f4f4f4')
         ICP.set_param('fleet_rutas.color_card', '#ffffff')
         ICP.set_param('fleet_rutas.color_text', '#161616')
+        return {'type': 'ir.actions.client', 'tag': 'reload'}
 
     def action_apply_theme_carbon(self):
         """Aplica la paleta Gris Carbón."""
-        self.set_values()
         ICP = self.env['ir.config_parameter'].sudo()
         ICP.set_param('fleet_rutas.color_primary', '#393939')
         ICP.set_param('fleet_rutas.color_primary_hover', '#262626')
@@ -128,4 +127,5 @@ class ResConfigSettings(models.TransientModel):
         ICP.set_param('fleet_rutas.color_background', '#f4f4f4')
         ICP.set_param('fleet_rutas.color_card', '#ffffff')
         ICP.set_param('fleet_rutas.color_text', '#161616')
+        return {'type': 'ir.actions.client', 'tag': 'reload'}
 
