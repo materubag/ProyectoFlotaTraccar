@@ -16,9 +16,9 @@
     display: flex;
     flex-direction: column;
     height: calc(100vh - 52px);
-    background: #12151b;
-    color: #e8ecf2;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg, #f4f4f4);
+    color: var(--tx, #161616);
+    font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     overflow: hidden;
     min-width: 0;
     width: 100%;
@@ -30,8 +30,8 @@
     align-items: center;
     justify-content: space-between;
     padding: 12px 22px;
-    background: #1a1f27;
-    border-bottom: 1px solid #2a313c;
+    background: var(--card, #ffffff);
+    border-bottom: 1px solid var(--bd, #e0e0e0);
     gap: 16px;
     flex-shrink: 0;
 }
@@ -47,13 +47,13 @@
     margin: 0;
     font-size: 18px;
     font-weight: 700;
-    color: #e8ecf2;
+    color: var(--tx, #161616);
     letter-spacing: -0.02em;
 }
 
 .o_fleet_reports_title .icon-fleet {
     font-size: 20px;
-    color: #5b8cff;
+    color: var(--bl, #714b67);
 }
 
 /* ── Controles de la barra ──────────────────────────────────── */
@@ -66,7 +66,7 @@
 
 .o_fleet_reports_controls label {
     font-size: 11px;
-    color: #9aa5b5;
+    color: var(--mu, #525252);
     font-weight: 600;
     letter-spacing: 0.5px;
     text-transform: uppercase;
@@ -74,9 +74,9 @@
 }
 
 .o_fleet_reports_controls select {
-    background: #12151b;
-    border: 1px solid #2a313c;
-    color: #e8ecf2;
+    background: var(--bg, #f4f4f4);
+    border: 1px solid var(--bd, #e0e0e0);
+    color: var(--tx, #161616);
     font-size: 13px;
     padding: 7px 12px;
     cursor: pointer;
@@ -86,7 +86,7 @@
 
 .o_fleet_reports_controls select:hover,
 .o_fleet_reports_controls select:focus {
-    border-color: #5b8cff;
+    border-color: var(--bl, #714b67);
 }
 
 /* ── Badge de estado de actualización ───────────────────────── */
@@ -94,26 +94,26 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    background: #12151b;
-    border: 1px solid #2a313c;
+    background: var(--bg, #f4f4f4);
+    border: 1px solid var(--bd, #e0e0e0);
     padding: 6px 12px;
     font-size: 12px;
-    color: #9aa5b5;
+    color: var(--mu, #525252);
     font-weight: 500;
 }
 
 .o_fleet_refresh_badge .dot {
     width: 8px;
     height: 8px;
-    background: #6fd49b;
+    background: var(--gn, #0e6027);
 }
 
 .o_fleet_refresh_badge .dot.loading {
-    background: #f0c36a;
+    background: var(--am, #684e00);
 }
 
 .o_fleet_refresh_badge .dot.error {
-    background: #ff8d8d;
+    background: var(--rd, #a2191f);
 }
 
 /* ── Botones de acción ──────────────────────────────────────── */
@@ -132,26 +132,26 @@
 }
 
 .o_fleet_btn-primary {
-    background: #2f6df0;
+    background: var(--bl, #714b67);
     color: #ffffff;
-    border-color: #2f6df0;
+    border-color: var(--bl, #714b67);
 }
 
 .o_fleet_btn-primary:hover {
-    background: #1d4ed8;
-    border-color: #1d4ed8;
+    background: var(--bl-hover, #5d3d54);
+    border-color: var(--bl-hover, #5d3d54);
 }
 
 .o_fleet_btn-secondary {
-    background: #12151b;
-    color: #e8ecf2;
-    border-color: #2a313c;
+    background: var(--bg, #f4f4f4);
+    color: var(--tx, #161616);
+    border-color: var(--bd, #e0e0e0);
 }
 
 .o_fleet_btn-secondary:hover {
-    background: #202631;
-    border-color: #5b8cff;
-    color: #5b8cff;
+    background: var(--bls, #f3ebf1);
+    border-color: var(--bl, #714b67);
+    color: var(--bl, #714b67);
 }
 
 /* ── Iframe wrapper ─────────────────────────────────────────── */
@@ -167,7 +167,7 @@
     height: 100%;
     border: none;
     display: block;
-    background: #12151b;
+    background: var(--bg, #f4f4f4);
 }
 
 /* ── Pantalla de carga ──────────────────────────────────────── */
@@ -178,7 +178,7 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    background: #12151b;
+    background: var(--bg, #f4f4f4);
     z-index: 10;
     gap: 16px;
 }
@@ -190,8 +190,8 @@
 .o_fleet_spinner {
     width: 40px;
     height: 40px;
-    border: 3px solid #2a313c;
-    border-top-color: #5b8cff;
+    border: 3px solid var(--bd, #e0e0e0);
+    border-top-color: var(--bl, #714b67);
     animation: spin 0.8s linear infinite;
 }
 
@@ -201,7 +201,7 @@
 
 .o_fleet_loading_text {
     font-size: 13px;
-    color: #9aa5b5;
+    color: var(--mu, #525252);
     font-weight: 500;
 }
 
@@ -213,7 +213,7 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    background: #12151b;
+    background: var(--bg, #f4f4f4);
     z-index: 10;
     gap: 16px;
     text-align: center;
@@ -226,19 +226,19 @@
 
 .o_fleet_error_icon {
     font-size: 40px;
-    color: #ff8d8d;
+    color: var(--rd, #a2191f);
 }
 
 .o_fleet_error_title {
     font-size: 18px;
     font-weight: 700;
-    color: #ff8d8d;
+    color: var(--rd, #a2191f);
     margin: 0;
 }
 
 .o_fleet_error_msg {
     font-size: 13px;
-    color: #9aa5b5;
+    color: var(--mu, #525252);
     max-width: 480px;
     line-height: 1.6;
     margin: 0;
@@ -246,11 +246,11 @@
 
 .o_fleet_error_url {
     font-size: 12px;
-    color: #5b8cff;
+    color: var(--bl, #714b67);
     font-family: monospace;
-    background: #1a1f27;
+    background: var(--card, #ffffff);
     padding: 8px 14px;
-    border: 1px solid #2a313c;
+    border: 1px solid var(--bd, #e0e0e0);
     word-break: break-all;
     max-width: 600px;
 }
@@ -261,10 +261,10 @@
     align-items: center;
     justify-content: space-between;
     padding: 6px 20px;
-    background: #1a1f27;
-    border-top: 1px solid #2a313c;
+    background: var(--card, #ffffff);
+    border-top: 1px solid var(--bd, #e0e0e0);
     font-size: 11px;
-    color: #9aa5b5;
+    color: var(--mu, #525252);
     flex-shrink: 0;
 }
 
@@ -277,13 +277,13 @@
 .o_fleet_countdown_bar {
     width: 80px;
     height: 4px;
-    background: #2a313c;
+    background: var(--bd, #e0e0e0);
     overflow: hidden;
 }
 
 .o_fleet_countdown_fill {
     height: 100%;
-    background: #5b8cff;
+    background: var(--bl, #714b67);
     transition: width 1s linear;
 }
 
@@ -303,3 +303,22 @@
     .o_fleet_reports_statusbar { flex-wrap: wrap; gap: 6px; padding: 8px 12px; }
     .o_fleet_error_overlay { padding: 16px; overflow-y: auto; }
 }
+
+/* Integración lateral de Flota: superficies claras y acento heredado. */
+.o_fleet_reports_dashboard { color-scheme: light; }
+.o_fleet_rutas_dashboard .fleet_main_grafana { display:flex; flex-direction:column; padding:0!important; overflow:hidden; }
+.fleet_main_grafana > .o_fleet_reports_dashboard { flex:1; height:100%; min-height:0; }
+.o_fleet_reports_topbar { flex-wrap:wrap; }
+.o_fleet_reports_controls { min-width:0; }
+.o_fleet_reports_controls select,.o_fleet_btn { min-height:40px; }
+.o_fleet_reports_dashboard .o_fleet_btn:focus-visible { outline:2px solid var(--bl,#714b67); outline-offset:2px; }
+.o_fleet_reports_dashboard .o_fleet_status_error { color:var(--rd,#a2191f); }
+.o_fleet_reports_dashboard .o_fleet_server_label { color:var(--mu,#525252); overflow-wrap:anywhere; }
+.o_fleet_reports_dashboard .o_fleet_refresh_badge { border-radius:12px!important; }
+.o_fleet_reports_statusbar { flex-wrap:wrap; gap:8px; }
+@media(max-width:767px) { .o_fleet_reports_controls { align-items:center; } .o_fleet_reports_controls select { max-width:100%; } .o_fleet_reports_iframe_wrapper { min-height:320px; } .o_fleet_rutas_dashboard .fleet_main_grafana { overflow-y:auto; } }
+
+.o_fleet_reports_controls select { width:auto; flex:0 1 auto; min-width:160px; max-width:240px; }
+.o_fleet_reports_controls > * { width:auto; }
+.o_fleet_reports_title { flex:1 1 auto; }
+.o_fleet_reports_controls { flex:0 1 auto; }

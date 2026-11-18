@@ -1,88 +1,166 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='utf-8'?>
 <odoo>
-    <!-- ============================================================ -->
-    <!-- MENÚ PRINCIPAL: TRANSPORTE UNIVERSITARIO                     -->
-    <!-- ============================================================ -->
-
-    <!-- Transporte forma parte de Fleet; se conservan los IDs y las acciones. -->
-    <menuitem id="menu_fleet_rutas_root"
-              name="Transporte"
-              parent="fleet.menu_root"
-              sequence="20"/>
-
-    <!-- Dashboard Principal -->
-    <menuitem id="menu_fleet_rutas_dashboard"
-              name="Panel de control"
-              parent="menu_fleet_rutas_root"
-              action="action_fleet_rutas_dashboard"
-              sequence="5"/>
-
-    <!-- ── Operaciones ───────────────────────────────────────────── -->
-    <menuitem id="menu_fleet_rutas_operaciones"
-              name="Operaciones"
-              parent="menu_fleet_rutas_root"
-              sequence="10"/>
-
-    <menuitem id="menu_fleet_recorridos_action"
-              name="Recorridos"
-              parent="menu_fleet_rutas_operaciones"
-              action="action_fleet_recorrido"
-              sequence="10"/>
-
-    <menuitem id="menu_fleet_incidencias_action"
-              name="Incidencias"
-              parent="menu_fleet_rutas_operaciones"
-              action="action_fleet_incidencia"
-              sequence="20"/>
-
-    <menuitem id="menu_fleet_posicion_gps_action"
-              name="Telemetría GPS"
-              parent="menu_fleet_rutas_operaciones"
-              action="action_fleet_posicion_gps"
-              sequence="30"/>
-
-    <!-- ── Reportes y Calidad SQA ────────────────────────────────── -->
-    <menuitem id="menu_fleet_rutas_reportes"
-              name="Reportes y calidad"
-              parent="fleet.menu_root"
-              sequence="40"/>
-
-    <menuitem id="menu_fleet_metricas_action"
-              name="Métricas ISO/IEC 25010"
-              parent="menu_fleet_rutas_reportes"
-              action="action_fleet_metricas"
-              sequence="10"/>
-
-    <!-- ── Configuración ─────────────────────────────────────────── -->
-    <menuitem id="menu_fleet_rutas_configuracion"
-              name="Rutas y sincronización"
-              parent="menu_fleet_rutas_root"
-              sequence="30"/>
-
-    <menuitem id="menu_fleet_rutas_action"
-              name="Rutas y Paradas"
-              parent="menu_fleet_rutas_configuracion"
-              action="action_fleet_ruta"
-              sequence="10"/>
-
-    <menuitem id="menu_fleet_traccar_sync_action"
-              name="Sincronización Traccar"
-              parent="menu_fleet_rutas_configuracion"
-              action="action_fleet_traccar_sync"
-              sequence="20"/>
-
     <record id="action_fleet_rutas_config_settings" model="ir.actions.act_window">
-        <field name="name">Ajustes y Colores</field>
+        <field name="name">Ajustes</field>
         <field name="res_model">res.config.settings</field>
         <field name="view_mode">form</field>
         <field name="target">inline</field>
+        <field name="view_id" ref="fleet_settings_unified_form" />
         <field name="context">{'module': 'fleet'}</field>
     </record>
-
-    <menuitem id="menu_fleet_rutas_settings_action"
-              name="Ajustes y Colores"
-              parent="menu_fleet_rutas_configuracion"
-              action="action_fleet_rutas_config_settings"
-              sequence="30"/>
+    <record id="menu_fleet_rutas_dashboard" model="ir.ui.menu">
+        <field name="name">Panel</field>
+        <field name="parent_id" ref="fleet.menu_root" />
+        <field name="sequence">1</field>
+        <field name="active" eval="True" />
+        <field name="groups_id" eval="[(6,0,[ref('fleet.fleet_group_user')])]" />
+        <field name="action" ref="action_fleet_rutas_dashboard" />
+    </record>
+    <record id="menu_fleet_rutas_operaciones" model="ir.ui.menu">
+        <field name="name">Registros</field>
+        <field name="parent_id" ref="fleet.menu_root" />
+        <field name="sequence">30</field>
+        <field name="active" eval="True" />
+        <field name="groups_id" eval="[(6,0,[ref('fleet.fleet_group_user')])]" />
+    </record>
+    <record id="menu_fleet_recorridos_action" model="ir.ui.menu">
+        <field name="name">Recorridos</field>
+        <field name="parent_id" ref="menu_fleet_rutas_operaciones" />
+        <field name="sequence">10</field>
+        <field name="active" eval="True" />
+        <field name="groups_id" eval="[(6,0,[ref('fleet.fleet_group_user')])]" />
+        <field name="action" ref="action_fleet_recorrido" />
+    </record>
+    <record id="menu_fleet_incidencias_action" model="ir.ui.menu">
+        <field name="name">Incidencias</field>
+        <field name="parent_id" ref="menu_fleet_rutas_operaciones" />
+        <field name="sequence">20</field>
+        <field name="active" eval="True" />
+        <field name="groups_id" eval="[(6,0,[ref('fleet.fleet_group_user')])]" />
+        <field name="action" ref="action_fleet_incidencia" />
+    </record>
+    <record id="menu_fleet_posicion_gps_action" model="ir.ui.menu">
+        <field name="name">Posiciones GPS</field>
+        <field name="parent_id" ref="menu_fleet_rutas_operaciones" />
+        <field name="sequence">30</field>
+        <field name="active" eval="True" />
+        <field name="groups_id" eval="[(6,0,[ref('fleet.fleet_group_user')])]" />
+        <field name="action" ref="action_fleet_posicion_gps" />
+    </record>
+    <record id="menu_fleet_metricas_action" model="ir.ui.menu">
+        <field name="name">Métricas por recorrido</field>
+        <field name="parent_id" ref="menu_fleet_rutas_operaciones" />
+        <field name="sequence">40</field>
+        <field name="active" eval="True" />
+        <field name="groups_id" eval="[(6,0,[ref('fleet.fleet_group_user')])]" />
+        <field name="action" ref="action_fleet_metricas" />
+    </record>
+    <record id="menu_fleet_rutas_action" model="ir.ui.menu">
+        <field name="name">Rutas y paradas</field>
+        <field name="parent_id" ref="fleet.fleet_configuration" />
+        <field name="sequence">10</field>
+        <field name="active" eval="True" />
+        <field name="groups_id" eval="[(6,0,[ref('base.group_system')])]" />
+        <field name="action" ref="action_fleet_ruta" />
+    </record>
+    <record id="menu_fleet_rutas_settings_action" model="ir.ui.menu">
+        <field name="name">Ajustes</field>
+        <field name="parent_id" ref="fleet.fleet_configuration" />
+        <field name="sequence">20</field>
+        <field name="active" eval="True" />
+        <field name="groups_id" eval="[(6,0,[ref('base.group_system')])]" />
+        <field name="action" ref="action_fleet_rutas_config_settings" />
+    </record>
+    <record id="fleet.fleet_vehicle_menu" model="ir.ui.menu">
+        <field name="name">Vehículos</field>
+        <field name="parent_id" ref="fleet.menu_root" />
+        <field name="sequence">20</field>
+        <field name="active" eval="True" />
+        <field name="groups_id" eval="[(6,0,[ref('fleet.fleet_group_user')])]" />
+    </record>
+    <record id="fleet.fleet_configuration" model="ir.ui.menu">
+        <field name="name">Configuración</field>
+        <field name="parent_id" ref="fleet.menu_root" />
+        <field name="sequence">40</field>
+        <field name="active" eval="True" />
+        <field name="groups_id" eval="[(6,0,[ref('base.group_system')])]" />
+    </record>
+    <record id="fleet.fleet_models_configuration" model="ir.ui.menu">
+        <field name="name">Catálogo de vehículos</field>
+        <field name="parent_id" ref="fleet.fleet_configuration" />
+        <field name="sequence">30</field>
+        <field name="active" eval="True" />
+        <field name="groups_id" eval="[(6,0,[ref('base.group_system')])]" />
+    </record>
+    <record id="fleet.fleet_vehicle_model_menu" model="ir.ui.menu">
+        <field name="name">Modelos</field>
+        <field name="parent_id" ref="fleet.fleet_models_configuration" />
+        <field name="sequence">10</field>
+        <field name="active" eval="True" />
+        <field name="groups_id" eval="[(6,0,[ref('base.group_system')])]" />
+    </record>
+    <record id="fleet.fleet_vehicle_model_brand_menu" model="ir.ui.menu">
+        <field name="name">Fabricantes</field>
+        <field name="parent_id" ref="fleet.fleet_models_configuration" />
+        <field name="sequence">20</field>
+        <field name="active" eval="True" />
+        <field name="groups_id" eval="[(6,0,[ref('base.group_system')])]" />
+    </record>
+    <record id="fleet.fleet_vehicles" model="ir.ui.menu">
+        <field name="active" eval="False" />
+    </record>
+    <record id="fleet.fleet_vehicle_log_contract_menu" model="ir.ui.menu">
+        <field name="active" eval="False" />
+    </record>
+    <record id="fleet.fleet_vehicle_log_services_menu" model="ir.ui.menu">
+        <field name="active" eval="False" />
+    </record>
+    <record id="fleet.fleet_vehicle_odometer_menu" model="ir.ui.menu">
+        <field name="active" eval="False" />
+    </record>
+    <record id="fleet.menu_fleet_reporting" model="ir.ui.menu">
+        <field name="active" eval="False" />
+    </record>
+    <record id="fleet.menu_fleet_reporting_costs" model="ir.ui.menu">
+        <field name="active" eval="False" />
+    </record>
+    <record id="fleet.fleet_vehicle_model_category_menu" model="ir.ui.menu">
+        <field name="active" eval="False" />
+    </record>
+    <record id="fleet.fleet_services_configuration" model="ir.ui.menu">
+        <field name="active" eval="False" />
+    </record>
+    <record id="fleet.fleet_vehicle_service_types_menu" model="ir.ui.menu">
+        <field name="active" eval="False" />
+    </record>
+    <record id="fleet.fleet_vehicles_configuration" model="ir.ui.menu">
+        <field name="active" eval="False" />
+    </record>
+    <record id="fleet.fleet_vehicle_state_menu" model="ir.ui.menu">
+        <field name="active" eval="False" />
+    </record>
+    <record id="fleet.fleet_vehicle_tag_menu" model="ir.ui.menu">
+        <field name="active" eval="False" />
+    </record>
+    <record id="fleet.fleet_menu_config_activity_type" model="ir.ui.menu">
+        <field name="active" eval="False" />
+    </record>
+    <record id="fleet.fleet_config_settings_menu" model="ir.ui.menu">
+        <field name="active" eval="False" />
+    </record>
+    <record id="menu_fleet_rutas_root" model="ir.ui.menu">
+        <field name="active" eval="False" />
+    </record>
+    <record id="menu_fleet_rutas_reportes" model="ir.ui.menu">
+        <field name="active" eval="False" />
+    </record>
+    <record id="menu_fleet_rutas_configuracion" model="ir.ui.menu">
+        <field name="active" eval="False" />
+    </record>
+    <record id="menu_fleet_traccar_sync_action" model="ir.ui.menu">
+        <field name="active" eval="False" />
+    </record>
+    <record id="fleet.fleet_vehicle_action" model="ir.actions.act_window">
+        <field name="view_mode">tree,kanban,form,pivot,activity</field>
+    </record>
 </odoo>
-

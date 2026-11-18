@@ -1,1084 +1,1054 @@
 /** @odoo-module **/
-/**
- * Centro de Control y Monitoreo de Transporte Universitario UTA
- * OWL 2 Component para Odoo 16
- * 100% conectado a los datos reales registrados en Odoo y PostgreSQL
- * Persistencia de pestaña activa al navegar y volver atrás
- * Colores de diseño editables y sincronizados con la configuración de Odoo
- */
-
+/** Vistas de lectura: solo consulta registros y métricas existentes mediante el ORM. */
 import { Component, useState, onMounted, onWillUnmount, xml } from "@odoo/owl";
 import { registry } from "@web/core/registry";
 import { useService } from "@web/core/utils/hooks";
-import { applyGlobalTheme } from "./theme_service";
-
 const TABS = [
-    { id: "panel", label: "Panel", icon: "fa-dashboard" },
-    { id: "monitoreo", label: "Monitoreo en vivo", icon: "fa-map-marker" },
-    { id: "rutas", label: "Rutas y paradas", icon: "fa-map-signs" },
-    { id: "asignaciones", label: "Asignaciones", icon: "fa-calendar" },
-    { id: "recorridos", label: "Recorridos e incidencias", icon: "fa-road" },
-    { id: "tiempo", label: "Línea de tiempo", icon: "fa-clock-o" },
-    { id: "vehiculos", label: "Vehículos y GPS", icon: "fa-bus" },
-    { id: "metricas", label: "Métricas ISO 25010", icon: "fa-bar-chart" },
-    { id: "sync", label: "Sincronización", icon: "fa-refresh" },
+  { id: "panel", label: "Panel", icon: "fa-dashboard" },
+  { id: "monitoreo", label: "Monitoreo en vivo", icon: "fa-map-marker" },
+  { id: "recorridos", label: "Recorridos", icon: "fa-road" },
+  { id: "rutas", label: "Rutas y programación", icon: "fa-calendar" },
+  { id: "metricas", label: "Métricas", icon: "fa-bar-chart" },
+  { id: "sync", label: "Sincronización", icon: "fa-refresh" },
+  { id: "grafana", label: "Dashboard Grafana", icon: "fa-line-chart" },
 ];
-
-const THEME_PRESETS = [
-    { id: "odoo", name: "Morado Odoo", primary: "#714b67", primary_soft: "#f3ebf1", background: "#f4f4f4", card: "#ffffff", text: "#161616" },
-    { id: "ibm", name: "Azul IBM Carbon", primary: "#0f62fe", primary_soft: "#edf5ff", background: "#f4f4f4", card: "#ffffff", text: "#161616" },
-    { id: "transito", name: "Verde Tránsito", primary: "#0e6027", primary_soft: "#defbe6", background: "#f4f4f4", card: "#ffffff", text: "#161616" },
-    { id: "marino", name: "Azul Marino", primary: "#1d4ed8", primary_soft: "#e8eefc", background: "#f4f4f4", card: "#ffffff", text: "#161616" },
-    { id: "carbon", name: "Gris Carbón", primary: "#393939", primary_soft: "#e8e8e8", background: "#f4f4f4", card: "#ffffff", text: "#161616" },
+const STATES = {
+  programado: "Programado",
+  en_curso: "En curso",
+  completado: "Completado",
+  con_incidencias: "Con incidencias",
+  cancelado: "Cancelado",
+};
+const TYPES = {
+  retraso: "Retraso",
+  parada_omitida: "Parada omitida",
+  desviacion: "Desvío",
+  incompleto: "Recorrido incompleto",
+  senal_perdida: "Pérdida de señal",
+  velocidad: "Exceso de velocidad",
+};
+const METRICS = [
+  [
+    "Cumplimiento de rutas",
+    "Media de recorridos que cumplen × 100",
+    "pct_cumplimiento_ruta",
+    "%",
+    "Cumplimiento del trazado y puntos de control",
+  ],
+  [
+    "Puntualidad",
+    "Paradas dentro de tolerancia / programadas × 100",
+    "pct_puntualidad",
+    "%",
+    "Incluye las omisiones en el total programado",
+  ],
+  [
+    "Retraso promedio",
+    "Σ retrasos positivos / paradas visitadas",
+    "retraso_promedio_min",
+    "min",
+    "Los adelantos no compensan los retrasos",
+  ],
+  [
+    "Paradas cumplidas",
+    "Visitadas / programadas × 100",
+    "pct_paradas_cumplidas",
+    "%",
+    "Puntos alcanzados dentro de su radio",
+  ],
+  [
+    "Desviación de ruta",
+    "Posiciones fuera del corredor / posiciones × 100",
+    "pct_desviacion_ruta",
+    "%",
+    "Depende del trazado de referencia",
+  ],
+  [
+    "Diferencia de distancia",
+    "Distancia GPS − distancia estimada",
+    "diferencia_distancia_km",
+    "km",
+    "Positivo: mayor distancia recorrida",
+  ],
+  [
+    "Tiempo de recorrido",
+    "Fin real − inicio real",
+    "duracion_real_min",
+    "min",
+    "Duración de los recorridos evaluados",
+  ],
+  [
+    "Frecuencia de incidencias",
+    "Eventos / horas de operación",
+    "frecuencia_incidencias",
+    "inc/h",
+    "Frecuencia de eventos detectados",
+  ],
+  [
+    "Integridad GPS",
+    "(1 − segundos sin señal / duración) × 100",
+    "integridad_gps_pct",
+    "%",
+    "Continuidad de la telemetría en la ventana evaluada",
+  ],
+  [
+    "Exactitud Traccar–Odoo",
+    "Posiciones coincidentes / comparadas × 100",
+    "exactitud_sincronizacion_pct",
+    "%",
+    "Comparación con el JSON recibido; requiere muestra",
+  ],
+  [
+    "Tiempo del cálculo",
+    "Fin de evaluación − comienzo",
+    "tiempo_respuesta_ms",
+    "ms",
+    "Tiempo parcial: excluye red e interfaz",
+  ],
+  [
+    "Precisión de incidencias",
+    "Verdaderos positivos / eventos validados × 100",
+    "tasa_verdaderos_positivos_pct",
+    "%",
+    "Requiere validación humana; no mide falsos negativos",
+  ],
 ];
-
 class FleetRutasDashboard extends Component {
-    static template = "fleet_rutas.FleetDashboardTemplate";
-
-    setup() {
-        this.rpc = useService("rpc");
-        this.actionService = useService("action");
-
-        // Recuperar pestaña activa guardada para no resetear a 'panel' al volver atrás
-        const savedTab = window.sessionStorage.getItem("fleet_dashboard_tab") ||
-                         window.localStorage.getItem("fleet_dashboard_tab") ||
-                         "panel";
-
-        // Recuperar colores en caché local si existen
-        let initialColors = {
-            primary: "#714b67",
-            primary_soft: "#f3ebf1",
-            background: "#f4f4f4",
-            card: "#ffffff",
-            text: "#161616",
+  setup() {
+    this.rpc = useService("rpc");
+    this.actionService = useService("action");
+    this.tabs = TABS;
+    let saved = {};
+    try {
+      saved = JSON.parse(
+        sessionStorage.getItem("fleet_dashboard_navigation") || "{}",
+      );
+    } catch (e) {}
+    const old = sessionStorage.getItem("fleet_dashboard_tab");
+    this.state = useState({
+      tab: TABS.some((t) => t.id === (saved.tab || old))
+        ? saved.tab || old
+        : "panel",
+      routeTab: saved.routeTab === "programacion" ? "programacion" : "lista",
+      tripTab: ["mapa", "cronologia", "incidencias"].includes(saved.tripTab)
+        ? saved.tripTab
+        : "mapa",
+      tripId: saved.tripId || null,
+      activeId: null,
+      routeId: null,
+      routeFilter: "",
+      period: "",
+      search: "",
+      trips: [],
+      routes: [],
+      stops: [],
+      vehicles: [],
+      metrics: [],
+      incidents: [],
+      syncs: [],
+      detailStops: [],
+      activeChecks: [],
+      detailIncidents: [],
+      loading: true,
+      detailLoading: false,
+      error: "",
+      detailError: "",
+      syncBusy: false,
+      syncMessage: "",
+      updated: "",
+    });
+    this.disposed = false;
+    this.inFlight = false;
+    this.detailRequest = 0;
+    onMounted(() => {
+      this.loadData();
+      this.timer = setInterval(() => this.loadData(), 30000);
+    });
+    onWillUnmount(() => {
+      this.disposed = true;
+      this.save();
+      clearInterval(this.timer);
+    });
+  }
+  save() {
+    try {
+      sessionStorage.setItem("fleet_dashboard_tab", this.state.tab);
+      sessionStorage.setItem(
+        "fleet_dashboard_navigation",
+        JSON.stringify({
+          tab: this.state.tab,
+          routeTab: this.state.routeTab,
+          tripTab: this.state.tripTab,
+          tripId: this.state.tripId,
+        }),
+      );
+    } catch (e) {}
+  }
+  setTab(id) {
+    this.state.tab = id;
+    this.save();
+  }
+  setRouteTab(id) {
+    this.state.routeTab = id;
+    this.save();
+  }
+  setTripTab(id) {
+    this.state.tripTab = id;
+    this.save();
+  }
+  async call(model, method, args = [], kwargs = {}) {
+    return this.rpc("/web/dataset/call_kw", { model, method, args, kwargs });
+  }
+  async rows(model, fields, domain = [], order = "id desc") {
+    const result = [];
+    let batch;
+    do {
+      batch = await this.call(model, "search_read", [], {
+        domain,
+        fields,
+        order,
+        offset: result.length,
+        limit: 200,
+      });
+      result.push(...batch);
+    } while (batch.length === 200);
+    return result;
+  }
+  async loadData() {
+    if (this.inFlight || this.disposed) return;
+    this.inFlight = true;
+    try {
+      const [trips, routes, stops, vehicles, metrics, incidents, syncs] =
+        await Promise.all([
+          this.rows(
+            "fleet.recorrido",
+            [
+              "name",
+              "ruta_id",
+              "vehicle_id",
+              "fecha_inicio",
+              "fecha_fin_estimada",
+              "fecha_inicio_real",
+              "fecha_fin_real",
+              "estado",
+              "simulado",
+              "distancia_real_km",
+              "porcentaje_paradas_cumplidas",
+              "tiene_desviacion",
+            ],
+            [],
+            "fecha_inicio desc, id desc",
+          ),
+          this.rows("fleet.ruta", [
+            "name",
+            "origen",
+            "destino",
+            "distancia_estimada_km",
+            "duracion_estimada_min",
+          ]),
+          this.rows(
+            "fleet.parada",
+            [
+              "name",
+              "ruta_id",
+              "secuencia",
+              "hora_prevista",
+              "tolerancia_min",
+              "radio_proximidad_m",
+              "latitud",
+              "longitud",
+            ],
+            [],
+            "secuencia,id",
+          ),
+          this.rows("fleet.vehicle", [
+            "display_name",
+            "license_plate",
+            "traccar_device_id",
+            "traccar_unique_id",
+            "traccar_device_status",
+            "traccar_last_update",
+            "traccar_last_latitude",
+            "traccar_last_longitude",
+            "traccar_last_speed",
+          ]),
+          this.rows("fleet.metricas.recorrido", [
+            "recorrido_id",
+            "ruta_id",
+            "fecha_recorrido",
+            "calidad_sync_disponible",
+            "deteccion_validada",
+            ...METRICS.map((m) => m[2]),
+          ]),
+          this.rows(
+            "fleet.incidencia",
+            ["recorrido_id", "tipo", "timestamp", "descripcion", "resuelta"],
+            [],
+            "timestamp desc,id desc",
+          ),
+          this.call("fleet.traccar.sync", "search_read", [], {
+            domain: [],
+            fields: [
+              "fecha_inicio",
+              "estado",
+              "registros_procesados",
+              "registros_nuevos",
+              "registros_duplicados",
+              "registros_error",
+              "error_mensaje",
+            ],
+            limit: 1,
+            order: "id desc",
+          }),
+        ]);
+      if (this.disposed) return;
+      Object.assign(this.state, {
+        trips,
+        routes,
+        stops,
+        vehicles,
+        metrics,
+        incidents,
+        syncs,
+        loading: false,
+        error: "",
+        updated: new Date().toLocaleTimeString("es-EC"),
+      });
+      if (this.state.tripId && !trips.some((t) => t.id === this.state.tripId))
+        this.state.tripId = null;
+      const activeIds = trips
+        .filter((t) => t.estado === "en_curso")
+        .map((t) => t.id);
+      this.state.activeChecks = activeIds.length
+        ? await this.rows(
+            "fleet.cumplimiento.parada",
+            ["recorrido_id", "parada_id", "cumplida", "timestamp_llegada"],
+            [["recorrido_id", "in", activeIds]],
+            "secuencia_parada,id",
+          )
+        : [];
+      if (this.selectedTrip) await this.loadDetail(this.selectedTrip.id);
+    } catch (e) {
+      if (!this.disposed) {
+        this.state.loading = false;
+        this.state.error =
+          "No se pudieron actualizar los registros. Se conserva la última lectura.";
+      }
+    } finally {
+      this.inFlight = false;
+    }
+  }
+  label(pair) {
+    return pair ? (pair[1] || "—") : "—";
+  }
+  vehicleLabel(pair) {
+    const vehicle = this.state.vehicles.find(v => v.id === pair?.[0]);
+    return vehicle?.display_name || vehicle?.license_plate || this.label(pair);
+  }
+  stamp(value) {
+    return value
+      ? new Date(value.replace(" ", "T") + "Z").toLocaleString("es-EC")
+      : "—";
+  }
+  clock(value) {
+    const minutes = ((Math.round(value * 60) % 1440) + 1440) % 1440;
+    return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+  }
+  status(value) {
+    return STATES[value] || value;
+  }
+  type(value) {
+    return TYPES[value] || value;
+  }
+  origin(trip) {
+    return trip.simulado ? "Simulado" : "Real";
+  }
+  badge(value) {
+    return ["completado", "online"].includes(value)
+      ? "pill gn"
+      : ["con_incidencias", "offline", "cancelado", "error"].includes(value)
+        ? "pill rd"
+        : "pill am";
+  }
+  stale(v) {
+    return (
+      !v.traccar_last_update ||
+      Date.now() -
+        new Date(v.traccar_last_update.replace(" ", "T") + "Z").getTime() >
+        120000
+    );
+  }
+  get filteredTrips() {
+    const s = this.state;
+    const cutoff = s.period ? Date.now() - Number(s.period) * 86400000 : null;
+    return s.trips.filter(
+      (t) =>
+        (!s.routeFilter || t.ruta_id[0] === Number(s.routeFilter)) &&
+        (!cutoff ||
+          new Date(t.fecha_inicio.replace(" ", "T") + "Z").getTime() >= cutoff),
+    );
+  }
+  get history() {
+    const q = this.state.search.toLocaleLowerCase("es");
+    return this.filteredTrips.filter((t) =>
+      (
+        this.label(t.ruta_id) +
+        this.label(t.vehicle_id) +
+        t.name +
+        this.origin(t)
+      )
+        .toLocaleLowerCase("es")
+        .includes(q),
+    );
+  }
+  get measured() {
+    const ids = new Set(this.filteredTrips.map((t) => t.id));
+    return this.state.metrics.filter((m) => ids.has(m.recorrido_id[0]));
+  }
+  mean(field, items = this.measured) {
+    if (field === "exactitud_sincronizacion_pct")
+      items = items.filter((m) => m.calidad_sync_disponible);
+    if (field === "tasa_verdaderos_positivos_pct")
+      items = items.filter((m) => m.deteccion_validada);
+    return items.length
+      ? (
+          items.reduce((s, m) => s + Number(m[field] || 0), 0) / items.length
+        ).toFixed(1)
+      : "Sin muestra";
+  }
+  get metricRows() {
+    return METRICS.map(([name, formula, field, unit, interpretation]) => ({
+      name,
+      formula,
+      field,
+      unit,
+      interpretation,
+      result: this.mean(field),
+      source: `fleet.metricas.recorrido.${field}`,
+    }));
+  }
+  get routeBars() {
+    return this.state.routes
+      .filter(
+        (r) =>
+          !this.state.routeFilter || r.id === Number(this.state.routeFilter),
+      )
+      .map((r) => {
+        const items = this.measured.filter((m) => m.ruta_id[0] === r.id);
+        return {
+          id: r.id,
+          name: r.name,
+          result: this.mean("pct_puntualidad", items),
+          pct: items.length ? Number(this.mean("pct_puntualidad", items)) : 0,
         };
-        try {
-            const cached = window.localStorage.getItem("fleet_theme_colors");
-            if (cached) Object.assign(initialColors, JSON.parse(cached));
-        } catch (e) {}
-
-        this.state = useState({
-            activeTab: TABS.some(t => t.id === savedTab) ? savedTab : "panel",
-            loading: true,
-            error: false,
-            lastUpdated: null,
-            selectedRutaIndex: 0,
-            selectedTripIndex: 0,
-            searchQuery: "",
-            showColorModal: false,
-            themeColors: initialColors,
-            kpis: {
-                recorridos_hoy: 0,
-                en_curso: 0,
-                completados: 0,
-                total_recorridos: 0,
-                incidencias_activas: 0,
-                total_incidencias: 0,
-                avg_puntualidad: 0.0,
-                avg_cumplimiento: 0.0,
-                avg_integridad_gps: 0.0,
-                avg_retraso: 0.0,
-                avg_paradas_cumplidas: 0.0,
-                avg_exactitud_sync: 0.0,
-                avg_tiempo_resp: 0.0,
-                avg_tiempo_resp_ms: 0.0,
-                avg_frecuencia_inc: 0.0,
-                avg_desviacion: 0.0,
-                recorridos_activos: [],
-                recorridos_historial: [],
-                asignaciones: [],
-                incidencias_lista: [],
-                rutas_lista: [],
-                vehiculos_lista: [],
-                total_posiciones: 0,
-                pos_hoy_count: 0,
-                puntualidad_rutas: [],
-                incidencias_por_tipo: [],
-                metricas_iso_reales: [],
-            },
-        });
-
-        this.tabs = TABS;
-        this.themePresets = THEME_PRESETS;
-        this.refreshInterval = null;
-        this.inFlight = false;
-        this.disposed = false;
-
-        onMounted(() => {
-            // Aplicar colores inmediatamente
-            this.applyTheme(this.state.themeColors);
-
-            // Reafirmar pestaña guardada
-            const currentSaved = window.sessionStorage.getItem("fleet_dashboard_tab") ||
-                                 window.localStorage.getItem("fleet_dashboard_tab");
-            if (currentSaved && this.tabs.some(t => t.id === currentSaved)) {
-                this.state.activeTab = currentSaved;
-            }
-
-            this.loadData();
-            this.refreshInterval = setInterval(() => this.loadData(), 30000);
-        });
-
-        onWillUnmount(() => {
-            this.disposed = true;
-            this.saveActiveTab();
-            clearInterval(this.refreshInterval);
-        });
+      });
+  }
+  get incidentBars() {
+    const ids = new Set(this.filteredTrips.map((t) => t.id));
+    return Object.entries(TYPES).map(([type, name]) => ({
+      type,
+      name,
+      count: this.state.incidents.filter(
+        (i) => ids.has(i.recorrido_id[0]) && i.tipo === type,
+      ).length,
+    }));
+  }
+  get selectedRoute() {
+    return (
+      this.state.routes.find((r) => r.id === this.state.routeId) ||
+      this.state.routes[0]
+    );
+  }
+  get routeStops() {
+    return this.selectedRoute
+      ? this.state.stops.filter((p) => p.ruta_id[0] === this.selectedRoute.id)
+      : [];
+  }
+  get activeTrips() {
+    return this.state.trips.filter((t) => t.estado === "en_curso");
+  }
+  get activeTrip() {
+    return (
+      this.activeTrips.find((t) => t.id === this.state.activeId) ||
+      this.activeTrips[0]
+    );
+  }
+  get activeControls() {
+    const trip = this.activeTrip;
+    return trip
+      ? this.state.activeChecks.filter((c) => c.recorrido_id[0] === trip.id)
+      : [];
+  }
+  get selectedTrip() {
+    return this.state.trips.find((t) => t.id === this.state.tripId);
+  }
+  get latestSync() {
+    return this.state.syncs[0];
+  }
+  get outdated() {
+    return this.state.vehicles.filter(
+      (v) => v.traccar_device_id && this.stale(v),
+    ).length;
+  }
+  get programming() {
+    return this.state.trips.filter((t) =>
+      ["programado", "en_curso"].includes(t.estado),
+    );
+  }
+  get detailRows() {
+    const trip = this.selectedTrip;
+    if (!trip) return [];
+    const stops = this.state.stops.filter(
+      (p) => p.ruta_id[0] === trip.ruta_id[0],
+    );
+    const base = stops.length ? Math.round(stops[0].hora_prevista * 60) : 0;
+    return stops.map((p) => {
+      const cp = this.state.detailStops.find((c) => c.parada_id[0] === p.id);
+      const minutes = (Math.round(p.hora_prevista * 60) - base + 1440) % 1440;
+      const date = trip.fecha_inicio
+        ? new Date(
+            new Date(trip.fecha_inicio.replace(" ", "T") + "Z").getTime() +
+              minutes * 60000,
+          )
+        : null;
+      return {
+        id: p.id,
+        name: p.name,
+        planned: date ? date.toLocaleString("es-EC") : "—",
+        actual: cp ? this.stamp(cp.timestamp_llegada) : "—",
+        delay: cp && cp.cumplida ? cp.retraso_min : "—",
+        visited: !!cp?.cumplida,
+        tolerance: p.tolerancia_min,
+      };
+    });
+  }
+  async selectTrip(id, subTab = "mapa") {
+    this.state.tripTab = subTab;
+    this.state.tripId = id;
+    this.state.tab = "recorridos";
+    this.save();
+    await this.loadDetail(id);
+  }
+  async loadDetail(id) {
+    this.state.detailIncidents = this.state.incidents.filter(
+      (i) => i.recorrido_id[0] === id,
+    );
+    const request = ++this.detailRequest;
+    this.state.detailLoading = true;
+    this.state.detailError = "";
+    try {
+      const rows = await this.rows(
+        "fleet.cumplimiento.parada",
+        ["parada_id", "cumplida", "timestamp_llegada", "retraso_min"],
+        [["recorrido_id", "=", id]],
+        "secuencia_parada,id",
+      );
+      if (this.disposed || request !== this.detailRequest) return;
+      this.state.detailStops = rows;
+      this.state.detailIncidents = this.state.incidents.filter(
+        (i) => i.recorrido_id[0] === id,
+      );
+    } catch (e) {
+      if (request === this.detailRequest) {
+        this.state.detailStops = [];
+        this.state.detailError = "No se pudo cargar el detalle del recorrido.";
+      }
+    } finally {
+      if (request === this.detailRequest) this.state.detailLoading = false;
     }
-
-    saveActiveTab() {
-        try {
-            window.sessionStorage.setItem("fleet_dashboard_tab", this.state.activeTab);
-            window.localStorage.setItem("fleet_dashboard_tab", this.state.activeTab);
-        } catch (e) {}
+  }
+  backToHistory() {
+    this.state.tripId = null;
+    this.detailRequest++;
+    this.state.detailLoading = false;
+    this.save();
+  }
+  get GrafanaDashboard() {
+    const actions = registry.category("actions");
+    return actions.contains("fleet_reports.grafana_dashboard")
+      ? actions.get("fleet_reports.grafana_dashboard") : null;
+  }
+  openRecords() {
+    this.save();
+    const actions = {
+      panel: "fleet_rutas.action_fleet_metricas",
+      monitoreo: "fleet_rutas.action_fleet_posicion_gps",
+      recorridos: "fleet_rutas.action_fleet_recorrido",
+      rutas:
+        this.state.routeTab === "programacion"
+          ? "fleet_rutas.action_fleet_recorrido"
+          : "fleet_rutas.action_fleet_ruta",
+      metricas: "fleet_rutas.action_fleet_metricas",
+      sync: "fleet_rutas.action_fleet_traccar_sync",
+    };
+    this.actionService.doAction(actions[this.state.tab]);
+  }
+  async triggerSync() {
+    if (this.state.syncBusy) return;
+    this.state.syncBusy = true;
+    this.state.syncMessage = "";
+    try {
+      const devices = await this.call(
+        "fleet.traccar.sync",
+        "sincronizar_dispositivos",
+      );
+      const result = await this.call(
+        "fleet.traccar.sync",
+        "sincronizar_ultima_posicion",
+      );
+      this.state.syncMessage =
+        result.errores || devices.errores
+          ? "Sincronización con errores. Consulta el registro."
+          : "Sincronización terminada.";
+      await this.loadData();
+    } catch (e) {
+      this.state.syncMessage =
+        "No se pudo sincronizar. Revisa la conexión y los permisos.";
+    } finally {
+      this.state.syncBusy = false;
     }
-
-    setTab(tabId) {
-        this.state.activeTab = tabId;
-        this.saveActiveTab();
-    }
-
-    selectRuta(index) {
-        this.state.selectedRutaIndex = index;
-    }
-
-    selectTrip(index) {
-        this.state.selectedTripIndex = index;
-    }
-
-    onSearch(ev) {
-        this.state.searchQuery = ev.target.value.toLowerCase();
-    }
-
-    // ── GESTIÓN DE TEMA Y COLORES EDITABLES ────────────────────────────────────
-    toggleColorModal() {
-        this.state.showColorModal = !this.state.showColorModal;
-    }
-
-    selectPreset(preset) {
-        this.state.themeColors.primary = preset.primary;
-        this.state.themeColors.primary_soft = preset.primary_soft;
-        this.state.themeColors.background = preset.background;
-        this.state.themeColors.card = preset.card;
-        this.state.themeColors.text = preset.text;
-        this.applyTheme(this.state.themeColors);
-    }
-
-    applyTheme(colors) {
-        if (!colors) return;
-        applyGlobalTheme(colors);
-    }
-
-    async saveTheme() {
-        try {
-            this.applyTheme(this.state.themeColors);
-            window.localStorage.setItem("fleet_theme_colors", JSON.stringify(this.state.themeColors));
-            await this.rpc("/web/dataset/call_kw", {
-                model: "res.config.settings",
-                method: "set_theme_colors",
-                args: [this.state.themeColors],
-                kwargs: {},
-            });
-            this.state.showColorModal = false;
-        } catch (err) {
-            console.error("Error al guardar tema de colores:", err);
-            this.state.showColorModal = false;
-        }
-    }
-
-    async resetTheme() {
-        const def = THEME_PRESETS[0];
-        this.selectPreset(def);
-        await this.saveTheme();
-    }
-
-    openConfigSettings() {
-        this.saveActiveTab();
-        this.state.showColorModal = false;
-        this.actionService.doAction("fleet_rutas.action_fleet_rutas_config_settings");
-    }
-
-    async loadData() {
-        if (this.inFlight || this.disposed) return;
-        this.inFlight = true;
-        this.state.loading = true;
-        try {
-            const data = await this.rpc("/web/dataset/call_kw", {
-                model: "fleet.metricas.recorrido",
-                method: "get_dashboard_kpis",
-                args: [],
-                kwargs: {},
-            });
-            if (this.disposed) return;
-            Object.assign(this.state.kpis, data);
-
-            // Sincronizar colores si vienen del servidor
-            if (data.theme_colors) {
-                Object.assign(this.state.themeColors, data.theme_colors);
-                this.applyTheme(this.state.themeColors);
-            }
-
-            this.state.error = false;
-            this.state.lastUpdated = new Date().toLocaleTimeString();
-        } catch (err) {
-            if (this.disposed) return;
-            console.error("Error al cargar datos del panel de rutas:", err);
-            this.state.error = true;
-        } finally {
-            this.inFlight = false;
-            if (!this.disposed) this.state.loading = false;
-        }
-    }
-
-    get selectedRuta() {
-        const rutas = this.state.kpis.rutas_lista || [];
-        if (!rutas.length) return null;
-        return rutas[this.state.selectedRutaIndex] || rutas[0];
-    }
-
-    get currentActiveTrip() {
-        const activos = this.state.kpis.recorridos_activos || [];
-        if (!activos.length) return null;
-        return activos[this.state.selectedTripIndex] || activos[0];
-    }
-
-    get filteredHistorial() {
-        const q = (this.state.searchQuery || "").trim().toLowerCase();
-        const historial = this.state.kpis.recorridos_historial || [];
-        if (!q) return historial;
-        return historial.filter(r =>
-            (r.vehiculo || "").toLowerCase().includes(q) ||
-            (r.ruta || "").toLowerCase().includes(q) ||
-            (r.estado_label || "").toLowerCase().includes(q)
-        );
-    }
-
-    get timelineData() {
-        const trip = this.currentActiveTrip;
-        const axis = ["07:00", "07:15", "07:30", "07:45", "08:00", "08:15", "08:30", "08:45", "09:00"];
-
-        if (!trip || !trip.paradas || !trip.paradas.length) {
-            return {
-                axis,
-                pv: [
-                    { left: 0, width: 8, type: "p", label: "P1" },
-                    { left: 8, width: 22, type: "m", label: "15 min" },
-                    { left: 30, width: 8, type: "p", label: "P2" },
-                    { left: 38, width: 22, type: "m", label: "15 min" },
-                    { left: 60, width: 8, type: "p", label: "P3" },
-                    { left: 68, width: 24, type: "m", label: "15 min" },
-                    { left: 92, width: 8, type: "p", label: "P4" },
-                ],
-                rl: [
-                    { left: 1, width: 8, type: "p", label: "P1" },
-                    { left: 9, width: 22, type: "m", label: "15 min" },
-                    { left: 31, width: 8, type: "p", label: "P2" },
-                    { left: 39, width: 24, type: "m", label: "16 min" },
-                    { left: 63, width: 9, type: "p", label: "P3" },
-                    { left: 72, width: 20, type: "m", label: "14 min" },
-                    { left: 92, width: 8, type: "p", label: "P4" },
-                ],
-                paradas: [],
-            };
-        }
-
-        const paradas = trip.paradas;
-        const n = paradas.length;
-        const pv = [];
-        const rl = [];
-
-        paradas.forEach((p, i) => {
-            const pctBase = (i / (n - 1 || 1)) * 88;
-            const shortName = p.nombre.split(" ")[0] || `P${i + 1}`;
-            pv.push({ left: pctBase, width: 8, type: "p", label: shortName });
-            if (i < n - 1) {
-                const nextPct = ((i + 1) / (n - 1 || 1)) * 88;
-                pv.push({ left: pctBase + 8, width: Math.max(4, nextPct - pctBase - 8), type: "m", label: "15 min" });
-            }
-
-            const retraso = p.retraso_min || 0;
-            const isLate = retraso > 5;
-            rl.push({
-                left: Math.min(92, pctBase + (retraso > 0 ? 2 : 0)),
-                width: 8,
-                type: isLate ? "rd" : "p",
-                label: shortName,
-            });
-            if (i < n - 1) {
-                const nextPct = ((i + 1) / (n - 1 || 1)) * 88;
-                rl.push({
-                    left: Math.min(90, pctBase + 8 + (retraso > 0 ? 2 : 0)),
-                    width: Math.max(4, nextPct - pctBase - 8),
-                    type: "m",
-                    label: "15 min",
-                });
-            }
-        });
-
-        return { axis, pv, rl, paradas };
-    }
-
-    // ── ACCIONES ODOO NATIVAS CON GUARDADO DE PESTAÑA ─────────────────────────
-    openRutas() {
-        this.saveActiveTab();
-        this.actionService.doAction("fleet_rutas.action_fleet_ruta");
-    }
-    openRecorridos() {
-        this.saveActiveTab();
-        this.actionService.doAction("fleet_rutas.action_fleet_recorrido");
-    }
-    openIncidencias() {
-        this.saveActiveTab();
-        this.actionService.doAction("fleet_rutas.action_fleet_incidencia");
-    }
-    openMetricas() {
-        this.saveActiveTab();
-        this.actionService.doAction("fleet_rutas.action_fleet_metricas");
-    }
-    openTelemetria() {
-        this.saveActiveTab();
-        this.actionService.doAction("fleet_rutas.action_fleet_posicion_gps");
-    }
-    openVehiculos() {
-        this.saveActiveTab();
-        this.actionService.doAction("fleet.fleet_vehicle_action");
-    }
-
-    openRecorridoDetail(id) {
-        if (!id) return;
-        this.saveActiveTab();
-        this.actionService.doAction({
-            type: "ir.actions.act_window",
-            res_model: "fleet.recorrido",
-            res_id: id,
-            views: [[false, "form"]],
-            target: "current",
-        });
-    }
-
-    openMapaWeb(id) {
-        const tripId = id || (this.currentActiveTrip ? this.currentActiveTrip.id : null);
-        if (tripId) {
-            window.open(`/fleet_rutas/mapa/${tripId}`, "_blank");
-        } else {
-            this.openRecorridos();
-        }
-    }
-
-    triggerSync() {
-        this.loadData();
-    }
+  }
 }
-
 FleetRutasDashboard.template = xml/* xml */`
 <div class="o_fleet_rutas_dashboard o_uta">
-    <!-- BARRA LATERAL DE NAVEGACIÓN -->
-    <nav class="fleet_sidebar" aria-label="Navegación del centro de control">
-        <div class="fleet_brand">
-            <i class="fa fa-bus" aria-hidden="true"/>
-            <span>Transporte UTA</span>
-        </div>
-        <button t-foreach="tabs" t-as="tab" t-key="tab.id"
-                t-att-class="'fleet_nav_item' + (state.activeTab === tab.id ? ' on' : '')"
-                t-on-click="() => this.setTab(tab.id)">
-            <i t-att-class="'fa ' + tab.icon" aria-hidden="true"/>
-            <span t-esc="tab.label"/>
-        </button>
-    </nav>
-
-    <!-- ÁREA PRINCIPAL -->
-    <main class="fleet_main">
-        <!-- AVISO DE ERROR SI LO HUBIERE -->
-        <div t-if="state.error" class="fleet_notice is_error" role="alert">
-            <span>No se pudieron actualizar los datos en tiempo real. Mostrando última información registrada.</span>
-            <button class="btn s" t-on-click="() => this.loadData()">Reintentar</button>
-        </div>
-
-        <!-- ════════════════════ TAB 1: PANEL ════════════════════ -->
-        <t t-if="state.activeTab === 'panel'">
-            <div class="hd">
-                <h2>Panel de indicadores</h2>
-                <div class="row">
-                    <span class="chip">Todos los recorridos</span>
-                    <span class="chip"><t t-esc="state.kpis.total_recorridos"/> registros</span>
-                    <button class="btn s" title="Personalizar colores del diseño" t-on-click="() => this.toggleColorModal()">
-                        <i class="fa fa-paint-brush"/> Colores
-                    </button>
-                    <button class="btn p s uta-btn-primary" t-on-click="() => this.loadData()">
-                        <i class="fa fa-refresh" aria-hidden="true"/> Actualizar
-                    </button>
-                </div>
-            </div>
-
-            <!-- KPIs Principales -->
-            <div class="g g4">
-                <div class="card uta-tile">
-                    <div class="lb uta-label">Cumplimiento de rutas</div>
-                    <div class="big uta-kpi"><t t-esc="state.kpis.avg_cumplimiento"/><small>%</small></div>
-                    <div class="lb uta-label"><t t-esc="state.kpis.completados"/> finalizados de <t t-esc="state.kpis.total_recorridos"/> viajes</div>
-                </div>
-                <div class="card uta-tile">
-                    <div class="lb uta-label">Puntualidad global</div>
-                    <div class="big uta-kpi"><t t-esc="state.kpis.avg_puntualidad"/><small>%</small></div>
-                    <div class="lb uta-label">Llegadas dentro de tolerancia (±5 min)</div>
-                </div>
-                <div class="card uta-tile">
-                    <div class="lb uta-label">Retraso promedio</div>
-                    <div class="big uta-kpi"><t t-esc="state.kpis.avg_retraso"/><small>min</small></div>
-                    <div class="lb uta-label">Demora media sobre itinerario</div>
-                </div>
-                <div class="card uta-tile">
-                    <div class="lb uta-label">Paradas cumplidas</div>
-                    <div class="big uta-kpi"><t t-esc="state.kpis.avg_paradas_cumplidas"/><small>%</small></div>
-                    <div class="lb uta-label">Puntos de control con detección GPS</div>
-                </div>
-            </div>
-
-            <!-- Gráficos Reales de Puntualidad e Incidencias -->
-            <div class="g g2">
-                <div class="card uta-tile">
-                    <h3>Puntualidad por ruta (Evaluación de Paradas)</h3>
-                    <div class="bars">
-                        <div t-foreach="state.kpis.puntualidad_rutas" t-as="pr" t-key="pr.id">
-                            <i t-att-style="'height:' + pr.px + 'px;'"/>
-                            <t t-esc="pr.nombre"/> · <t t-esc="pr.pct"/>%
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card uta-tile">
-                    <h3>Incidencias reales por tipo (<t t-esc="state.kpis.total_incidencias"/> eventos)</h3>
-                    <div t-foreach="state.kpis.incidencias_por_tipo" t-as="it" t-key="it.tipo" class="hb">
-                        <p><span t-esc="it.label"/><b><t t-esc="it.count"/></b></p>
-                        <u><i t-att-style="'width:' + it.pct + '%;'"/></u>
-                    </div>
-                    <div style="margin-top:20px;">
-                        <button class="btn s" t-on-click="() => this.openIncidencias()">
-                            Ver todas las incidencias registradas
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Calidad del Sistema ISO/IEC 25010 -->
-            <div class="card uta-tile">
-                <h3>Calidad del sistema (ISO/IEC 25010)</h3>
-                <div class="g g4" style="margin:0;">
-                    <div>
-                        <div class="lb uta-label">Integridad de registros GPS</div>
-                        <div class="md"><t t-esc="state.kpis.avg_integridad_gps"/> %</div>
-                    </div>
-                    <div>
-                        <div class="lb uta-label">Exactitud Traccar–Odoo</div>
-                        <div class="md"><t t-esc="state.kpis.avg_exactitud_sync"/> %</div>
-                    </div>
-                    <div>
-                        <div class="lb uta-label">Tiempo de respuesta</div>
-                        <div class="md"><t t-esc="state.kpis.avg_tiempo_resp"/> s (<t t-esc="state.kpis.avg_tiempo_resp_ms"/> ms)</div>
-                    </div>
-                    <div>
-                        <div class="lb uta-label">Frecuencia de incidencias</div>
-                        <div class="md"><t t-esc="state.kpis.avg_frecuencia_inc"/> inc/h</div>
-                    </div>
-                </div>
-            </div>
-        </t>
-
-        <!-- ════════════════════ TAB 2: MONITOREO EN VIVO ════════════════════ -->
-        <t t-if="state.activeTab === 'monitoreo'">
-            <div class="hd">
-                <h2>Monitoreo en vivo</h2>
-                <div class="row">
-                    <span class="lb uta-label">Recorrido:</span>
-                    <select t-on-change="(ev) => this.selectTrip(Number(ev.target.value))">
-                        <option t-foreach="state.kpis.recorridos_activos" t-as="tr" t-key="tr.id"
-                                t-att-value="tr_index"
-                                t-att-selected="state.selectedTripIndex === tr_index">
-                            <t t-esc="tr.name"/> · <t t-esc="tr.vehiculo"/>
-                        </option>
-                    </select>
-                    <span class="pill gn"><i class="fa fa-signal"/> <t t-esc="state.kpis.en_curso"/> en curso</span>
-                    <button class="btn s" title="Abrir en ventana completa" t-on-click="() => this.openMapaWeb()">
-                        <i class="fa fa-external-link"/> Abrir mapa
-                    </button>
-                </div>
-            </div>
-
-            <t t-if="currentActiveTrip">
-                <div class="g g2b">
-                    <!-- Mapa en Iframe embebido limpio sin cabeceras duplicadas -->
-                    <div class="map" style="height:560px;border:1px solid var(--bd);background:var(--map);overflow:hidden;">
-                        <iframe t-att-src="'/fleet_rutas/mapa/' + currentActiveTrip.id + '?embed=1'"
-                                style="width:100%;height:100%;border:none;display:block;"/>
-                    </div>
-
-                    <!-- Datos esenciales del vehículo activo -->
-                    <div>
-                        <div class="card uta-tile">
-                            <div class="lb uta-label">Vehículo en operación</div>
-                            <div class="big uta-kpi" t-esc="currentActiveTrip.vehiculo"/>
-                            <div class="lb uta-label" t-esc="currentActiveTrip.ruta"/>
-                            <div class="f" style="margin-top:14px;">
-                                <div>
-                                    <div class="lb uta-label">Velocidad</div>
-                                    <b style="font-size:16px;"><t t-esc="currentActiveTrip.velocidad"/> km/h</b>
-                                </div>
-                                <div>
-                                    <div class="lb uta-label">Retraso</div>
-                                    <b t-att-class="'pill ' + (currentActiveTrip.retraso_min > 5 ? 'rd' : (currentActiveTrip.retraso_min > 0 ? 'am' : 'gn'))">
-                                        +<t t-esc="currentActiveTrip.retraso_min"/> min
-                                    </b>
-                                </div>
-                                <div>
-                                    <div class="lb uta-label">Corredor</div>
-                                    <b t-att-class="'pill ' + (currentActiveTrip.desviacion ? 'rd' : 'gn')">
-                                        <t t-if="currentActiveTrip.desviacion">Desviado</t>
-                                        <t t-else="">Dentro</t>
-                                    </b>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="card uta-tile">
-                            <h3>Puntos de control visitados (<t t-esc="currentActiveTrip.paradas_cumplidas"/>)</h3>
-                            <div t-if="!currentActiveTrip.paradas.length" class="lb uta-label">Sin puntos de control asignados.</div>
-                            <div t-foreach="currentActiveTrip.paradas" t-as="p" t-key="p.id" class="li">
-                                <span>
-                                    <span class="lb uta-label" style="margin-right:8px;font-weight:600;"><t t-esc="p.secuencia"/></span>
-                                    <b t-esc="p.nombre"/>
-                                    <span class="lb uta-label" style="margin-left:6px;"><t t-esc="p.hora"/></span>
-                                </span>
-                                <span t-if="p.cumplida" class="pill gn">Cumplida (<t t-esc="p.distancia_min_m"/> m)</span>
-                                <span t-else="" class="pill bl">Pendiente</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </t>
-            <t t-else="">
-                <div class="card uta-tile">No hay recorridos activos en tránsito en este momento.</div>
-            </t>
-        </t>
-
-        <!-- ════════════════════ TAB 3: RUTAS Y PARADAS ════════════════════ -->
-        <t t-if="state.activeTab === 'rutas'">
-            <div class="hd">
-                <h2>Rutas y puntos de control registrados</h2>
-                <div class="row">
-                    <button class="btn p uta-btn-primary" t-on-click="() => this.openRutas()">
-                        <i class="fa fa-pencil"/> Gestionar rutas en Odoo
-                    </button>
-                </div>
-            </div>
-
-            <div class="g" style="grid-template-columns: minmax(0, 1fr) minmax(0, 2.4fr);">
-                <!-- Lista de rutas -->
-                <div class="card uta-tile">
-                    <h3>Rutas disponibles (<t t-esc="state.kpis.rutas_lista.length"/>)</h3>
-                    <div t-if="!state.kpis.rutas_lista.length" class="lb uta-label">No hay rutas registradas.</div>
-                    <button t-foreach="state.kpis.rutas_lista" t-as="r" t-key="r.id"
-                            t-att-class="'rt uta-route' + (state.selectedRutaIndex === r_index ? ' on' : '')"
-                            t-on-click="() => this.selectRuta(r_index)">
-                        <b t-esc="r.name"/>
-                        <span><t t-esc="r.origen"/> → <t t-esc="r.destino"/></span>
-                        <div class="lb uta-label" style="margin-top:4px;"><t t-esc="r.distancia_km"/> km · <t t-esc="r.paradas_count"/> paradas</div>
-                    </button>
-                </div>
-
-                <!-- Detalle y paradas -->
-                <div>
-                    <div t-if="selectedRuta" class="card uta-tile">
-                        <h3 t-esc="selectedRuta.name"/>
-                        <div class="f">
-                            <div><div class="lb uta-label">Origen</div><div style="font-size:15px;font-weight:600;" t-esc="selectedRuta.origen"/></div>
-                            <div><div class="lb uta-label">Destino</div><div style="font-size:15px;font-weight:600;" t-esc="selectedRuta.destino"/></div>
-                            <div><div class="lb uta-label">Distancia prevista</div><div style="font-size:15px;font-weight:600;"><t t-esc="selectedRuta.distancia_km"/> km</div></div>
-                            <div><div class="lb uta-label">Duración estimada</div><div style="font-size:15px;font-weight:600;"><t t-esc="selectedRuta.duracion_min"/> min</div></div>
-                        </div>
-                    </div>
-
-                    <div t-if="selectedRuta" class="card uta-tile">
-                        <div class="hd" style="margin-bottom:12px;">
-                            <h3 style="margin:0;">Puntos de control (Geocercas de parada)</h3>
-                            <span class="lb uta-label">Tolerancia: ±5 min · Radio: 60 m</span>
-                        </div>
-                        <div class="tw">
-                            <table class="uta-table">
-                                <thead>
-                                    <tr>
-                                        <th>Sec.</th>
-                                        <th>Nombre del Punto</th>
-                                        <th>Llegada Est.</th>
-                                        <th>Parada</th>
-                                        <th>Salida Est.</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr t-foreach="selectedRuta.paradas" t-as="p" t-key="p.id">
-                                        <td class="lb uta-label" style="font-weight:600;"><t t-esc="p.secuencia"/></td>
-                                        <td><b t-esc="p.nombre"/></td>
-                                        <td t-esc="p.llegada"/>
-                                        <td><t t-esc="p.parada_min"/> min</td>
-                                        <td t-esc="p.salida"/>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </t>
-
-        <!-- ════════════════════ TAB 4: ASIGNACIONES ════════════════════ -->
-        <t t-if="state.activeTab === 'asignaciones'">
-            <div class="hd">
-                <h2>Asignaciones de flota</h2>
-                <div class="row">
-                    <button class="btn p uta-btn-primary" t-on-click="() => this.openRecorridos()">
-                        <i class="fa fa-calendar-plus-o"/> Administrar en Odoo
-                    </button>
-                </div>
-            </div>
-
-            <!-- Tabla de Cuadrante de Asignaciones a Ancho Completo -->
-            <div class="card nw uta-tile">
-                <div class="hd" style="margin-bottom:12px;">
-                    <h3 style="margin:0;">Programación de recorridos (<t t-esc="state.kpis.asignaciones.length"/> registros)</h3>
-                    <span class="chip">Semana activa</span>
-                </div>
-                <div class="tw">
-                    <table class="uta-table">
-                        <thead>
-                            <tr>
-                                <th>Fecha</th>
-                                <th>Horario</th>
-                                <th>Vehículo</th>
-                                <th>Ruta</th>
-                                <th>Estado</th>
-                                <th>Detalle</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr t-foreach="state.kpis.asignaciones" t-as="a" t-key="a.id">
-                                <td t-esc="a.fecha"/>
-                                <td class="lb uta-label" t-esc="a.horario"/>
-                                <td><b t-esc="a.vehiculo"/></td>
-                                <td t-esc="a.ruta"/>
-                                <td><span t-att-class="'pill ' + a.estado_code" t-esc="a.estado_label"/></td>
-                                <td>
-                                    <button class="btn s" t-on-click="() => this.openRecorridoDetail(a.id)">
-                                        Ver
-                                    </button>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </t>
-
-        <!-- ════════════════════ TAB 5: RECORRIDOS E INCIDENCIAS ════════════════════ -->
-        <t t-if="state.activeTab === 'recorridos'">
-            <div class="hd">
-                <h2>Recorridos e incidencias</h2>
-                <div class="row">
-                    <input type="search" placeholder="Filtrar vehículo, ruta o estado..."
-                           style="width:240px;padding:6px 10px;"
-                           t-on-input="onSearch"/>
-                    <span class="chip">Todas las rutas</span>
-                    <button class="btn p s uta-btn-primary" t-on-click="() => this.openRecorridos()">
-                        Ver en Odoo
-                    </button>
-                </div>
-            </div>
-
-            <!-- Historial de Recorridos Ancho Completo -->
-            <div class="card nw uta-tile">
-                <h3>Historial de recorridos (<t t-esc="filteredHistorial.length"/> registros)</h3>
-                <div class="tw">
-                    <table class="uta-table">
-                        <thead>
-                            <tr>
-                                <th>Fecha</th>
-                                <th>Vehículo</th>
-                                <th>Ruta</th>
-                                <th>Inicio prog. / real</th>
-                                <th>Llegada prog. / real</th>
-                                <th>Distancia est. / rec.</th>
-                                <th>Estado</th>
-                                <th>Detalle</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr t-foreach="filteredHistorial" t-as="r" t-key="r.id">
-                                <td t-esc="r.fecha"/>
-                                <td><b t-esc="r.vehiculo"/></td>
-                                <td t-esc="r.ruta"/>
-                                <td class="lb uta-label" t-esc="r.horario_prog_real"/>
-                                <td class="lb uta-label" t-esc="r.llegada_prog_real"/>
-                                <td t-esc="r.distancia_est_rec"/>
-                                <td><span t-att-class="'pill ' + r.estado_code" t-esc="r.estado_label"/></td>
-                                <td>
-                                    <button class="btn s" t-on-click="() => this.openRecorridoDetail(r.id)">
-                                        Ver detalle
-                                    </button>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Incidencias Registradas en cuadrícula de 3 columnas -->
-            <div class="card uta-tile">
-                <div class="hd" style="margin-bottom:14px;">
-                    <h3 style="margin:0;">Incidencias registradas (<t t-esc="state.kpis.incidencias_lista.length"/> eventos)</h3>
-                    <button class="btn s" t-on-click="() => this.openIncidencias()">
-                        Gestionar en Odoo
-                    </button>
-                </div>
-                <div t-if="!state.kpis.incidencias_lista.length" class="lb uta-label">No hay incidencias registradas en el sistema.</div>
-                <div t-if="state.kpis.incidencias_lista.length" class="g g3">
-                    <div t-foreach="state.kpis.incidencias_lista" t-as="inc" t-key="inc.id" class="li" style="display:block;border-bottom:0;padding:0 0 14px;">
-                        <span t-att-class="'pill ' + inc.severidad_code" t-esc="inc.tipo_label"/>
-                        <div class="lb uta-label" style="margin-top:6px;font-weight:600;color:var(--tx);">
-                            <t t-esc="inc.vehiculo"/> · <t t-esc="inc.ruta"/> · <span style="font-weight:400;color:var(--mu);"><t t-esc="inc.hora"/></span>
-                        </div>
-                        <div class="lb uta-label" style="margin-top:4px;" t-esc="inc.descripcion"/>
-                    </div>
-                </div>
-            </div>
-        </t>
-
-        <!-- ════════════════════ TAB 6: LÍNEA DE TIEMPO ════════════════════ -->
-        <t t-if="state.activeTab === 'tiempo'">
-            <div class="hd">
-                <h2>Línea de tiempo · Análisis temporal del viaje</h2>
-                <div class="row">
-                    <span class="lb uta-label">Recorrido:</span>
-                    <select t-on-change="(ev) => this.selectTrip(Number(ev.target.value))">
-                        <option t-foreach="state.kpis.recorridos_activos" t-as="tr" t-key="tr.id"
-                                t-att-value="tr_index"
-                                t-att-selected="state.selectedTripIndex === tr_index">
-                            <t t-esc="tr.name"/> · <t t-esc="tr.vehiculo"/>
-                        </option>
-                    </select>
-                </div>
-            </div>
-
-            <t t-if="currentActiveTrip">
-                <!-- Visualización Gráfica de la Línea de Tiempo -->
-                <div class="card uta-tile">
-                    <div class="hd" style="margin-bottom:12px;">
-                        <h3 style="margin:0;">
-                            Línea de tiempo: <t t-esc="currentActiveTrip.name"/> (<t t-esc="currentActiveTrip.vehiculo"/>)
-                        </h3>
-                        <span class="lb uta-label">
-                            <i class="sw" style="background:#fcf4d6;border:1px solid #f1c21b;"/> Parada programada / realizada
-                            <i class="sw" style="background:#e8e8e8;border:1px solid #c6c6c6;"/> En movimiento
-                        </span>
-                    </div>
-
-                    <div class="tw">
-                        <div style="min-width:640px;padding-right:20px;">
-                            <div class="tl">
-                                <div class="ax">
-                                    <span t-foreach="timelineData.axis" t-as="axTime" t-key="axTime"
-                                          t-att-style="'left:' + (axTime_index * 12.5) + '%;'"
-                                          t-esc="axTime"/>
-                                </div>
-                                <div class="tr">
-                                    <em>Previsto</em>
-                                    <div t-foreach="timelineData.pv" t-as="s" t-key="s_index"
-                                         t-att-class="'sg ' + s.type"
-                                         t-att-style="'left:' + s.left + '%;width:' + s.width + '%;'"
-                                         t-esc="s.label"/>
-                                </div>
-                                <div class="tr">
-                                    <em>Real</em>
-                                    <div t-foreach="timelineData.rl" t-as="s" t-key="s_index"
-                                         t-att-class="'sg ' + (s.type === 'rd' ? 'p' : s.type)"
-                                         t-att-style="'left:' + s.left + '%;width:' + s.width + '%;' + (s.type === 'rd' ? 'border-color:#a2191f;color:#a2191f;background:#ffd7d9;' : '')"
-                                         t-esc="s.label"/>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Detalle por punto de control a Ancho Completo -->
-                <div class="card uta-tile">
-                    <h3>Detalle por punto de control</h3>
-                    <div class="tw">
-                        <table class="uta-table">
-                            <thead>
-                                <tr>
-                                    <th>Sec.</th>
-                                    <th>Punto de Control</th>
-                                    <th>Llegada Real</th>
-                                    <th>Retraso</th>
-                                    <th>Distancia Centroide</th>
-                                    <th>Estado Detección</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr t-foreach="currentActiveTrip.paradas" t-as="cp" t-key="cp.id">
-                                    <td class="lb uta-label" style="font-weight:600;"><t t-esc="cp.secuencia"/></td>
-                                    <td><b t-esc="cp.nombre"/></td>
-                                    <td t-esc="cp.hora"/>
-                                    <td>
-                                        <span t-att-class="'pill ' + (cp.retraso_min > 5 ? 'rd' : (cp.retraso_min > 0 ? 'am' : 'gn'))">
-                                            +<t t-esc="cp.retraso_min"/> min
-                                        </span>
-                                    </td>
-                                    <td><t t-esc="cp.distancia_min_m"/> m</td>
-                                    <td>
-                                        <span t-if="cp.cumplida" class="pill gn">Cumplida</span>
-                                        <span t-else="" class="pill bl">Pendiente</span>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </t>
-            <t t-else="">
-                <div class="card uta-tile">No hay datos de viaje para mostrar en este momento.</div>
-            </t>
-        </t>
-
-        <!-- ════════════════════ TAB 7: VEHÍCULOS Y GPS ════════════════════ -->
-        <t t-if="state.activeTab === 'vehiculos'">
-            <div class="hd">
-                <h2>Vehículos y dispositivos GPS registrados</h2>
-                <div class="row">
-                    <button class="btn p uta-btn-primary" t-on-click="() => this.openTelemetria()">
-                        <i class="fa fa-map-marker"/> Historial de telemetría GPS
-                    </button>
-                    <button class="btn s" t-on-click="() => this.openVehiculos()">
-                        <i class="fa fa-bus"/> Gestionar flota en Odoo
-                    </button>
-                </div>
-            </div>
-
-            <!-- Tabla de Vehículos a Ancho Completo -->
-            <div class="card nw uta-tile">
-                <div class="hd" style="margin-bottom:12px;">
-                    <h3 style="margin:0;">Flota universitaria (<t t-esc="state.kpis.vehiculos_lista.length"/> vehículos)</h3>
-                    <span class="chip">Telemetría Traccar</span>
-                </div>
-                <div class="tw">
-                    <table class="uta-table">
-                        <thead>
-                            <tr>
-                                <th>Vehículo</th>
-                                <th>Modelo</th>
-                                <th>Dispositivo GPS</th>
-                                <th>Última posición</th>
-                                <th>Velocidad</th>
-                                <th>Estado GPS</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr t-foreach="state.kpis.vehiculos_lista" t-as="v" t-key="v.id">
-                                <td><b t-esc="v.name"/></td>
-                                <td class="lb uta-label" t-esc="v.modelo"/>
-                                <td t-esc="v.dispositivo"/>
-                                <td class="lb uta-label" t-esc="v.ultima_pos"/>
-                                <td t-esc="v.velocidad"/>
-                                <td><span t-att-class="'pill ' + v.estado_code" t-esc="v.estado_gps"/></td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </t>
-
-        <!-- ════════════════════ TAB 8: MÉTRICAS ISO 25010 ════════════════════ -->
-        <t t-if="state.activeTab === 'metricas'">
-            <div class="hd">
-                <h2>Métricas de calidad ISO/IEC 25010</h2>
-                <div class="row">
-                    <button class="btn p s uta-btn-primary" t-on-click="() => this.openMetricas()">
-                        <i class="fa fa-table"/> Ver tabla en Odoo
-                    </button>
-                </div>
-            </div>
-
-            <div class="card uta-tile">
-                <div class="tw">
-                    <table class="uta-table">
-                        <thead>
-                            <tr>
-                                <th>Indicador</th>
-                                <th>Fórmula matemática</th>
-                                <th>Fuente de datos</th>
-                                <th>Unidad</th>
-                                <th>Resultado calculado</th>
-                                <th>Interpretación operativa</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr t-foreach="state.kpis.metricas_iso_reales" t-as="m" t-key="m.ind">
-                                <td><b t-esc="m.ind"/></td>
-                                <td class="lb uta-label" t-esc="m.form"/>
-                                <td t-esc="m.fte"/>
-                                <td><span class="chip" t-esc="m.uni"/></td>
-                                <td><b t-esc="m.res"/></td>
-                                <td t-esc="m.interp"/>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </t>
-
-        <!-- ════════════════════ TAB 9: SINCRONIZACIÓN TRACCAR ════════════════════ -->
-        <t t-if="state.activeTab === 'sync'">
-            <div class="hd">
-                <h2>Sincronización Traccar</h2>
-                <div class="row">
-                    <span class="pill gn"><i class="fa fa-link"/> Traccar Server Online</span>
-                    <button class="btn p s uta-btn-primary" t-on-click="() => this.triggerSync()">
-                        <i class="fa fa-refresh"/> Sincronizar ahora
-                    </button>
-                </div>
-            </div>
-
-            <div class="g g4">
-                <div class="card uta-tile">
-                    <div class="lb uta-label">Última sincronización</div>
-                    <div class="big uta-kpi" style="font-size:22px;"><t t-esc="state.lastUpdated or 'hace 30 s'"/></div>
-                    <div class="lb uta-label">API REST Traccar / Webhook</div>
-                </div>
-                <div class="card uta-tile">
-                    <div class="lb uta-label">Posiciones procesadas hoy</div>
-                    <div class="big uta-kpi"><t t-esc="state.kpis.pos_hoy_count"/></div>
-                    <div class="lb uta-label"><t t-esc="state.kpis.total_posiciones"/> totales registradas</div>
-                </div>
-                <div class="card uta-tile">
-                    <div class="lb uta-label">Dispositivos GPS enlazados</div>
-                    <div class="big uta-kpi"><t t-esc="state.kpis.vehiculos_lista.length"/></div>
-                    <div class="lb uta-label">Todos operativos</div>
-                </div>
-                <div class="card uta-tile">
-                    <div class="lb uta-label">Recorridos auditados</div>
-                    <div class="big uta-kpi"><t t-esc="state.kpis.total_recorridos"/></div>
-                    <div class="lb uta-label"><t t-esc="state.kpis.en_curso"/> en curso actualmente</div>
-                </div>
-            </div>
-
-            <div class="g g2b">
-                <div class="card uta-tile">
-                    <h3>Dispositivos GPS configurados en Traccar</h3>
-                    <div class="tw">
-                        <table class="uta-table">
-                            <thead>
-                                <tr>
-                                    <th>Dispositivo</th>
-                                    <th>Vehículo</th>
-                                    <th>Velocidad</th>
-                                    <th>Última posición</th>
-                                    <th>Estado</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr t-foreach="state.kpis.vehiculos_lista" t-as="v" t-key="v.id">
-                                    <td><b t-esc="v.dispositivo"/></td>
-                                    <td><b t-esc="v.name"/> (<t t-esc="v.modelo"/>)</td>
-                                    <td t-esc="v.velocidad"/>
-                                    <td class="lb uta-label" t-esc="v.ultima_pos"/>
-                                    <td><span t-att-class="'pill ' + v.estado_code" t-esc="v.estado_gps"/></td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <div class="card uta-tile">
-                    <h3>Infraestructura de microservicios</h3>
-                    <div class="li"><span>Traccar Server (Puerto 8082 / 5055)</span><span class="pill gn">Activo</span></div>
-                    <div class="li"><span>PostgreSQL 15 (Puerto 5432)</span><span class="pill gn">Conectado</span></div>
-                    <div class="li"><span>Grafana 11.4 (Puerto 3000)</span><span class="pill gn">Activo</span></div>
-                    <div class="li"><span>Odoo 16 (Puerto 8069 / 8070)</span><span class="pill gn">En servicio</span></div>
-                    <div style="margin-top:16px;">
-                        <button class="btn p s uta-btn-primary" t-on-click="() => this.triggerSync()">Forzar verificación</button>
-                    </div>
-                </div>
-            </div>
-        </t>
-    </main>
-
-    <!-- MODAL DE PERSONALIZACIÓN DE COLORES -->
-    <div t-if="state.showColorModal" class="uta-theme-backdrop" t-on-click.self="() => this.toggleColorModal()">
-        <div class="uta-theme-dialog">
-            <div class="hd" style="margin-bottom:12px;">
-                <h3 style="margin:0;"><i class="fa fa-paint-brush" style="color:var(--bl);"/> Personalizar colores del diseño</h3>
-                <button class="btn s" t-on-click="() => this.toggleColorModal()"><i class="fa fa-times"/></button>
-            </div>
-            <p class="lb uta-label" style="margin:0 0 10px;">Selecciona una paleta predeterminada o edita los colores individualmente. Los cambios se guardan permanentemente en la configuración de Odoo.</p>
-
-            <!-- Paletas Predefinidas -->
-            <div class="lb uta-label" style="font-weight:600;">Paletas recomendadas:</div>
-            <div class="uta-theme-presets">
-                <button t-foreach="themePresets" t-as="tp" t-key="tp.id"
-                        class="uta-preset-btn"
-                        t-on-click="() => this.selectPreset(tp)">
-                    <span class="uta-preset-dot" t-att-style="'background:' + tp.primary + ';'"/>
-                    <span t-esc="tp.name"/>
-                </button>
-            </div>
-
-            <!-- Selectores individuales de color -->
-            <div style="margin-bottom:16px;">
-                <div class="uta-color-row">
-                    <span class="lb uta-label" style="font-weight:600;">Color de Acento / Primario (--bl):</span>
-                    <div style="display:flex;align-items:center;gap:8px;">
-                        <input type="color" t-model="state.themeColors.primary" t-on-input="() => this.applyTheme(state.themeColors)" t-on-change="() => this.applyTheme(state.themeColors)"/>
-                        <span class="lb" style="font-family:monospace;font-weight:600;" t-esc="state.themeColors.primary"/>
-                    </div>
-                </div>
-                <div class="uta-color-row">
-                    <span class="lb uta-label" style="font-weight:600;">Selección Suave (--bls):</span>
-                    <div style="display:flex;align-items:center;gap:8px;">
-                        <input type="color" t-model="state.themeColors.primary_soft" t-on-input="() => this.applyTheme(state.themeColors)" t-on-change="() => this.applyTheme(state.themeColors)"/>
-                        <span class="lb" style="font-family:monospace;font-weight:600;" t-esc="state.themeColors.primary_soft"/>
-                    </div>
-                </div>
-                <div class="uta-color-row">
-                    <span class="lb uta-label" style="font-weight:600;">Fondo de Página (--bg):</span>
-                    <div style="display:flex;align-items:center;gap:8px;">
-                        <input type="color" t-model="state.themeColors.background" t-on-input="() => this.applyTheme(state.themeColors)" t-on-change="() => this.applyTheme(state.themeColors)"/>
-                        <span class="lb" style="font-family:monospace;font-weight:600;" t-esc="state.themeColors.background"/>
-                    </div>
-                </div>
-                <div class="uta-color-row">
-                    <span class="lb uta-label" style="font-weight:600;">Paneles y Tarjetas (--card):</span>
-                    <div style="display:flex;align-items:center;gap:8px;">
-                        <input type="color" t-model="state.themeColors.card" t-on-input="() => this.applyTheme(state.themeColors)" t-on-change="() => this.applyTheme(state.themeColors)"/>
-                        <span class="lb" style="font-family:monospace;font-weight:600;" t-esc="state.themeColors.card"/>
-                    </div>
-                </div>
-                <div class="uta-color-row">
-                    <span class="lb uta-label" style="font-weight:600;">Texto Principal (--tx):</span>
-                    <div style="display:flex;align-items:center;gap:8px;">
-                        <input type="color" t-model="state.themeColors.text" t-on-input="() => this.applyTheme(state.themeColors)" t-on-change="() => this.applyTheme(state.themeColors)"/>
-                        <span class="lb" style="font-family:monospace;font-weight:600;" t-esc="state.themeColors.text"/>
-                    </div>
-                </div>
-            </div>
-
-            <div class="row" style="justify-content:space-between;margin-top:16px;">
-                <button class="btn s" t-on-click="() => this.resetTheme()">Restablecer</button>
-                <div class="row">
-                    <button class="btn s" t-on-click="() => this.openConfigSettings()" title="Abrir formulario completo en Odoo">Ajustes en Odoo</button>
-                    <button class="btn p s uta-btn-primary" t-on-click="() => this.saveTheme()">Guardar cambios</button>
-                </div>
-            </div>
-        </div>
+  <nav class="fleet_sidebar" aria-label="Análisis de flota">
+    <div class="fleet_brand">
+      <i class="fa fa-bus" />
+      <span>Transporte UTA</span>
     </div>
+    <button t-foreach="tabs" t-as="tab" t-key="tab.id" t-att-class="'fleet_nav_item'+(state.tab===tab.id?' on':'')" t-att-aria-current="state.tab===tab.id?'page':undefined" t-on-click="()=&gt;this.setTab(tab.id)">
+      <i t-att-class="'fa '+tab.icon" aria-hidden="true" />
+      <span t-esc="tab.label" />
+    </button>
+  </nav>
+  <main t-att-class="'fleet_main' + (state.tab === 'grafana' ? ' fleet_main_grafana' : '')">
+    <div class="hd" t-if="state.tab !== 'grafana'">
+      <h2 t-esc="tabs.find(t=&gt;t.id===state.tab).label" />
+      <div class="fleet_toolbar">
+        <span class="lb" t-if="state.updated">Lectura: <t t-esc="state.updated" />
+        </span>
+        <button class="btn s" t-on-click="loadData" t-att-disabled="inFlight">Actualizar</button>
+        <button class="btn p uta-btn-primary" t-on-click="openRecords">Ver registros</button>
+      </div>
+    </div>
+    <p t-if="state.loading &amp;&amp; state.tab !== 'grafana'" role="status">Cargando registros…</p>
+    <div t-if="state.error &amp;&amp; state.tab !== 'grafana'" class="fleet_notice is_error" role="alert">
+      <span t-esc="state.error" />
+      <button class="btn s" t-on-click="loadData">Reintentar</button>
+    </div>
+    <t t-if="state.tab==='panel' || state.tab==='metricas'">
+      <div class="fleet_filters">
+        <label>Ruta <select t-model="state.routeFilter">
+            <option value="">Todas las rutas</option>
+            <option t-foreach="state.routes" t-as="r" t-key="r.id" t-att-value="r.id" t-esc="r.name" />
+          </select>
+        </label>
+        <label>Período <select t-model="state.period">
+            <option value="">Todo el historial</option>
+            <option value="7">Últimos 7 días</option>
+            <option value="30">Últimos 30 días</option>
+            <option value="90">Últimos 90 días</option>
+          </select>
+        </label>
+        <span class="lb">
+          <t t-esc="measured.length" /> mediciones · <t t-esc="filteredTrips.filter(t=&gt;t.simulado).length" /> recorridos simulados</span>
+      </div>
+    </t>
+    <t t-if="state.tab==='panel'">
+      <div class="g g4">
+        <div class="card" t-foreach="metricRows.slice(0,4)" t-as="m" t-key="m.field">
+          <div class="lb" t-esc="m.name" />
+          <div class="big">
+            <t t-esc="m.result" />
+            <small t-esc="m.unit" />
+          </div>
+        </div>
+      </div>
+      <div class="g g2">
+        <section class="card">
+          <h3>Puntualidad por ruta</h3>
+          <div t-foreach="routeBars" t-as="r" t-key="r.id" class="hb">
+            <p>
+              <span t-esc="r.name" />
+              <b>
+                <t t-esc="r.result" /> %</b>
+            </p>
+            <u>
+              <i t-att-style="'width:'+r.pct+'%;'" />
+            </u>
+          </div>
+        </section>
+        <section class="card">
+          <h3>Incidencias por tipo</h3>
+          <div class="hb" t-foreach="incidentBars" t-as="i" t-key="i.type">
+            <p>
+              <span t-esc="i.name" />
+              <b t-esc="i.count" />
+            </p>
+            <u>
+              <i t-att-style="'width:'+Math.min(100,i.count*5)+'%;'" />
+            </u>
+          </div>
+        </section>
+      </div>
+      <section class="card">
+        <h3>Calidad del sistema</h3>
+        <div class="g g4">
+          <div t-foreach="metricRows.slice(8)" t-as="m" t-key="m.field">
+            <div class="lb" t-esc="m.name" />
+            <strong>
+              <t t-esc="m.result" />
+              <t t-esc="m.unit" />
+            </strong>
+          </div>
+        </div>
+      </section>
+    </t>
+    <t t-if="state.tab==='monitoreo'">
+      <div class="fleet_filters">
+        <label>Recorrido activo <select t-on-change="ev=&gt;state.activeId=Number(ev.target.value)">
+            <option t-foreach="activeTrips" t-as="t" t-key="t.id" t-att-value="t.id" t-att-selected="activeTrip &amp;&amp; activeTrip.id===t.id">
+              <t t-esc="t.name" /> · <t t-esc="origin(t)" />
+            </option>
+          </select>
+        </label>
+      </div>
+      <div t-if="activeTrip" class="card">
+        <span class="pill am" t-esc="origin(activeTrip)" />
+        <iframe class="fleet_map_frame" title="Mapa del recorrido activo" t-att-src="'/fleet_rutas/mapa/'+activeTrip.id+'?embed=1&amp;refresh='+state.updated" />
+        <h3>Puntos de control</h3>
+        <div class="tw">
+          <table class="uta-table">
+            <thead>
+              <tr>
+                <th>Parada</th>
+                <th>Estado</th>
+                <th>Llegada</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr t-foreach="activeControls" t-as="p" t-key="p.id">
+                <td t-esc="label(p.parada_id)" />
+                <td>
+                  <span t-att-class="p.cumplida?'pill gn':'pill am'" t-esc="p.cumplida?'Visitada':'Pendiente'" />
+                </td>
+                <td t-esc="stamp(p.timestamp_llegada)" />
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <p t-else="">No hay recorridos en curso.</p>
+      <section class="card">
+        <h3>Vehículos y última posición</h3>
+        <div class="tw">
+          <table class="uta-table">
+            <thead>
+              <tr>
+                <th>Vehículo</th>
+                <th>Estado GPS</th>
+                <th>Última posición</th>
+                <th>Fecha</th>
+                <th>Velocidad</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr t-foreach="state.vehicles" t-as="v" t-key="v.id">
+                <td t-esc="v.display_name || v.license_plate" />
+                <td>
+                  <span t-att-class="stale(v)?'pill am':'pill gn'" t-esc="stale(v)?'Desactualizado':'Reciente'" />
+                </td>
+                <td>
+                  <t t-if="v.traccar_last_update">
+                    <t t-esc="v.traccar_last_latitude" />, <t t-esc="v.traccar_last_longitude" />
+                  </t>
+                  <t t-else="">Sin posición</t>
+                </td>
+                <td t-esc="stamp(v.traccar_last_update)" />
+                <td>
+                  <t t-esc="v.traccar_last_speed" /> km/h</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </t>
+    <t t-if="state.tab==='recorridos'">
+      <t t-if="!selectedTrip">
+        <div class="fleet_filters">
+          <label>Buscar <input type="search" t-model="state.search" placeholder="Ruta, vehículo u origen" />
+          </label>
+          <span>
+            <t t-esc="history.length" /> recorridos</span>
+        </div>
+        <div class="card">
+          <div class="tw">
+            <table class="uta-table">
+              <thead>
+                <tr>
+                  <th>Salida programada</th>
+                  <th>Vehículo / ruta</th>
+                  <th>Origen</th>
+                  <th>Estado</th>
+                  <th>Paradas</th>
+                  <th>Detalle</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr t-foreach="history" t-as="t" t-key="t.id">
+                  <td t-esc="stamp(t.fecha_inicio)" />
+                  <td>
+                    <b t-esc="vehicleLabel(t.vehicle_id)" />
+                    <br />
+                    <span class="lb" t-esc="label(t.ruta_id)" />
+                  </td>
+                  <td>
+                    <span class="pill" t-esc="origin(t)" />
+                  </td>
+                  <td>
+                    <span t-att-class="badge(t.estado)" t-esc="status(t.estado)" />
+                  </td>
+                  <td>
+                    <t t-esc="t.porcentaje_paradas_cumplidas" /> %</td>
+                  <td>
+                    <div class="fleet_detail_links">
+                      <button class="btn s" title="Mapa" aria-label="Mapa" t-on-click="()=&gt;this.selectTrip(t.id,'mapa')"><i class="fa fa-map-marker" aria-hidden="true" /></button>
+                      <button class="btn s" title="Horarios" aria-label="Horarios" t-on-click="()=&gt;this.selectTrip(t.id,'cronologia')"><i class="fa fa-clock-o" aria-hidden="true" /></button>
+                      <button class="btn s" title="Incidencias" aria-label="Incidencias" t-on-click="()=&gt;this.selectTrip(t.id,'incidencias')"><i class="fa fa-exclamation-triangle" aria-hidden="true" /></button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p t-if="!history.length">No hay recorridos que coincidan.</p>
+        </div>
+      </t>
+      <t t-else="">
+        <div class="hd">
+          <button class="btn s" t-on-click="backToHistory">Volver al historial</button>
+          <h3 t-esc="selectedTrip.name" />
+          <span class="pill" t-esc="origin(selectedTrip)" />
+        </div>
+        <nav class="fleet_subtabs" aria-label="Detalle del recorrido">
+          <button t-foreach="[{id:'mapa',name:'Mapa'},{id:'cronologia',name:'Línea de tiempo'},{id:'incidencias',name:'Incidencias'}]" t-as="s" t-key="s.id" t-att-class="state.tripTab===s.id?'btn p':'btn s'" t-on-click="()=&gt;this.setTripTab(s.id)" t-esc="s.name" />
+        </nav>
+        <div t-if="state.tripTab==='mapa'" class="card">
+          <iframe class="fleet_map_frame" title="Traza GPS y referencia del recorrido" t-att-src="'/fleet_rutas/mapa/'+selectedTrip.id+'?embed=1'" />
+        </div>
+        <p t-if="state.detailLoading" role="status">Cargando detalle…</p>
+        <p t-if="state.detailError" role="alert" t-esc="state.detailError" />
+        <div t-if="state.tripTab==='cronologia' &amp;&amp; !state.detailLoading &amp;&amp; !state.detailError" class="card">
+          <h3>Horario previsto frente a real</h3>
+          <div class="tw">
+            <table class="uta-table">
+              <thead>
+                <tr>
+                  <th>Punto de control</th>
+                  <th>Llegada prevista</th>
+                  <th>Llegada real</th>
+                  <th>Retraso (min)</th>
+                  <th>Tolerancia</th>
+                  <th>Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr t-foreach="detailRows" t-as="p" t-key="p.id">
+                  <td t-esc="p.name" />
+                  <td t-esc="p.planned" />
+                  <td t-esc="p.actual" />
+                  <td t-esc="p.delay" />
+                  <td>
+                    <t t-esc="p.tolerance" /> min</td>
+                  <td>
+                    <span t-att-class="p.visited?'pill gn':'pill am'" t-esc="p.visited?'Visitada':'Sin visita registrada'" />
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div t-if="state.tripTab==='incidencias'" class="card">
+          <div class="tw">
+            <table class="uta-table">
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Tipo</th>
+                  <th>Descripción</th>
+                  <th>Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr t-foreach="state.detailIncidents" t-as="i" t-key="i.id">
+                  <td t-esc="stamp(i.timestamp)" />
+                  <td t-esc="type(i.tipo)" />
+                  <td t-esc="i.descripcion" />
+                  <td t-esc="i.resuelta?'Resuelta':'Pendiente'" />
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p t-if="!state.detailIncidents.length">Sin incidencias registradas.</p>
+        </div>
+      </t>
+    </t>
+    <t t-if="state.tab==='rutas'">
+      <nav class="fleet_subtabs" aria-label="Rutas y programación">
+        <button t-att-class="state.routeTab==='lista'?'btn p':'btn s'" t-on-click="()=&gt;this.setRouteTab('lista')">Rutas</button>
+        <button t-att-class="state.routeTab==='programacion'?'btn p':'btn s'" t-on-click="()=&gt;this.setRouteTab('programacion')">Programación</button>
+      </nav>
+      <t t-if="state.routeTab==='lista'">
+        <div class="fleet_filters">
+          <label>Ruta <select t-on-change="ev=&gt;state.routeId=Number(ev.target.value)">
+              <option t-foreach="state.routes" t-as="r" t-key="r.id" t-att-value="r.id" t-esc="r.name" />
+            </select>
+          </label>
+        </div>
+        <section t-if="selectedRoute" class="card">
+          <h3 t-esc="selectedRoute.name" />
+          <p>
+            <t t-esc="selectedRoute.origen" /> → <t t-esc="selectedRoute.destino" /> · <t t-esc="selectedRoute.distancia_estimada_km" /> km · <t t-esc="selectedRoute.duracion_estimada_min" /> min</p>
+          <div class="tw">
+            <table class="uta-table">
+              <thead>
+                <tr>
+                  <th>Punto de control</th>
+                  <th>Llegada</th>
+                  <th>Tolerancia</th>
+                  <th>Radio</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr t-foreach="routeStops" t-as="p" t-key="p.id">
+                  <td t-esc="p.name" />
+                  <td t-esc="clock(p.hora_prevista)" />
+                  <td>
+                    <t t-esc="p.tolerancia_min" /> min</td>
+                  <td>
+                    <t t-esc="p.radio_proximidad_m" /> m</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </t>
+      <div t-else="" class="card">
+        <h3>Programación de salidas</h3>
+        <div class="tw">
+          <table class="uta-table">
+            <thead>
+              <tr>
+                <th>Salida</th>
+                <th>Fin estimado</th>
+                <th>Vehículo</th>
+                <th>Ruta</th>
+                <th>Origen</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr t-foreach="programming" t-as="t" t-key="t.id">
+                <td t-esc="stamp(t.fecha_inicio)" />
+                <td t-esc="stamp(t.fecha_fin_estimada)" />
+                <td t-esc="vehicleLabel(t.vehicle_id)" />
+                <td t-esc="label(t.ruta_id)" />
+                <td t-esc="origin(t)" />
+                <td t-esc="status(t.estado)" />
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p t-if="!programming.length">Sin salidas programadas ni en curso.</p>
+      </div>
+    </t>
+    <section t-if="state.tab==='metricas'" class="card">
+      <h3>Indicadores almacenados · media de las mediciones seleccionadas</h3>
+      <div class="tw">
+        <table class="uta-table fleet_metrics_table">
+          <thead>
+            <tr>
+              <th>Indicador</th>
+              <th>Fórmula</th>
+              <th>Fuente</th>
+              <th>Unidad</th>
+              <th>Resultado</th>
+              <th>Interpretación</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr t-foreach="metricRows" t-as="m" t-key="m.field">
+              <td><span class="fleet_cell_text" t-att-title="m.name" t-esc="m.name" /></td>
+              <td><span class="fleet_cell_text" t-att-title="m.formula" t-esc="m.formula" /></td>
+              <td><span class="fleet_cell_text" t-att-title="m.source" t-esc="m.source" /></td>
+              <td><span class="fleet_cell_text" t-att-title="m.unit" t-esc="m.unit" /></td>
+              <td><span class="fleet_cell_text" t-att-title="m.result" t-esc="m.result" /></td>
+              <td><span class="fleet_cell_text" t-att-title="m.interpretation" t-esc="m.interpretation" /></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+    <t t-if="state.tab==='sync'">
+      <div class="hd">
+        <h3>Traccar y recepción de posiciones</h3>
+        <button class="btn p" t-att-disabled="state.syncBusy" t-on-click="triggerSync" t-esc="state.syncBusy?'Sincronizando…':'Sincronizar ahora'" />
+      </div>
+      <p t-if="state.syncMessage" role="status" t-esc="state.syncMessage" />
+      <div class="g g4">
+        <div class="card">
+          <div class="lb">Última sincronización</div>
+          <b t-esc="latestSync?stamp(latestSync.fecha_inicio):'Sin registros'" />
+          <p t-if="latestSync" t-esc="latestSync.estado==='completado'?'Completada':latestSync.estado==='error'?'Error':'Pendiente'" />
+        </div>
+        <div class="card">
+          <div class="lb">Posiciones procesadas / nuevas</div>
+          <b>
+            <t t-esc="latestSync?latestSync.registros_procesados:0" /> / <t t-esc="latestSync?latestSync.registros_nuevos:0" />
+          </b>
+        </div>
+        <div class="card">
+          <div class="lb">Duplicados evitados</div>
+          <b t-esc="latestSync?latestSync.registros_duplicados:0" />
+        </div>
+        <div class="card">
+          <div class="lb">Dispositivos con datos desactualizados</div>
+          <b t-esc="outdated" />
+        </div>
+      </div>
+      <p t-if="latestSync &amp;&amp; latestSync.error_mensaje" role="alert" t-esc="latestSync.error_mensaje" />
+      <div class="card">
+        <h3>Dispositivos asociados</h3>
+        <div class="tw">
+          <table class="uta-table">
+            <thead>
+              <tr>
+                <th>Dispositivo</th>
+                <th>Identificador</th>
+                <th>Vehículo</th>
+                <th>Estado</th>
+                <th>Última posición</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr t-foreach="state.vehicles.filter(v=&gt;v.traccar_device_id)" t-as="v" t-key="v.id">
+                <td t-esc="v.traccar_device_id" />
+                <td t-esc="v.traccar_unique_id||'—'" />
+                <td t-esc="v.display_name || v.license_plate" />
+                <td t-esc="v.traccar_device_status==='online'?'En línea':v.traccar_device_status==='offline'?'Fuera de línea':'Desconocido'" />
+                <td t-esc="stamp(v.traccar_last_update)" />
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <p class="lb">Conectividad externa: el estado del túnel no está disponible en Odoo.</p>
+    </t>
+    <t t-if="state.tab === 'grafana'">
+      <t t-if="GrafanaDashboard"><t t-component="GrafanaDashboard" /></t>
+      <p t-else="" role="alert">El módulo de reportes de Grafana no está disponible.</p>
+    </t>
+  </main>
 </div>
 `;
-
 registry.category("actions").add("fleet_rutas.dashboard", FleetRutasDashboard);
-export default FleetRutasDashboard;

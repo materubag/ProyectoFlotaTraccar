@@ -48,11 +48,12 @@ class FleetReportsDashboard extends Component {
             timeRanges:      TIME_RANGES,
         });
 
+        this.disposed = false;
         this._refreshTimer  = null;
         this._countdownTimer = null;
 
         onMounted(() => this._init());
-        onWillUnmount(() => this._clearTimers());
+        onWillUnmount(() => { this.disposed = true; this._clearTimers(); });
     }
 
     // ── Inicialización ──────────────────────────────────────────────────────
@@ -67,17 +68,19 @@ class FleetReportsDashboard extends Component {
                 kwargs: {},
             });
 
+            if (this.disposed) return;
             this.state.grafanaBaseUrl  = config.base_url;
             this.state.dashboardUid   = config.dashboard_uid;
             this.state.refreshInterval = config.refresh_interval;
             this.state.timeFrom        = config.time_from;
             this.state.countdown       = config.refresh_interval;
-            this.state.iframeUrl       = config.embed_url;
+            this.state.iframeUrl       = this._buildUrl(this.state.timeFrom);
             this.state.loading         = false;
             this.state.lastRefresh     = new Date();
 
             this._startAutoRefresh();
         } catch (err) {
+            if (this.disposed) return;
             console.error("[FleetReports] Error al obtener configuración Grafana:", err);
             this.state.loading = false;
             this.state.error   = true;
@@ -96,7 +99,7 @@ class FleetReportsDashboard extends Component {
         return (
             `${base}/d/${uid}/${slug}` +
             `?orgId=1&from=${timeFrom}&to=now` +
-            `&kiosk=tv&refresh=${ref}&theme=dark`
+            `&kiosk&refresh=${ref}&theme=light`
         );
     }
 
@@ -167,7 +170,7 @@ class FleetReportsDashboard extends Component {
     }
 
     onOpenGrafana() {
-        window.open(this.state.grafanaBaseUrl, "_blank", "noopener,noreferrer");
+        window.open(this._buildUrl(this.state.timeFrom), "_blank", "noopener,noreferrer");
     }
 
     onIframeLoad() {
@@ -211,8 +214,8 @@ FleetReportsDashboard.template = xml/* xml */`
   <div class="o_fleet_reports_topbar">
 
     <div class="o_fleet_reports_title">
-      <span class="icon-fleet">🚗</span>
-      <h2>Reportes de Flota Vehicular</h2>
+      <i class="fa fa-line-chart icon-fleet" aria-hidden="true"/>
+      <h2>Dashboard Grafana</h2>
     </div>
 
     <div class="o_fleet_reports_controls">
@@ -233,8 +236,8 @@ FleetReportsDashboard.template = xml/* xml */`
       <!-- Badge de estado en vivo -->
       <div class="o_fleet_refresh_badge">
         <span t-attf-class="dot {{ state.loading ? 'loading' : (state.error ? 'error' : '') }}"/>
-        <span t-if="!state.error">En vivo</span>
-        <span t-if="state.error" style="color:#f44336">Sin conexión</span>
+        <span t-if="!state.error">Actualización automática</span>
+        <span t-if="state.error" class="o_fleet_status_error">Sin conexión</span>
       </div>
 
       <!-- Botón refresh manual -->
@@ -308,14 +311,14 @@ FleetReportsDashboard.template = xml/* xml */`
     <span>Última actualización: <strong t-esc="lastRefreshLabel"/></span>
 
     <div class="o_fleet_countdown">
-      <span>Próximo refresh: <strong t-esc="countdownLabel"/></span>
+      <span>Próxima actualización: <strong t-esc="countdownLabel"/></span>
       <div class="o_fleet_countdown_bar">
         <div class="o_fleet_countdown_fill"
              t-attf-style="width: {{ countdownPercent }}%"/>
       </div>
     </div>
 
-    <span style="color:#3d4a5c">
+    <span class="o_fleet_server_label">
       Grafana: <t t-esc="state.grafanaBaseUrl"/>
     </span>
   </div>

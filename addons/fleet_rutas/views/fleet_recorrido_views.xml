@@ -14,7 +14,7 @@
                 <field name="name" string="Referencia"/>
                 <field name="ruta_id" string="Ruta"/>
                 <field name="vehicle_id" string="Vehículo"/>
-                <field name="conductor_id" string="Conductor"/>
+                <field name="simulado" string="Origen del dato" widget="fleet_data_origin"/>
                 <field name="fecha_inicio" string="Fecha Inicio"/>
                 <field name="estado" string="Estado" widget="badge"
                        decoration-success="estado == 'completado'"
@@ -86,7 +86,7 @@
                     <!-- GRUPO: Información General + Tiempos -->
                     <group>
                         <group string="Información General">
-                            <field name="simulado"/>
+                            <field name="simulado" string="Origen del dato" widget="fleet_data_origin"/>
                             <field name="ruta_id" string="Ruta"
                                    attrs="{'readonly': [('estado', '!=', 'programado')]}"/>
                             <field name="vehicle_id" string="Vehículo"
@@ -237,7 +237,9 @@
                 <field name="vehicle_id" string="Vehículo"/>
                 <field name="conductor_id" string="Conductor"/>
 
-                <separator/>
+                <filter name="origen_real" string="Datos reales" domain="[('simulado','=',False)]"/>
+<filter name="origen_simulado" string="Datos simulados" domain="[('simulado','=',True)]"/>
+<separator/>
                 <filter name="filter_en_curso" string="En Curso"
                         domain="[('estado','=','en_curso')]"/>
                 <filter name="filter_programado" string="Programados"
@@ -277,7 +279,7 @@
         <field name="res_model">fleet.recorrido</field>
         <field name="view_mode">tree,form</field>
         <field name="search_view_id" ref="view_fleet_recorrido_search"/>
-        <field name="context">{'search_default_filter_en_curso': 1}</field>
+        <field name="context">{}</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">
                 No hay recorridos registrados

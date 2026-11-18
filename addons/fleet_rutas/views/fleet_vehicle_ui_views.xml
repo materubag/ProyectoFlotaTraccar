@@ -1,0 +1,17 @@
+<?xml version='1.0' encoding='utf-8'?>
+<odoo>
+    <record id="fleet_vehicle_form_ui" model="ir.ui.view">
+        <field name="name">fleet.vehicle.form.ui</field>
+        <field name="model">fleet.vehicle</field>
+        <field name="inherit_id" ref="fleet_traccar.fleet_vehicle_view_form_inherit_traccar" />
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='traccar_device_id']" position="attributes">
+                <attribute name="string">Dispositivo Traccar</attribute>
+                <attribute name="attrs">{}</attribute>
+            </xpath>
+            <xpath expr="//page[@name='traccar_gps_tracking']" position="attributes">
+                <attribute name="string">Dispositivo y última posición</attribute>
+            </xpath>
+        </field>
+    </record>
+</odoo>

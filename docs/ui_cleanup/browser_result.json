@@ -1,0 +1,130 @@
+{
+  "tabs": [
+    "Panel",
+    "Monitoreo en vivo",
+    "Recorridos",
+    "Rutas y programación",
+    "Métricas",
+    "Sincronización"
+  ],
+  "Panel": {
+    "overflow": false,
+    "text": "Panel\nLectura: 10:19:29 p. m.\nActualizar\nVer registros\nRuta\nTodas las rutas\nRuta Centro: Campus Central - Terminal Intermodal\nRuta Sur: Campus Central - Zona Tecnológica Sur\nRuta Norte: Campus Central - Residencias Norte\nPeríodo\nTodo el historial\nÚltimos 7 días\nÚltimos 30 días\nÚltimos 90 días\n60 mediciones · 65 recorridos simulados\nCumplimiento de rutas\n98.0%\nPuntualidad\n96.9%\nRetraso promedio\n2.7min\nParadas cumplidas\n99.2%\nPuntualidad por ruta\n\nRuta Centro: Campus Central - Terminal Intermodal\n99.0 %\n\nRuta Sur: Campus Central - Zona Tecnológica Sur\n96.9 %\n\nRuta Norte: Campus Central - Residencias Norte\n94.9 %\n\nIncidencias por tipo\n\nRetraso\n16\n\nParada omitida\n2\n\nDesvío\n6\n\nRecorrido incompleto\n0\n\nPérdida de señal\n2\n\nExceso de velocidad\n26\n\nCalidad del sistema\nIntegridad GPS\n98.8%\nExactitud Traccar–Odoo\n99.2%\nTiempo del cálculo\n162.3ms\nPrecisión de incidencias\n94.6%"
+  },
+  "Monitoreo en vivo": {
+    "overflow": false,
+    "text": "Monitoreo en vivo\nLectura: 10:19:29 p. m.\nActualizar\nVer registros\nRecorrido activo\nRS-02 · En Tránsito (UTA-BUS-02) · Simulado\nRN-01 · En Tránsito (UTA-BUS-01) · Simulado\nSimulado\nPuntos de control\nParada\tEstado\tLlegada\nPC-01: Acceso Sur Campus Central\tVisitada\t10/11/2026, 10:51:12 a. m.\nPC-02: Mercado Mayorista Intermodal\tVisitada\t10/11/2026, 10:59:12 a. m.\nPC-03: Estación Huachi Grande\tPendiente\t—\nPC-04: Complejo de Laboratorios Sur\tPendiente\t—\nVehículos y última posición\nVehículo\tEstado GPS\tÚltima posición\tFecha\tVelocidad\nUTA-BUS-05\tDesactualizado\t-0.210452, -78.49123\t9/11/2026, 10:01:23 p. m.\t36.5 km/h\nUTA-BUS-04\tDesactualizado\t-0.210452, -78.49123\t9/11/2026, 10:01:23 p. m.\t36.5 km/h\nUTA-BUS-03\tDesactualizado\t-1.234502920369969, -78.6214762669719\t10/11/2026, 7:55:09 a. m.\t28.2 km/h\nUTA-BUS-02\tDesactualizado\t-1.2817431730384308, -78.62110489785144\t10/11/2026, 11:04:33 a. m.\t37.2 km/h"
+  },
+  "Recorridos": {
+    "overflow": false,
+    "text": "Recorridos\nLectura: 10:19:29 p. m.\nActualizar\nVer registros\nBuscar\n65 recorridos\nSalida programada\tVehículo / ruta\tOrigen\tEstado\tParadas\tDetalle\n10/11/2026, 11:45:00 a. m.\tUTA-BUS-03\n[RC-03] Ruta Centro: Campus Central - Terminal Intermodal\tSimulado\tProgramado\t0 %\t\n\n10/11/2026, 11:45:00 a. m.\tUTA-BUS-02\n[RS-02] Ruta Sur: Campus Central - Zona Tecnológica Sur\tSimulado\tProgramado\t0 %\t\n\n10/11/2026, 11:45:00 a. m.\tUTA-BUS-01\n[RN-01] Ruta Norte: Campus Central - Residencias Norte\tSimulado\tProgramado\t0 %\t\n\n10/11/2026, 10:48:33 a. m.\tUTA-BUS-02\n[RS-02] Ruta Sur: Campus Central - Zona Tecnológica Sur\tSimulado\tEn curso\t50 %\t\n\n10/11/2026, 10:47:33 a. m.\tUTA-BUS-01\n[RN-01] Ruta Norte: Campus Central - Residencias Norte\tSimulado\tEn curso\t50 %\t\n\n10/11/2026, 7:30:00 a. m.\tUTA-BUS-03\n[RC-03] Ruta Centro: Campus Central - Terminal Intermodal\tSimulado\tCompletado\t100 %\t\n\n10/11/2026, 7:30:00 a. m.\tUTA-BUS-"
+  },
+  "Rutas y programación": {
+    "overflow": false,
+    "text": "Rutas y programación\nLectura: 10:19:29 p. m.\nActualizar\nVer registros\nRutas\nProgramación\nRuta\nRuta Centro: Campus Central - Terminal Intermodal\nRuta Sur: Campus Central - Zona Tecnológica Sur\nRuta Norte: Campus Central - Residencias Norte\nRuta Centro: Campus Central - Terminal Intermodal\n\nFacultad de Artes (Campus Central) → Terminal Terrestre Central · 6.7 km · 25 min\n\nPunto de control\tLlegada\tTolerancia\tRadio\nPC-01: Facultad de Artes (Campus Central)\t00:10\t5 min\t60 m\nPC-02: Parque Cevallos / Centro\t00:20\t5 min\t60 m\nPC-03: Redondel de Cumandá\t00:30\t5 min\t60 m\nPC-04: Terminal Terrestre Central\t00:40\t5 min\t60 m"
+  },
+  "Métricas": {
+    "overflow": false,
+    "text": "Métricas\nLectura: 10:19:29 p. m.\nActualizar\nVer registros\nRuta\nTodas las rutas\nRuta Centro: Campus Central - Terminal Intermodal\nRuta Sur: Campus Central - Zona Tecnológica Sur\nRuta Norte: Campus Central - Residencias Norte\nPeríodo\nTodo el historial\nÚltimos 7 días\nÚltimos 30 días\nÚltimos 90 días\n60 mediciones · 65 recorridos simulados\nIndicadores almacenados · media de las mediciones seleccionadas\nIndicador\tFórmula\tFuente\tUnidad\tResultado\tInterpretación\n\nCumplimiento de rutas\n\t\nMedia de recorridos que cumplen × 100\n\t\nfleet.metricas.recorrido.pct_cumplimiento_ruta\n\t\n%\n\t\n98.0\n\t\nCumplimiento del trazado y puntos de control\n\n\nPuntualidad\n\t\nParadas dentro de tolerancia / programadas × 100\n\t\nfleet.metricas.recorrido.pct_puntualidad\n\t\n%\n\t\n96.9\n\t\nIncluye las omisiones en el total programado\n\n\nRetraso promedio\n\t\nΣ retrasos positivos / paradas visitadas\n\t\nfleet.metricas.recorrido.retraso_promedio_"
+  },
+  "Sincronización": {
+    "overflow": false,
+    "text": "Sincronización\nLectura: 10:19:29 p. m.\nActualizar\nVer registros\nTraccar y recepción de posiciones\nSincronizar ahora\nÚltima sincronización\n17/11/2026, 10:18:43 p. m.\n\nCompletada\n\nPosiciones procesadas / nuevas\n1 / 0\nDuplicados evitados\n1\nDispositivos con datos desactualizados\n5\nDispositivos asociados\nDispositivo\tIdentificador\tVehículo\tEstado\tÚltima posición\n6\tBUS105-GPS\tUTA-BUS-05\tDesconocido\t9/11/2026, 10:01:23 p. m.\n5\tBUS104-GPS\tUTA-BUS-04\tDesconocido\t9/11/2026, 10:01:23 p. m.\n4\tBUS103-GPS\tUTA-BUS-03\tDesconocido\t10/11/2026, 7:55:09 a. m.\n3\tBUS102-GPS\tUTA-BUS-02\tDesconocido\t10/11/2026, 11:04:33 a. m.\n2\tBUS101-GPS\tUTA-BUS-01\tDesconocido\t10/11/2026, 11:04:33 a. m.\n\nConectividad externa: el estado del túnel no está disponible en Odoo."
+  },
+  "breadcrumbs": "Centro de Control de Rutas\nRecorridos",
+  "route_persistence": true,
+  "trip_persistence": true,
+  "detail_incidents": "Recorridos\nLectura: 10:19:36 p. m.\nActualizar\nVer registros\nVolver al historial\nRC-03 · 10/11 Vespertino\nSimulado\nMapa\nLínea de tiempo\nIncidencias\nFecha\tTipo\tDescripción\tEstado\n\nSin incidencias registradas.",
+  "map_frame_status": 200,
+  "route_form": "Rutas\n[RC-03] Ruta Centro: Campus Central - Terminal Intermodal\nAcción\n1 / 3\nNuevo\nEn Mantenimiento\nSuspendida\nActiva\nNombre de Ruta\nIDENTIFICACIÓN\nEstado\nActiva\nActivo\nTRAYECTO\nOrigen\nDestino\nDistancia Estimada (km)\nDuración Estimada (min)\nZona horaria de horarios\nPuntos de Control\nVista previa\nRecorridos\n\t\nNombre del Punto\n\t\nTipo\n\t\nLatitud\n\t\nLongitud\n\t\nRadio (m)\n\t\nHora Prevista\n\t\nTolerancia (min)\n\t\n\tPC-01: Facultad de Artes (Campus Central)\t\nOrigen\n\t-1,265000\t-78,626000\t60,00\t00:10\t5\t\n\tPC-02: Parque Cevallos / Centro\t\nIntermedia\n\t-1,242000\t-78,628500\t60,00\t00:20\t5\t\n\tPC-03: Redondel de Cumandá\t\nIntermedia\n\t-1,238500\t-78,625000\t60,00\t00:30\t5\t\n\tPC-04: Terminal Terrestre Central\t\nDestino\n\t-1,234000\t-78,621000\t60,00\t00:40\t5\t\n\tAñadir una línea\n\t\t\t\t\t\t\t\t\nEnviar mensaje\nRegistrar una nota\nActividades\n0\nSeguir\nNo hay mensajes en esta conversación.",
+  "preview_points": 4,
+  "vehicle_form": "Vehículos\nNuevo\nAcción\n1 / 1\nNuevo\nDegradado\nMatriculado\nA pedir\nNueva solicitud\n0\nHistorial de conductores\n0\nContratos\n0\nServicios\n0\nOdómetro\nModelo\nMatrícula?\nEtiquetas\nCONDUCTOR\nConductor?\nFuturo conductor?\nPlanificar el cambio de coche\nFecha de asignación?\nVEHÍCULO\nCategoría\nFecha de matriculación?\nFecha de cancelación?\nNúmero de bastidor?\nÚltimo odómetro?\nkm\nmi\nGerente de flota\nUbicación?\nInformación fiscal\nModelo\nNota\nDispositivo y última posición\nVINCULACIÓN CON TRACCAR\nSeguimiento GPS Habilitado?\nDispositivo Traccar?\nIdentificador Único (IMEI/ID)?\nEstado en Traccar\nDesconocido\nÚLTIMA TELEMETRÍA RECIBIDA\nFecha Última Posición?\n10/11/2026 11:04:33\nÚltima Latitud?\n-1,2580634\nÚltima Longitud?\n-78,6264283\nÚltima Velocidad (km/h)?\n34,00\nEnviar mensaje\nRegistrar una nota\nActividades\n0\nSeguir\nNo hay mensajes en esta conversación.",
+  "settings": "Ajustes\nGuardarDescartar\nFlota UTA\nConexión y colores\nFLOTA UTA\nCONEXIÓN TRACCAR\nURL del Servidor Traccar\nUsuario de la API Traccar\nContraseña / Token de Traccar\nCOLORES\nColor de Acento / Primario\nColor Primario Hover\nColor de Selección Suave\nColor de Fondo de Página\nColor de Paneles y Tarjetas\nColor de Texto Principal\nTolerancias y radios por punto de control",
+  "layout": [
+    {
+      "width": 1280,
+      "pageOverflow": false,
+      "mainOverflow": false,
+      "headerRows": [
+        40,
+        40,
+        40,
+        40,
+        40,
+        40
+      ],
+      "dataRows": [
+        48,
+        48
+      ]
+    },
+    {
+      "width": 1440,
+      "pageOverflow": false,
+      "mainOverflow": false,
+      "headerRows": [
+        40,
+        40,
+        40,
+        40,
+        40,
+        40
+      ],
+      "dataRows": [
+        48,
+        48
+      ]
+    },
+    {
+      "width": 390,
+      "pageOverflow": false,
+      "mainOverflow": false,
+      "headerRows": [
+        40,
+        40,
+        40,
+        40,
+        40,
+        40
+      ],
+      "dataRows": [
+        48,
+        48
+      ]
+    }
+  ],
+  "native_actions": {
+    "fleet.vehicle": {
+      "rows": 5,
+      "error_dialogs": 0
+    },
+    "fleet.recorrido": {
+      "rows": 65,
+      "error_dialogs": 0
+    },
+    "fleet.incidencia": {
+      "rows": 52,
+      "error_dialogs": 0
+    },
+    "fleet.posicion.gps": {
+      "rows": 80,
+      "error_dialogs": 0
+    },
+    "fleet.metricas.recorrido": {
+      "rows": 60,
+      "error_dialogs": 0
+    },
+    "fleet.vehicle.model": {
+      "rows": 8,
+      "error_dialogs": 0
+    },
+    "fleet.vehicle.model.brand": {
+      "rows": 70,
+      "error_dialogs": 0
+    }
+  },
+  "route_filter": "Ruta\nTodas las rutas\nRuta Centro: Campus Central - Terminal Intermodal\nRuta Sur: Campus Central - Zona Tecnológica Sur\nRuta Norte: Campus Central - Residencias Norte\nPeríodo\nTodo el historial\nÚltimos 7 días\nÚltimos 30 días\nÚltimos 90 días\n20 mediciones · 21 recorridos simulados",
+  "period_filter": "Ruta\nTodas las rutas\nRuta Centro: Campus Central - Terminal Intermodal\nRuta Sur: Campus Central - Zona Tecnológica Sur\nRuta Norte: Campus Central - Residencias Norte\nPeríodo\nTodo el historial\nÚltimos 7 días\nÚltimos 30 días\nÚltimos 90 días\n0 mediciones · 0 recorridos simulados",
+  "no_sample": "Sin muestra%",
+  "errors": []
+}
