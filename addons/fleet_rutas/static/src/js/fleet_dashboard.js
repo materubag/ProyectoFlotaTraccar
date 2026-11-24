@@ -1,6 +1,6 @@
 /** @odoo-module **/
 /** Vistas de lectura: solo consulta registros y métricas existentes mediante el ORM. */
-import { Component, useState, onMounted, onWillUnmount, xml } from "@odoo/owl";
+import { Component, useState, onMounted, onWillUnmount, useRef, xml } from "@odoo/owl";
 import { registry } from "@web/core/registry";
 import { useService } from "@web/core/utils/hooks";
 const TABS = [
@@ -117,6 +117,7 @@ class FleetRutasDashboard extends Component {
   setup() {
     this.rpc = useService("rpc");
     this.actionService = useService("action");
+    this.routeImportInput = useRef("routeImportInput");
     this.tabs = TABS;
     let saved = {};
     try {
@@ -257,6 +258,9 @@ class FleetRutasDashboard extends Component {
     } finally {
       input.value = "";
     }
+  }
+  openRouteImport() {
+    this.routeImportInput.el?.click();
   }
   setTripTab(id) {
     this.state.tripTab = id;
@@ -958,9 +962,9 @@ FleetRutasDashboard.template = xml/* xml */`
       <t t-if="state.routeTab==='lista'">
         <div class="fleet_route_toolbar">
           <div class="fleet_route_actions">
-            <input class="fleet_route_import_input" type="file" accept=".json,application/json"
+            <input t-ref="routeImportInput" class="fleet_route_import_input" type="file" accept=".json,application/json"
                    t-on-change="importRouteFile" />
-            <button class="btn s" t-on-click="()=&gt;document.querySelector('.fleet_route_import_input').click()">
+            <button class="btn s" t-on-click="openRouteImport">
               <i class="fa fa-upload" /> Importar ruta
             </button>
             <button class="btn s" t-att-disabled="!selectedRoute" t-on-click="exportRoute">
