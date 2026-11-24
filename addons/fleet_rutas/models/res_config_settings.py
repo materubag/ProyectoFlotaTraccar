@@ -6,6 +6,17 @@ class ResConfigSettings(models.TransientModel):
     """Configuración de personalización visual y colores de Transporte UTA."""
     _inherit = 'res.config.settings'
 
+    traccar_webhook_url = fields.Char(
+        string='URL pública del webhook',
+        config_parameter='fleet_rutas.webhook_url',
+        help='URL pública que Traccar llamará al recibir una posición nueva.',
+    )
+    traccar_webhook_secret = fields.Char(
+        string='Secreto del webhook',
+        config_parameter='fleet_rutas.webhook_secret',
+        help='Secreto enviado por Traccar en X-Traccar-Secret.',
+    )
+
     fleet_color_primary = fields.Char(
         string='Color de Acento / Primario',
         config_parameter='fleet_rutas.color_primary',

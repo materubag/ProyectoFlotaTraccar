@@ -13,6 +13,7 @@
                             <field name="traccar_device_id" attrs="{'invisible': [('traccar_tracking_enabled', '=', False)]}"/>
                             <field name="traccar_unique_id" attrs="{'invisible': [('traccar_tracking_enabled', '=', False)]}"/>
                             <field name="traccar_device_status" widget="badge"/>
+                            <field name="traccar_marker_color" widget="color"/>
                         </group>
                         <group string="Última Telemetría Recibida">
                             <field name="traccar_last_update"/>

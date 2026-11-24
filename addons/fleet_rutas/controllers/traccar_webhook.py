@@ -10,6 +10,8 @@ import json
 import logging
 import hmac
 import hashlib
+import os
+from datetime import datetime, timezone
 
 from odoo import http
 from odoo.http import request, Response
@@ -26,11 +28,12 @@ class TraccarWebhookController(http.Controller):
 
     def _get_webhook_secret(self):
         """Recupera el secreto configurado en ir.config_parameter."""
-        return (
+        configured = (
             request.env["ir.config_parameter"]
             .sudo()
             .get_param("fleet_rutas.webhook_secret", "")
         )
+        return configured or os.getenv("TRACCAR_WEBHOOK_SECRET", "")
 
     def _validate_secret(self, req_secret: str) -> bool:
         """
@@ -159,6 +162,24 @@ class TraccarWebhookController(http.Controller):
         )
         device_vehicle_map = {v.traccar_device_id: v for v in vehicles_with_traccar}
 
+        incoming_device_ids = {
+            p.get("deviceId") for p in positions
+            if isinstance(p.get("deviceId"), int)
+        }
+        missing_device_ids = incoming_device_ids - set(device_vehicle_map)
+        if missing_device_ids:
+            try:
+                env["fleet.traccar.sync"].sudo().sincronizar_dispositivos()
+                vehicles_with_traccar = Vehicle.search(
+                    [("traccar_tracking_enabled", "=", True), ("traccar_device_id", "!=", False)]
+                )
+                device_vehicle_map = {v.traccar_device_id: v for v in vehicles_with_traccar}
+            except Exception as exc:
+                _logger.warning(
+                    "Webhook Traccar: no pudo descubrir dispositivos nuevos: %s",
+                    exc,
+                )
+
         processed = 0
 
         for pos in positions:
@@ -178,6 +199,16 @@ class TraccarWebhookController(http.Controller):
                 )
                 # Continuar con las demás posiciones
                 continue
+
+        if processed:
+            try:
+                env["bus.bus"].sudo().sendone("fleet_rutas/traccar", {
+                    "event": "posicion",
+                    "processed": processed,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                })
+            except Exception as exc:
+                _logger.debug("Webhook Traccar: no se pudo publicar evento bus: %s", exc)
 
         return processed
 

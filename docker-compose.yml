@@ -50,6 +50,7 @@ services:
       - USER=${ODOO_DB_USER:-odoo}
       - PASSWORD=${ODOO_DB_PASSWORD}
       - ODOO_DB_NAME=${ODOO_DB_NAME:-odoo_flota}
+      - TRACCAR_WEBHOOK_SECRET=${TRACCAR_WEBHOOK_SECRET:-}
     entrypoint: ["/bin/bash", "-c"]
     command:
       - |
@@ -88,6 +89,8 @@ services:
       - TRACCAR_DB_NAME=${TRACCAR_DB_NAME:-traccar}
       - TRACCAR_DB_USER=${TRACCAR_DB_USER:-traccar}
       - TRACCAR_DB_PASSWORD=${TRACCAR_DB_PASSWORD}
+      - TRACCAR_FORWARD_URL=${TRACCAR_FORWARD_URL:-http://odoo:8069/fleet_rutas/webhook/traccar}
+      - TRACCAR_WEBHOOK_SECRET=${TRACCAR_WEBHOOK_SECRET:-}
     volumes:
       - ./traccar/traccar.xml.template:/opt/traccar/conf/traccar.xml.template:ro
       - flota-traccar-logs:/opt/traccar/logs
@@ -100,6 +103,8 @@ services:
           -e "s|{{TRACCAR_DB_NAME}}|$${TRACCAR_DB_NAME:-traccar}|g" \
           -e "s|{{TRACCAR_DB_USER}}|$${TRACCAR_DB_USER:-traccar}|g" \
           -e "s|{{TRACCAR_DB_PASSWORD}}|$${TRACCAR_DB_PASSWORD}|g" \
+          -e "s|{{TRACCAR_FORWARD_URL}}|$${TRACCAR_FORWARD_URL:-http://odoo:8069/fleet_rutas/webhook/traccar}|g" \
+          -e "s|{{TRACCAR_WEBHOOK_SECRET}}|$${TRACCAR_WEBHOOK_SECRET:-}|g" \
           /opt/traccar/conf/traccar.xml.template > /opt/traccar/conf/traccar.xml
 
         (

@@ -103,6 +103,8 @@
                                             <field name="traccar_server_url" />
                                             <field name="traccar_user" />
                                             <field name="traccar_password" password="True" />
+                                            <field name="traccar_webhook_url" />
+                                            <field name="traccar_webhook_secret" password="True" />
                                         </group>
                                         <group string="Colores">
                                             <field name="fleet_color_primary" widget="fleet_color_picker" />

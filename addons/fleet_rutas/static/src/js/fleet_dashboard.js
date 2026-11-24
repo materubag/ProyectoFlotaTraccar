@@ -130,7 +130,7 @@ class FleetRutasDashboard extends Component {
         ? saved.tab || old
         : "panel",
       routeTab: saved.routeTab === "programacion" ? "programacion" : "lista",
-      tripTab: ["mapa", "cronologia", "incidencias"].includes(saved.tripTab)
+      tripTab: ["mapa", "repeticion", "cronologia", "incidencias"].includes(saved.tripTab)
         ? saved.tripTab
         : "mapa",
       tripId: saved.tripId || null,
@@ -162,7 +162,7 @@ class FleetRutasDashboard extends Component {
     this.detailRequest = 0;
     onMounted(() => {
       this.loadData();
-      this.timer = setInterval(() => this.loadData(), 30000);
+      this.timer = setInterval(() => this.loadData(), 5000);
     });
     onWillUnmount(() => {
       this.disposed = true;
@@ -191,6 +191,13 @@ class FleetRutasDashboard extends Component {
   setRouteTab(id) {
     this.state.routeTab = id;
     this.save();
+  }
+  openNewRoute() {
+    window.open("/fleet_rutas/rutas/nueva", "_blank");
+  }
+  openEditRoute() {
+    if (!this.selectedRoute) return;
+    window.open("/fleet_rutas/rutas/nueva?route_id=" + this.selectedRoute.id, "_blank");
   }
   setTripTab(id) {
     this.state.tripTab = id;
@@ -241,6 +248,8 @@ class FleetRutasDashboard extends Component {
           ),
           this.rows("fleet.ruta", [
             "name",
+            "code",
+            "estado",
             "origen",
             "destino",
             "distancia_estimada_km",
@@ -495,6 +504,22 @@ class FleetRutasDashboard extends Component {
       ["programado", "en_curso"].includes(t.estado),
     );
   }
+  programmingForRoute(routeId) {
+    return this.programming.filter((trip) => trip.ruta_id?.[0] === routeId);
+  }
+  routeTimeRange(route) {
+    const stops = this.routeStops;
+    if (!stops.length) return "Por configurar";
+    const first = stops.reduce(
+      (min, stop) => stop.secuencia < min.secuencia ? stop : min,
+      stops[0],
+    );
+    const last = stops.reduce(
+      (max, stop) => stop.secuencia > max.secuencia ? stop : max,
+      stops[0],
+    );
+    return this.clock(first.hora_prevista) + " – " + this.clock(last.hora_prevista);
+  }
   get detailRows() {
     const trip = this.selectedTrip;
     if (!trip) return [];
@@ -705,40 +730,10 @@ FleetRutasDashboard.template = xml/* xml */`
       </section>
     </t>
     <t t-if="state.tab==='monitoreo'">
-      <div class="fleet_filters">
-        <label>Recorrido activo <select t-on-change="ev=&gt;state.activeId=Number(ev.target.value)">
-            <option t-foreach="activeTrips" t-as="t" t-key="t.id" t-att-value="t.id" t-att-selected="activeTrip &amp;&amp; activeTrip.id===t.id">
-              <t t-esc="t.name" /> · <t t-esc="origin(t)" />
-            </option>
-          </select>
-        </label>
+      <div class="card">
+        <iframe class="fleet_map_frame" title="Mapa general de monitoreo en vivo"
+                src="/fleet_rutas/mapa/vivo" />
       </div>
-      <div t-if="activeTrip" class="card">
-        <span class="pill am" t-esc="origin(activeTrip)" />
-        <iframe class="fleet_map_frame" title="Mapa del recorrido activo" t-att-src="'/fleet_rutas/mapa/'+activeTrip.id+'?embed=1&amp;refresh='+state.updated" />
-        <h3>Puntos de control</h3>
-        <div class="tw">
-          <table class="uta-table">
-            <thead>
-              <tr>
-                <th>Parada</th>
-                <th>Estado</th>
-                <th>Llegada</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr t-foreach="activeControls" t-as="p" t-key="p.id">
-                <td t-esc="label(p.parada_id)" />
-                <td>
-                  <span t-att-class="p.cumplida?'pill gn':'pill am'" t-esc="p.cumplida?'Visitada':'Pendiente'" />
-                </td>
-                <td t-esc="stamp(p.timestamp_llegada)" />
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-      <p t-else="">No hay recorridos en curso.</p>
       <section class="card">
         <h3>Vehículos y última posición</h3>
         <div class="tw">
@@ -831,10 +826,13 @@ FleetRutasDashboard.template = xml/* xml */`
           <span class="pill" t-esc="origin(selectedTrip)" />
         </div>
         <nav class="fleet_subtabs" aria-label="Detalle del recorrido">
-          <button t-foreach="[{id:'mapa',name:'Mapa'},{id:'cronologia',name:'Línea de tiempo'},{id:'incidencias',name:'Incidencias'}]" t-as="s" t-key="s.id" t-att-class="state.tripTab===s.id?'btn p':'btn s'" t-on-click="()=&gt;this.setTripTab(s.id)" t-esc="s.name" />
+          <button t-foreach="[{id:'mapa',name:'Mapa'},{id:'repeticion',name:'Repetición de ruta'},{id:'cronologia',name:'Línea de tiempo'},{id:'incidencias',name:'Incidencias'}]" t-as="s" t-key="s.id" t-att-class="state.tripTab===s.id?'btn p':'btn s'" t-on-click="()=&gt;this.setTripTab(s.id)" t-esc="s.name" />
         </nav>
         <div t-if="state.tripTab==='mapa'" class="card">
           <iframe class="fleet_map_frame" title="Traza GPS y referencia del recorrido" t-att-src="'/fleet_rutas/mapa/'+selectedTrip.id+'?embed=1'" />
+        </div>
+        <div t-if="state.tripTab==='repeticion'" class="card">
+          <iframe class="fleet_map_frame fleet_replay_frame" title="Repetición histórica del recorrido" t-att-src="'/fleet_rutas/repeticion/'+selectedTrip.id" />
         </div>
         <p t-if="state.detailLoading" role="status">Cargando detalle…</p>
         <p t-if="state.detailError" role="alert" t-esc="state.detailError" />
@@ -899,39 +897,69 @@ FleetRutasDashboard.template = xml/* xml */`
         <button t-att-class="state.routeTab==='programacion'?'btn p':'btn s'" t-on-click="()=&gt;this.setRouteTab('programacion')">Programación</button>
       </nav>
       <t t-if="state.routeTab==='lista'">
-        <div class="fleet_filters">
-          <label>Ruta <select t-on-change="ev=&gt;state.routeId=Number(ev.target.value)">
-              <option t-foreach="state.routes" t-as="r" t-key="r.id" t-att-value="r.id" t-esc="r.name" />
-            </select>
-          </label>
+        <div class="fleet_route_toolbar">
+          <span />
+          <button class="btn p uta-btn-primary" t-on-click="openNewRoute">
+            <i class="fa fa-plus" /> Nueva ruta
+          </button>
         </div>
-        <section t-if="selectedRoute" class="card">
-          <h3 t-esc="selectedRoute.name" />
-          <p>
-            <t t-esc="selectedRoute.origen" /> → <t t-esc="selectedRoute.destino" /> · <t t-esc="selectedRoute.distancia_estimada_km" /> km · <t t-esc="selectedRoute.duracion_estimada_min" /> min</p>
-          <div class="tw">
-            <table class="uta-table">
-              <thead>
-                <tr>
-                  <th>Punto de control</th>
-                  <th>Llegada</th>
-                  <th>Tolerancia</th>
-                  <th>Radio</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr t-foreach="routeStops" t-as="p" t-key="p.id">
-                  <td t-esc="p.name" />
-                  <td t-esc="clock(p.hora_prevista)" />
-                  <td>
-                    <t t-esc="p.tolerancia_min" /> min</td>
-                  <td>
-                    <t t-esc="p.radio_proximidad_m" /> m</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
+        <div class="fleet_routes_layout">
+          <aside class="card fleet_routes_list">
+            <h3>Rutas registradas</h3>
+            <button t-foreach="state.routes" t-as="r" t-key="r.id"
+                    t-att-class="'fleet_route_item'+(selectedRoute&amp;&amp;selectedRoute.id===r.id?' selected':'')"
+                    t-on-click="()=&gt;state.routeId=r.id">
+              <b t-esc="r.name" />
+              <span t-esc="(r.origen || '')+' - '+(r.destino || '')" />
+              <span t-esc="(r.distancia_estimada_km || 0).toFixed(1)+' km'" />
+            </button>
+            <p t-if="!state.routes.length">Aún no hay rutas registradas.</p>
+          </aside>
+          <section t-if="selectedRoute" class="fleet_routes_detail">
+            <div class="card fleet_route_summary">
+              <div class="fleet_route_summary_header">
+                <h3 t-esc="selectedRoute.name" />
+                <button class="btn s" t-on-click="openEditRoute">
+                  <i class="fa fa-pencil" /> Editar ruta
+                </button>
+              </div>
+              <div class="g g4">
+                <div><span class="lb">Origen</span><b t-esc="selectedRoute.origen" /></div>
+                <div><span class="lb">Destino</span><b t-esc="selectedRoute.destino" /></div>
+                <div><span class="lb">Distancia estimada</span><b t-esc="(selectedRoute.distancia_estimada_km || 0).toFixed(1)+' km'" /></div>
+                <div><span class="lb">Horario</span><b t-esc="selectedRoute.duracion_estimada_min ? routeTimeRange(selectedRoute) : 'Por configurar'" /></div>
+              </div>
+            </div>
+            <div class="card">
+              <h3>Puntos de control</h3>
+              <div class="tw">
+                <table class="uta-table">
+                  <thead><tr><th>N.º</th><th>Nombre</th><th>Coordenadas</th><th>Llegada</th><th>Salida</th><th>Tolerancia</th><th>Radio</th></tr></thead>
+                  <tbody>
+                    <tr t-foreach="routeStops" t-as="p" t-key="p.id">
+                      <td t-esc="p.secuencia" />
+                      <td t-esc="p.name" />
+                      <td t-esc="p.latitud.toFixed(6)+', '+p.longitud.toFixed(6)" />
+                      <td t-esc="clock(p.hora_prevista)" />
+                      <td t-esc="p.tolerancia_min ? clock(p.hora_prevista + p.tolerancia_min/60) : '—'" />
+                      <td t-esc="p.tolerancia_min+' min'" />
+                      <td t-esc="p.radio_proximidad_m+' m'" />
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div class="card fleet_route_assignment">
+              <h3>Asignación</h3>
+              <p t-if="!programmingForRoute(selectedRoute.id).length">Esta ruta aún no tiene asignaciones programadas.</p>
+              <div t-foreach="programmingForRoute(selectedRoute.id)" t-as="t" t-key="t.id" class="g g3">
+                <div><span class="lb">Vehículo</span><b t-esc="vehicleLabel(t.vehicle_id)" /></div>
+                <div><span class="lb">Fecha</span><b t-esc="stamp(t.fecha_inicio)" /></div>
+                <div><span class="lb">Estado</span><b t-esc="status(t.estado)" /></div>
+              </div>
+            </div>
+          </section>
+        </div>
       </t>
       <div t-else="" class="card">
         <h3>Programación de salidas</h3>

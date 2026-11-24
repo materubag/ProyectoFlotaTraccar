@@ -2,11 +2,618 @@
 import json
 from html import escape
 
-from odoo import http
+from odoo import http, fields
 from odoo.http import request, Response
 
 
 class FleetMapa(http.Controller):
+    @http.route('/fleet_rutas/rutas/nueva', auth='user', type='http', methods=['GET'])
+    def nueva_ruta(self, **kwargs):
+        route_id = int(kwargs.get('route_id') or 0)
+        route_data = {'name': 'Ruta D', 'distance': 0, 'departure': '08:00', 'corridor': 100, 'points': []}
+        if route_id:
+            ruta = request.env['fleet.ruta'].sudo().browse(route_id).exists()
+            if not ruta:
+                return request.not_found()
+            stops = ruta.parada_ids.sorted('secuencia')
+            corridor = stops[0].radio_proximidad_m if stops else 100
+            if stops:
+                first_minutes = round(stops[0].hora_prevista * 60)
+                route_data['departure'] = '%02d:%02d' % (first_minutes // 60 % 24, first_minutes % 60)
+            route_data.update({
+                'name': ruta.name,
+                'distance': ruta.distancia_estimada_km,
+                'corridor': corridor,
+                'points': [{
+                    'lat': stop.latitud,
+                    'lng': stop.longitud,
+                    'name': stop.name,
+                    'time': '%02d:%02d' % (round(stop.hora_prevista * 60) // 60 % 24, round(stop.hora_prevista * 60) % 60),
+                    'tolerance': stop.tolerancia_min,
+                    'radio': stop.radio_proximidad_m,
+                } for stop in stops],
+            })
+        html = r'''<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>__ROUTE_TITLE__</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+*{box-sizing:border-box} body{margin:0;font-family:Arial,sans-serif;background:#f4f5f7;color:#1f2937}
+.header{height:72px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;background:#fff;border-bottom:1px solid #e5e7eb}
+.header h1{font-size:24px;margin:0}.mode{display:flex;gap:8px}
+.mode button{border:1px solid #d1d5db;background:#fff;padding:9px 14px;border-radius:8px;cursor:pointer}.mode button.active{background:#dbeafe;color:#1d4ed8;border-color:#bfdbfe}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 440px;height:calc(100vh - 72px)}
+.map-wrap{position:relative;padding:16px}.map-wrap input{position:absolute;z-index:500;top:28px;left:28px;width:280px;height:38px;border:1px solid #d1d5db;border-radius:8px;padding:0 12px}
+#map{height:100%;border-radius:12px;border:1px solid #dfe3e8}
+.panel{background:#fff;border-left:1px solid #e5e7eb;padding:20px;overflow:auto}.field{margin-bottom:14px}.field label{display:block;font-size:13px;color:#6b7280;margin-bottom:6px}
+.field input{width:100%;height:42px;border:1px solid #d1d5db;border-radius:8px;padding:0 10px}.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.metric{font-size:13px;color:#6b7280}.metric strong{display:block;color:#111827;font-size:16px;margin-top:3px}
+.point{display:grid;grid-template-columns:28px 1fr auto;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid #edf0f3}.seq{width:24px;height:24px;border-radius:50%;background:#2563eb;color:#fff;text-align:center;line-height:24px;font-weight:bold}
+.point small{display:block;color:#6b7280}.point input{width:72px;border:1px solid #d1d5db;border-radius:6px;padding:5px}.coords{display:none}.coords .coord-row{display:grid;grid-template-columns:28px 1fr 1fr 1fr auto;gap:6px;margin:6px 0}.coords input{min-width:0;height:34px}
+.footer{position:sticky;bottom:-20px;background:#fff;border-top:1px solid #e5e7eb;padding:14px 0 0;display:flex;justify-content:flex-end;gap:8px}
+.footer button{height:40px;border:0;border-radius:8px;padding:0 16px;cursor:pointer}.cancel{background:#e5e7eb}.save{background:#2563eb;color:#fff}.hint{background:#dbeafe;color:#2563eb;padding:12px;border-radius:8px;font-size:13px;margin-top:10px;text-align:center}
+@media(max-width:900px){.layout{grid-template-columns:1fr}.panel{border-left:0}.map-wrap{height:420px}}
+</style>
+</head>
+<body>
+<div class="header"><h1>__ROUTE_TITLE__</h1><div class="mode"><button id="modeMap" class="active">Por mapa</button><button id="modeCoords">Por coordenadas</button></div></div>
+<div class="layout">
+<div class="map-wrap" id="mapWrap"><input id="search" placeholder="Buscar dirección o lugar"><div id="map"></div></div>
+<aside class="panel">
+<div class="row"><div class="field"><label>Nombre de la ruta</label><input id="name" value="__ROUTE_NAME__"></div><div class="field"><label>Hora de salida</label><input id="departure" type="time" value="__ROUTE_DEPARTURE__"></div></div>
+<div class="row"><div class="metric">Distancia estimada<strong id="distance">__ROUTE_DISTANCE__ km (calculada)</strong></div><div class="field"><label>Corredor de desvío (m)</label><input id="corridor" type="number" value="__ROUTE_CORRIDOR__"></div></div>
+<h3>Puntos de control: <span id="pointCount">0</span></h3>
+<div id="points"></div>
+<div class="coords" id="coords"><div class="coord-row"><b>#</b><b>Latitud</b><b>Longitud</b><b>Nombre</b><b></b></div><div id="coordRows"></div><button type="button" id="addCoord" class="cancel">Agregar punto</button></div>
+<div class="hint" id="hint">Haz clic en el mapa para agregar un punto. Arrastra los marcadores para moverlos.</div>
+<div class="footer"><button class="cancel" onclick="location.href='/web#menu_id=0&action=fleet_rutas.action_fleet_rutas_dashboard'">Cancelar</button><button class="save" id="save">Guardar ruta</button></div>
+</aside>
+</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const map=L.map('map').setView([-1.249,-78.617],13);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
+const editingRouteId=__EDIT_ROUTE_ID__;
+let points=__ROUTE_POINTS__;
+let routeLine=null;let mode='map';
+function haversine(a,b){const R=6371,p1=a.lat*Math.PI/180,p2=b.lat*Math.PI/180,d=Math.PI*(b.lat-a.lat)/180,x=Math.PI*(b.lng-a.lng)/180,s=Math.sin(d/2)**2+Math.cos(p1)*Math.cos(p2)*Math.sin(x/2)**2;return 2*R*Math.asin(Math.sqrt(s))}
+function distance(){let d=0;for(let i=1;i<points.length;i++)d+=haversine(points[i-1],points[i]);document.getElementById('distance').textContent=d.toFixed(2)+' km (calculada)';return d}
+function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function redraw(fitAll=false){
+map.eachLayer(layer=>{if(layer.options&&layer.options.routeMarker)map.removeLayer(layer)});
+if(routeLine){map.removeLayer(routeLine);routeLine=null}
+points.forEach((p,i)=>{const icon=L.divIcon({className:'',html:'<div style="width:28px;height:28px;border-radius:50%;background:#2563eb;color:white;border:3px solid white;line-height:22px;text-align:center;font-weight:bold;box-shadow:0 2px 6px #777">'+(i+1)+'</div>',iconSize:[28,28],iconAnchor:[14,14]});const marker=L.marker([p.lat,p.lng],{icon,draggable:true,routeMarker:true}).addTo(map);marker.on('dragend',e=>{p.lat=e.target.getLatLng().lat;p.lng=e.target.getLatLng().lng;renderPoints();redraw()})});
+if(points.length>1){routeLine=L.polyline(points.map(p=>[p.lat,p.lng]),{color:'#2563eb',weight:5}).addTo(map)}
+renderPoints();distance();
+if(fitAll && points.length){const bounds=L.latLngBounds(points.map(p=>[p.lat,p.lng]));if(bounds.isValid()){map.fitBounds(bounds,{padding:[40,40],maxZoom:16})}}
+}
+function hhmmToDecimal(value){const [h,m]=(value||'08:00').split(':').map(Number);return h+(m||0)/60}
+function renderPoints(){
+document.getElementById('pointCount').textContent=points.length;
+const container=document.getElementById('points');container.innerHTML='';
+points.forEach((p,i)=>{const type=i===0?'origen':i===points.length-1?'destino':'intermedia';const el=document.createElement('div');el.className='point';el.innerHTML='<div class="seq">'+(i+1)+'</div><div><b>'+escapeHtml(p.name||('Punto '+(i+1)))+'</b><small>'+p.lat.toFixed(6)+', '+p.lng.toFixed(6)+'</small></div><input type="time" value="'+(p.time||'08:'+String(i*15).padStart(2,'0'))+'">';const input=el.querySelector('input');input.onchange=()=>p.time=input.value;el.ondblclick=()=>{points.splice(i,1);redraw()};container.appendChild(el)});
+renderCoordRows();
+}
+function renderCoordRows(){const body=document.getElementById('coordRows');body.innerHTML='';points.forEach((p,i)=>{const row=document.createElement('div');row.className='coord-row';row.innerHTML='<b>'+(i+1)+'</b><input type="number" step="0.000001" value="'+p.lat+'"><input type="number" step="0.000001" value="'+p.lng+'"><input value="'+escapeHtml(p.name||'')+'" placeholder="Nombre"><button class="cancel">×</button>';const inputs=row.querySelectorAll('input');inputs[0].onchange=()=>{p.lat=Number(inputs[0].value)||0;redraw()};inputs[1].onchange=()=>{p.lng=Number(inputs[1].value)||0;redraw()};inputs[2].onchange=()=>{p.name=inputs[2].value};row.querySelector('button').onclick=()=>{points.splice(i,1);redraw()};body.appendChild(row)})}
+map.on('click',e=>{if(mode==='map'){points.push({lat:e.latlng.lat,lng:e.latlng.lng,name:'Punto '+(points.length+1),time:'08:'+String(points.length*15).padStart(2,'0')});redraw(true)}});
+document.getElementById('search').onkeydown=async e=>{if(e.key==='Enter'){e.preventDefault();const q=e.target.value;if(!q)return;const r=await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q='+encodeURIComponent(q));const j=await r.json();if(j[0])map.setView([Number(j[0].lat),Number(j[0].lon)],16)}};
+document.getElementById('modeMap').onclick=()=>{mode='map';document.getElementById('modeMap').classList.add('active');document.getElementById('modeCoords').classList.remove('active');document.getElementById('mapWrap').style.display='block';document.getElementById('coords').style.display='none';document.getElementById('hint').style.display='block';setTimeout(()=>{map.invalidateSize();redraw(true)},50)};
+document.getElementById('modeCoords').onclick=()=>{mode='coords';document.getElementById('modeCoords').classList.add('active');document.getElementById('modeMap').classList.remove('active');document.getElementById('mapWrap').style.display='none';document.getElementById('coords').style.display='block';document.getElementById('hint').style.display='none';renderCoordRows()};
+document.getElementById('addCoord').onclick=()=>{points.push({lat:-1.249,lng:-78.617,name:'Punto '+(points.length+1),time:'08:'+String(points.length*15).padStart(2,'0')});redraw(true)};
+document.getElementById('save').onclick=async()=>{if(points.length<2){alert('Agrega al menos dos puntos de control.');return}const base=hhmmToDecimal(document.getElementById('departure').value);const payload={route_id:editingRouteId,name:document.getElementById('name').value.trim()||(editingRouteId?'Editar ruta':'Nueva ruta'),distance:distance(),departure:document.getElementById('departure').value,corridor:Number(document.getElementById('corridor').value||100),points:points.map((p,i)=>({...p,name:p.name||('Punto '+(i+1)),time:hhmmToDecimal(p.time||document.getElementById('departure').value),type:i===0?'origen':i===points.length-1?'destino':'intermedia',tolerance:p.tolerance||5,radio:p.radio||50}))};const response=await fetch('/fleet_rutas/rutas/crear',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const data=await response.json();if(!response.ok){alert(data.message||'No se pudo guardar la ruta');return}location.href='/web#menu_id=0&action=fleet_rutas.action_fleet_rutas_dashboard'};
+renderPoints();
+if(editingRouteId && points.length){setTimeout(()=>redraw(true),100)}
+</script>
+</body>
+</html>'''
+        title = 'Editar ruta' if route_id else 'Nueva ruta'
+        html = (html
+                .replace('__ROUTE_TITLE__', escape(title))
+                .replace('__ROUTE_NAME__', escape(route_data['name']))
+                .replace('__ROUTE_DEPARTURE__', escape(route_data['departure']))
+                .replace('__ROUTE_DISTANCE__', escape(str(round(float(route_data['distance'] or 0), 2))))
+                .replace('__ROUTE_CORRIDOR__', escape(str(round(float(route_data['corridor'] or 100), 2))))
+                .replace('__EDIT_ROUTE_ID__', str(route_id))
+                .replace('__ROUTE_POINTS__', json.dumps(route_data['points']).replace('</', '<\\/')))
+        return Response(html, content_type='text/html; charset=utf-8',
+                        headers={'Cache-Control': 'no-store'})
+
+    @http.route('/fleet_rutas/rutas/crear', auth='user', type='http', methods=['POST'], csrf=False)
+    def crear_ruta(self, **kwargs):
+        try:
+            payload = json.loads(request.httprequest.data.decode('utf-8'))
+            name = payload['name']
+            distance = payload['distance']
+            departure = payload.get('departure')
+            corridor = payload.get('corridor')
+            points = payload['points']
+            route_id = int(payload.get('route_id') or 0)
+        except (AttributeError, KeyError, TypeError, json.JSONDecodeError):
+            return self._json_response({'status': 'error', 'message': 'Datos inválidos'}, 400)
+        if not isinstance(points, list) or len(points) < 2:
+            return self._json_response({'status': 'error', 'message': 'Agrega al menos dos puntos.'}, 400)
+        Ruta = request.env['fleet.ruta'].sudo()
+        Parada = request.env['fleet.parada'].sudo()
+        clean_name = str(name or '').strip()
+        if not clean_name:
+            clean_name = 'Nueva ruta'
+        code_base = ''.join(ch for ch in clean_name.upper() if ch.isalnum())
+        code = code_base[:12] or 'RUTA'
+        suffix = 1
+        candidate = code
+        while Ruta.search_count([('code', '=', candidate)]):
+            suffix += 1
+            candidate = f'{code}-{suffix}'
+        first = points[0]
+        last = points[-1]
+        duration = int(round((float(last.get('time') or 8) - float(first.get('time') or 8)) * 60))
+        if duration < 0:
+            duration += 24 * 60
+        route_values = {
+            'name': clean_name,
+            'origen': str(first.get('name') or 'Origen'),
+            'destino': str(last.get('name') or 'Destino'),
+            'distancia_estimada_km': float(distance or 0),
+            'duracion_estimada_min': duration,
+            'zona_horaria': 'America/Guayaquil',
+        }
+        if route_id:
+            ruta = Ruta.search([('id', '=', route_id)], limit=1)
+            if not ruta:
+                return self._json_response({'status': 'error', 'message': 'La ruta no existe.'}, 404)
+            ruta.write(route_values)
+            ruta.parada_ids.unlink()
+        else:
+            route_values.update({
+                'code': candidate,
+                'estado': 'activa',
+            })
+            ruta = Ruta.create(route_values)
+        for index, point in enumerate(points, start=1):
+            Parada.create({
+                'name': str(point.get('name') or f'Punto {index}'),
+                'ruta_id': ruta.id,
+                'secuencia': index,
+                'latitud': float(point['lat']),
+                'longitud': float(point['lng']),
+                'radio_proximidad_m': float(corridor if index in (1, len(points)) else point.get('radio', 50)),
+                'hora_prevista': float(point.get('time') or 8),
+                'tolerancia_min': int(point.get('tolerance') or 5),
+                'tipo': 'origen' if index == 1 else ('destino' if index == len(points) else 'intermedia'),
+            })
+        return self._json_response({'status': 'ok', 'route_id': ruta.id})
+
+    @http.route('/fleet_rutas/vehiculos_vivos', auth='user', type='http',
+                methods=['GET'], csrf=False)
+    def vehiculos_vivos(self, **kwargs):
+        vehicles = request.env['fleet.vehicle'].sudo().search([
+            ('traccar_tracking_enabled', '=', True),
+        ], order='traccar_last_update desc')
+        active_trips = request.env['fleet.recorrido'].sudo().search([
+            ('estado', '=', 'en_curso'),
+        ])
+        trip_by_vehicle = {
+            trip.vehicle_id.id: {
+                'id': trip.id,
+                'name': trip.name,
+                'ruta_id': trip.ruta_id.id,
+                'ruta_name': trip.ruta_id.name,
+            }
+            for trip in active_trips
+        }
+        items = []
+        for vehicle in vehicles:
+            items.append({
+                'id': vehicle.id,
+                'name': vehicle.display_name or vehicle.license_plate or f'Vehículo {vehicle.id}',
+                'plate': vehicle.license_plate or '',
+                'device_id': vehicle.traccar_device_id,
+                'unique_id': vehicle.traccar_unique_id or '',
+                'status': vehicle.traccar_device_status or 'unknown',
+                'marker_color': vehicle.traccar_marker_color or '#714b67',
+                'latitude': vehicle.traccar_last_latitude or 0.0,
+                'longitude': vehicle.traccar_last_longitude or 0.0,
+                'speed': vehicle.traccar_last_speed or 0.0,
+                'last_update': str(vehicle.traccar_last_update) if vehicle.traccar_last_update else '',
+                'active_trip': trip_by_vehicle.get(vehicle.id),
+            })
+        return self._json_response({
+            'vehicles': items,
+            'server_time': fields.Datetime.now().isoformat(),
+        })
+
+    @http.route('/fleet_rutas/asignar_ruta', auth='user', type='http',
+                methods=['POST'], csrf=False)
+    def asignar_ruta(self, **kwargs):
+        try:
+            payload = json.loads(request.httprequest.data.decode('utf-8') or '{}')
+            vehicle_id = int(payload['vehicle_id'])
+            route_id = int(payload['route_id'])
+            start = bool(payload.get('start', False))
+        except (KeyError, TypeError, ValueError, json.JSONDecodeError):
+            return self._json_response({'status': 'error', 'message': 'Datos inválidos'}, 400)
+
+        Vehicle = request.env['fleet.vehicle'].sudo()
+        Ruta = request.env['fleet.ruta'].sudo()
+        Recorrido = request.env['fleet.recorrido'].sudo()
+        vehicle = Vehicle.browse(vehicle_id).exists()
+        route = Ruta.browse(route_id).exists()
+        if not vehicle or not route:
+            return self._json_response({'status': 'error', 'message': 'Vehículo o ruta no encontrado'}, 404)
+        if not vehicle.traccar_tracking_enabled:
+            return self._json_response({'status': 'error', 'message': 'El vehículo no tiene seguimiento GPS'}, 400)
+
+        trip = Recorrido.search([
+            ('vehicle_id', '=', vehicle.id),
+            ('estado', '=', 'en_curso'),
+        ], limit=1)
+        if not trip:
+            trip = Recorrido.search([
+                ('vehicle_id', '=', vehicle.id),
+                ('estado', '=', 'programado'),
+            ], limit=1, order='fecha_inicio desc')
+
+        if trip:
+            trip.write({
+                'ruta_id': route.id,
+                'vehicle_id': vehicle.id,
+            })
+        else:
+            trip = Recorrido.create({
+                'ruta_id': route.id,
+                'vehicle_id': vehicle.id,
+                'estado': 'programado',
+                'fecha_inicio': fields.Datetime.now(),
+                'fecha_fin_estimada': False,
+            })
+
+        if start and trip.estado == 'programado':
+            trip.action_iniciar()
+
+        return self._json_response({
+            'status': 'ok',
+            'trip_id': trip.id,
+            'started': trip.estado == 'en_curso',
+        })
+
+    @http.route('/fleet_rutas/mapa/vivo', auth='user', type='http', methods=['GET'])
+    def mapa_vivo(self, **kwargs):
+        routes = request.env['fleet.ruta'].sudo().search([('estado', '=', 'activa')], order='name')
+        routes_json = json.dumps([{'id': route.id, 'name': route.name} for route in routes])
+        route_options = ''.join(
+            '<option value="%d">%s</option>' % (route.id, escape(route.name))
+            for route in routes
+        )
+        html = '''<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Monitoreo GPS en vivo</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; height: 100vh; font-family: Arial,sans-serif; }
+#layout { display:grid; grid-template-columns:270px 1fr; height:100vh; }
+#sidebar { overflow:auto; border-right:1px solid #ddd; background:#fff; padding:12px; }
+#map { height:100vh; }
+.vehicle { border:1px solid #ddd; padding:8px; margin-bottom:8px; cursor:pointer; }
+.vehicle:hover { background:#f7f7f7; }
+.vehicle.selected { border-left:4px solid #714b67; }
+.muted { color:#777; font-size:12px; }
+.ok { color:#1e7a4c; } .stale { color:#9a6700; }
+select,button { width:100%; margin-top:6px; padding:7px; }
+button { border:0; background:#714b67; color:#fff; cursor:pointer; }
+.leaflet-popup-content { min-width:220px; }
+</style>
+</head>
+<body>
+<div id="layout">
+  <aside id="sidebar">
+    <h3>Flota en vivo</h3>
+    <div id="vehicles"></div>
+  </aside>
+  <div id="map"></div>
+</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const map = L.map('map').setView([-1.249, -78.617], 13);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19}).addTo(map);
+const markers = {};
+const markerStates = {};
+let selectedVehicleId = null;
+const routeOptions = __ROUTES__;
+let initialFitPending = true;
+let userChangedMap = false;
+let applyingInitialFit = false;
+map.on('dragstart', () => { userChangedMap = true; initialFitPending = false; });
+map.on('zoomstart', () => {
+  if (!applyingInitialFit) {
+    userChangedMap = true;
+    initialFitPending = false;
+  }
+});
+
+function stale(update) {
+  if (!update) return true;
+  return Date.now() - new Date(update.replace(' ', 'T') + 'Z').getTime() > 120000;
+}
+function escapeHtml(value) {
+  const el = document.createElement('div');
+  el.textContent = value == null ? '' : String(value);
+  return el.innerHTML;
+}
+async function assignRoute(vehicleId, routeId, start) {
+  const response = await fetch('/fleet_rutas/asignar_ruta', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({vehicle_id:vehicleId, route_id:Number(routeId), start:start})
+  });
+  const data = await response.json();
+  if (!response.ok) alert(data.message || 'No se pudo asignar la ruta');
+  else { alert(start ? 'Ruta iniciada.' : 'Ruta asignada.'); refresh(); }
+}
+async function refresh() {
+  const response = await fetch('/fleet_rutas/vehiculos_vivos');
+  const data = await response.json();
+  const container = document.getElementById('vehicles');
+  const points = [];
+  for (const vehicle of data.vehicles) {
+    const lat = Number(vehicle.latitude), lng = Number(vehicle.longitude);
+    if (lat && lng) points.push([lat,lng]);
+    const vehicleLabel = escapeHtml(vehicle.name);
+    const plate = vehicle.plate ? escapeHtml(vehicle.plate) : '';
+    const deviceLabel = 'Traccar ID ' + escapeHtml(String(vehicle.device_id || '-')) +
+      (vehicle.unique_id ? ' · IMEI/ID ' + escapeHtml(vehicle.unique_id) : '');
+    const isStale = stale(vehicle.last_update);
+    const markerColor = /^#[0-9A-Fa-f]{6}$/.test(vehicle.marker_color || '') ? vehicle.marker_color : '#714b67';
+    const iconKey = markerColor + ':' + isStale;
+    let marker = markers[vehicle.id];
+    if (lat && lng) {
+      if (!marker) {
+        const icon = L.divIcon({
+          className:'fleet-live-marker',
+          html:'<div style="width:18px;height:18px;border:3px solid '+(isStale?'#9a6700':'white')+';border-radius:50%;background:'+markerColor+';box-shadow:0 2px 8px #333"></div>',
+          iconSize:[18,18], iconAnchor:[9,9]
+        });
+        marker = L.marker([lat,lng], {icon}).addTo(map);
+        markers[vehicle.id] = marker;
+        markerStates[vehicle.id] = iconKey;
+      } else {
+        marker.setLatLng([lat,lng]);
+        if (markerStates[vehicle.id] !== iconKey) {
+          const icon = L.divIcon({
+            className:'fleet-live-marker',
+            html:'<div style="width:18px;height:18px;border:3px solid '+(isStale?'#9a6700':'white')+';border-radius:50%;background:'+markerColor+';box-shadow:0 2px 8px #333"></div>',
+            iconSize:[18,18], iconAnchor:[9,9]
+          });
+          marker.setIcon(icon);
+          markerStates[vehicle.id] = iconKey;
+        }
+      }
+      marker.bindPopup('<b>'+escapeHtml(vehicle.name)+'</b><br>'+
+        (plate ? plate+'<br>' : '')+
+        escapeHtml(deviceLabel)+'<br>'+
+        escapeHtml(vehicle.speed.toFixed ? vehicle.speed.toFixed(1) : vehicle.speed)+' km/h');
+    }
+    const activeName = vehicle.active_trip ? vehicle.active_trip.ruta_name : 'Sin recorrido activo';
+    let div = container.querySelector('[data-vehicle-id="'+vehicle.id+'"]');
+    if (!div) {
+      const options = routeOptions.map(r=>'<option value="'+r.id+'">'+escapeHtml(r.name)+'</option>').join('');
+      div = document.createElement('div');
+      div.dataset.vehicleId = vehicle.id;
+      div.className = 'vehicle';
+      div.innerHTML =
+        '<div class="vehicle-head" style="border-left:5px solid '+markerColor+';padding-left:7px">'+
+        '<b>'+vehicleLabel+'</b>'+ (plate ? '<div class="muted">Matrícula: '+plate+'</div>' : '') +
+        '<div class="muted">'+deviceLabel+'</div></div>'+
+        '<div class="vehicle-status muted"></div>'+
+        '<div class="vehicle-trip muted"></div>'+
+        '<select id="route-'+vehicle.id+'">'+options+'</select>'+
+        '<button data-assign="'+vehicle.id+'" data-start="false">Asignar ruta</button>'+
+        '<button data-assign="'+vehicle.id+'" data-start="true">Asignar e iniciar</button>';
+      div.addEventListener('click',()=>{
+        selectedVehicleId=vehicle.id;
+        container.querySelectorAll('.vehicle').forEach(card=>card.classList.remove('selected'));
+        div.classList.add('selected');
+        if (lat && lng) map.setView([lat,lng],16);
+      });
+      div.querySelectorAll('button').forEach(button=>{
+        button.addEventListener('click',(event)=>{
+          event.stopPropagation();
+          const routeId=document.getElementById('route-'+vehicle.id).value;
+          assignRoute(vehicle.id,routeId,button.dataset.start==='true');
+        });
+      });
+      container.appendChild(div);
+    }
+    div.querySelector('.vehicle-head').style.borderLeftColor = markerColor;
+    div.querySelector('.vehicle-status').innerHTML =
+      (isStale?'<span class="stale">Desactualizado</span>':'<span class="ok">Reciente</span>')+
+      ' · '+escapeHtml(vehicle.speed.toFixed ? vehicle.speed.toFixed(1) : vehicle.speed)+' km/h';
+    div.querySelector('.vehicle-trip').textContent =
+      activeName + ' · ' + (vehicle.last_update || 'Sin posición');
+  }
+  if (initialFitPending && !userChangedMap && points.length) {
+    applyingInitialFit = true;
+    map.fitBounds(L.latLngBounds(points).pad(0.15));
+    applyingInitialFit = false;
+    initialFitPending = false;
+  }
+}
+refresh();
+setInterval(refresh, 5000);
+</script>
+</body>
+</html>'''.replace('__ROUTES__', routes_json)
+        return Response(html, content_type='text/html; charset=utf-8',
+                        headers={'Cache-Control': 'no-store'})
+
+    @staticmethod
+    def _json_response(data, status=200):
+        return Response(json.dumps(data), status=status,
+                        content_type='application/json',
+                        headers={'Cache-Control': 'no-store'})
+
+    @http.route('/fleet_rutas/repeticion/<int:recorrido_id>/datos', auth='user',
+                type='http', methods=['GET'], csrf=False)
+    def repeticion_datos(self, recorrido_id, **kwargs):
+        rec = request.env['fleet.recorrido'].sudo().browse(recorrido_id).exists()
+        if not rec:
+            return self._json_response({'status': 'error', 'message': 'Recorrido no encontrado'}, 404)
+
+        domain = [('recorrido_id', '=', recorrido_id)]
+        date_from = kwargs.get('date_from')
+        date_to = kwargs.get('date_to')
+        if date_from:
+            domain.append(('timestamp', '>=', date_from.replace('T', ' ')))
+        if date_to:
+            domain.append(('timestamp', '<=', date_to.replace('T', ' ')))
+
+        positions = request.env['fleet.posicion.gps'].sudo().search(
+            domain,
+            order='timestamp asc',
+        )
+        stops = rec.ruta_id.parada_ids.sorted('secuencia')
+        data = {
+            'status': 'ok',
+            'name': rec.name,
+            'vehicle': rec.vehicle_id.display_name or rec.vehicle_id.license_plate or '',
+            'reference': [[p.latitud, p.longitud] for p in stops],
+            'stops': [{
+                'name': p.name,
+                'seq': p.secuencia,
+                'point': [p.latitud, p.longitud],
+            } for p in stops],
+            'track': [{
+                'lat': p.latitud,
+                'lng': p.longitud,
+                'timestamp': str(p.timestamp),
+                'speed': p.velocidad_kmh,
+                'course': p.rumbo,
+                'distance': p.distancia_ruta_m,
+                'deviation': p.es_desviacion,
+            } for p in positions],
+        }
+        return self._json_response(data)
+
+    @http.route('/fleet_rutas/repeticion/<int:recorrido_id>', auth='user',
+                type='http', methods=['GET'])
+    def repeticion(self, recorrido_id, **kwargs):
+        rec = request.env['fleet.recorrido'].sudo().browse(recorrido_id).exists()
+        if not rec:
+            return request.not_found()
+
+        start = str(rec.fecha_inicio_real or rec.fecha_inicio or fields.Datetime.now())
+        end = str(rec.fecha_fin_real or rec.fecha_fin_estimada or fields.Datetime.now())
+        start_value = start[:16].replace(' ', 'T')
+        end_value = end[:16].replace(' ', 'T')
+        html = r'''<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Repetición de ruta</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#fff;color:#161616}
+.toolbar{display:flex;align-items:center;gap:8px;padding:10px;border-bottom:1px solid #e0e0e0;flex-wrap:wrap}
+.toolbar label{font-size:12px;color:#525252}.toolbar input,.toolbar select{height:36px;border:1px solid #d0d0d0;padding:5px 8px}
+.toolbar button{height:36px;border:0;background:#714b67;color:#fff;padding:0 14px;cursor:pointer}
+.controls{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid #e0e0e0}
+.controls button{height:34px;border:1px solid #d0d0d0;background:#fff;cursor:pointer;padding:0 10px}
+.controls button.primary{background:#2563eb;border-color:#2563eb;color:#fff}
+.controls input[type=range]{flex:1}
+#map{height:520px}
+.status{font-size:12px;color:#525252;min-width:220px}
+@media(max-width:700px){#map{height:380px}.status{width:100%}}
+</style>
+</head>
+<body>
+<div class="toolbar">
+  <label>Desde<br><input id="dateFrom" type="datetime-local" value="__START__"></label>
+  <label>Hasta<br><input id="dateTo" type="datetime-local" value="__END__"></label>
+  <button id="show">Mostrar repetición</button>
+</div>
+<div class="controls">
+  <button id="play" class="primary">Iniciar</button>
+  <input id="progress" type="range" min="0" max="0" value="0">
+  <select id="speed" aria-label="Velocidad de reproducción">
+    <option value="1">1x</option><option value="5">5x</option><option value="10">10x</option>
+  </select>
+  <div class="status" id="status">Sin datos registrados</div>
+</div>
+<div id="map"></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const routeId=__RECORRIDO_ID__;
+const map=L.map('map').setView([-1.249,-78.617],13);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
+let track=[],timer=null,index=0,speed=1,marker=null,played=L.polyline([],{color:'#ea580c',weight:4}).addTo(map);
+let referenceLine=null;
+function escapeHtml(v){const el=document.createElement('div');el.textContent=v==null?'':String(v);return el.innerHTML}
+async function loadTrack(){
+stop();
+const from=document.getElementById('dateFrom').value;
+const to=document.getElementById('dateTo').value;
+const params=new URLSearchParams({date_from:from,date_to:to});
+const response=await fetch('/fleet_rutas/repeticion/'+routeId+'/datos?'+params.toString());
+const data=await response.json();
+if(!response.ok){document.getElementById('status').textContent=data.message||'No se pudo cargar';return}
+track=data.track||[];
+if(referenceLine){map.removeLayer(referenceLine)}
+if(data.reference&&data.reference.length){referenceLine=L.polyline(data.reference,{color:'#2563eb',weight:7,opacity:.35}).addTo(map)}
+track.forEach(p=>{});
+if(marker){map.removeLayer(marker);marker=null}
+played.setLatLngs([]);
+index=0;
+document.getElementById('progress').max=Math.max(track.length-1,0);
+document.getElementById('progress').value=0;
+if(!track.length){document.getElementById('status').textContent='Sin posiciones GPS en el intervalo seleccionado';return}
+data.stops.forEach((stopItem,idx)=>{
+const icon=L.divIcon({className:'',html:'<div style="width:22px;height:22px;background:#fff;border:2px solid #2563eb;text-align:center;line-height:18px;font-weight:bold">'+(stopItem.seq||idx+1)+'</div>',iconSize:[22,22],iconAnchor:[11,11]});
+L.marker(stopItem.point,{icon}).bindPopup(escapeHtml(stopItem.name)).addTo(map)
+});
+showPosition(0,true);
+const all=[...data.reference,...track.map(p=>[p.lat,p.lng])];
+if(all.length){map.fitBounds(L.latLngBounds(all).pad(.12))}
+}
+function stop(){if(timer){clearInterval(timer);timer=null}document.getElementById('play').textContent='Iniciar';document.getElementById('play').classList.add('primary')}
+function showPosition(i,fit=false){
+if(!track.length)return;
+index=Math.max(0,Math.min(i,track.length-1));
+const p=track[index];
+const icon=L.divIcon({className:'',html:'<div style="width:24px;height:24px;border:3px solid #fff;border-radius:50%;background:#1e7a4c;box-shadow:0 2px 8px #333"></div>',iconSize:[24,24],iconAnchor:[12,12]});
+if(!marker){marker=L.marker([p.lat,p.lng],{icon}).addTo(map)}else{marker.setLatLng([p.lat,p.lng]).setIcon(icon)}
+played.setLatLngs(track.slice(0,index+1).map(x=>[x.lat,x.lng]));
+document.getElementById('progress').value=index;
+document.getElementById('status').textContent=(p.timestamp||'')+' UTC · '+(Number(p.speed)||0).toFixed(1)+' km/h'+(p.deviation?' · Desvío':'');
+if(fit)map.setView([p.lat,p.lng],16);
+}
+document.getElementById('show').onclick=loadTrack;
+document.getElementById('progress').oninput=e=>showPosition(Number(e.target.value));
+document.getElementById('speed').onchange=e=>{speed=Number(e.target.value)};
+document.getElementById('play').onclick=()=>{
+if(!track.length)return;
+if(timer){stop();return}
+document.getElementById('play').textContent='Pausar';
+document.getElementById('play').classList.remove('primary');
+if(index>=track.length-1)index=0;
+timer=setInterval(()=>{showPosition(index+1);if(index>=track.length-1)stop()},1000/speed);
+};
+loadTrack();
+</script>
+</body>
+</html>'''
+        html = (html.replace('__START__', escape(start_value))
+                    .replace('__END__', escape(end_value))
+                    .replace('__RECORRIDO_ID__', str(recorrido_id)))
+        return Response(html, content_type='text/html; charset=utf-8',
+                        headers={'Cache-Control': 'no-store'})
+
     @http.route('/fleet_rutas/mapa/<int:recorrido_id>', auth='user', type='http')
     def mapa(self, recorrido_id, **kwargs):
         rec = request.env['fleet.recorrido'].browse(recorrido_id).exists()

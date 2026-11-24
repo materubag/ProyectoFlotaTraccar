@@ -22,6 +22,7 @@
             <field name="traccar_tracking_enabled">True</field>
             <field name="traccar_device_id">1</field>
             <field name="traccar_unique_id">BUS01_GPS</field>
+            <field name="traccar_marker_color">#1E7A4C</field>
             <field name="traccar_device_status">online</field>
             <field name="traccar_last_latitude">-0.180653</field>
             <field name="traccar_last_longitude">-78.467834</field>
@@ -37,6 +38,7 @@
             <field name="traccar_tracking_enabled">True</field>
             <field name="traccar_device_id">2</field>
             <field name="traccar_unique_id">BUS02_GPS</field>
+            <field name="traccar_marker_color">#2563EB</field>
             <field name="traccar_device_status">online</field>
             <field name="traccar_last_latitude">-0.220512</field>
             <field name="traccar_last_longitude">-78.513421</field>
