@@ -7,6 +7,226 @@ from odoo.http import request, Response
 
 
 class FleetMapa(http.Controller):
+    @http.route('/fleet_rutas/rutas/<int:route_id>/exportar', auth='user',
+                type='http', methods=['GET'], csrf=False)
+    def exportar_ruta(self, route_id, **kwargs):
+        ruta = request.env['fleet.ruta'].sudo().browse(route_id).exists()
+        if not ruta:
+            return request.not_found()
+
+        schedules = []
+        for trip in ruta.recorrido_ids.sorted('fecha_inicio'):
+            schedules.append({
+                'vehicle': {
+                    'name': trip.vehicle_id.display_name or trip.vehicle_id.license_plate or '',
+                    'license_plate': trip.vehicle_id.license_plate or '',
+                    'traccar_device_id': trip.vehicle_id.traccar_device_id or 0,
+                    'traccar_unique_id': trip.vehicle_id.traccar_unique_id or '',
+                },
+                'driver': trip.conductor_id.login or trip.conductor_id.name or '',
+                'fecha_inicio': str(trip.fecha_inicio or ''),
+                'fecha_fin_estimada': str(trip.fecha_fin_estimada or ''),
+                'estado': trip.estado,
+                'simulado': bool(trip.simulado),
+                'notas': trip.notas or '',
+            })
+
+        payload = {
+            'format': 'fleet-ruta-programacion',
+            'version': 1,
+            'exported_at': fields.Datetime.now().isoformat(),
+            'route': {
+                'name': ruta.name,
+                'code': ruta.code or '',
+                'estado': ruta.estado,
+                'origen': ruta.origen,
+                'destino': ruta.destino,
+                'distancia_estimada_km': ruta.distancia_estimada_km,
+                'duracion_estimada_min': ruta.duracion_estimada_min,
+                'zona_horaria': ruta.zona_horaria,
+                'notas': ruta.notas or '',
+                'points': [{
+                    'name': stop.name,
+                    'secuencia': stop.secuencia,
+                    'latitud': stop.latitud,
+                    'longitud': stop.longitud,
+                    'radio_proximidad_m': stop.radio_proximidad_m,
+                    'hora_prevista': stop.hora_prevista,
+                    'tolerancia_min': stop.tolerancia_min,
+                    'tipo': stop.tipo,
+                    'descripcion': stop.descripcion or '',
+                } for stop in ruta.parada_ids.sorted('secuencia')],
+            },
+            'schedules': schedules,
+        }
+        filename = ('ruta-' + (ruta.code or str(ruta.id)) + '.json').replace(' ', '-')
+        body = json.dumps(payload, ensure_ascii=False, indent=2)
+        return Response(
+            body,
+            status=200,
+            headers=[
+                ('Content-Type', 'application/json; charset=utf-8'),
+                ('Content-Disposition', 'attachment; filename="%s"' % filename),
+            ],
+        )
+
+    @http.route('/fleet_rutas/rutas/importar', auth='user',
+                type='http', methods=['POST'], csrf=False)
+    def importar_ruta(self, **kwargs):
+        try:
+            payload = json.loads(request.httprequest.data.decode('utf-8'))
+        except (ValueError, UnicodeDecodeError):
+            return self._json_response({'status': 'error', 'message': 'Archivo JSON inválido.'}, 400)
+
+        if not isinstance(payload, dict):
+            return self._json_response({
+                'status': 'error',
+                'message': 'El archivo JSON debe contener un objeto de ruta.',
+            }, 400)
+        if payload.get('format') != 'fleet-ruta-programacion':
+            return self._json_response({'status': 'error', 'message': 'Formato de archivo no reconocido.'}, 400)
+        route = payload.get('route')
+        points = route.get('points') if isinstance(route, dict) else None
+        if not isinstance(route, dict) or not isinstance(points, list) or len(points) < 2:
+            return self._json_response({
+                'status': 'error',
+                'message': 'La ruta debe incluir al menos dos puntos de control.',
+            }, 400)
+
+        Ruta = request.env['fleet.ruta'].sudo()
+        Parada = request.env['fleet.parada'].sudo()
+        Recorrido = request.env['fleet.recorrido'].sudo()
+
+        code = str(route.get('code') or '').strip()[:32]
+        if not code:
+            code = ''.join(ch for ch in str(route.get('name') or 'RUTA').upper() if ch.isalnum())[:12] or 'RUTA'
+        candidate = code
+        suffix = 2
+        while Ruta.search_count([('code', '=', candidate)]):
+            candidate = '%s-%d' % (code[:28], suffix)
+            suffix += 1
+
+        ruta = Ruta.create({
+            'name': str(route.get('name') or 'Ruta importada').strip(),
+            'code': candidate,
+            'estado': route.get('estado') if route.get('estado') in ('activa', 'suspendida', 'mantenimiento') else 'activa',
+            'origen': str(route.get('origen') or points[0].get('name') or 'Origen'),
+            'destino': str(route.get('destino') or points[-1].get('name') or 'Destino'),
+            'distancia_estimada_km': float(route.get('distancia_estimada_km') or 0),
+            'duracion_estimada_min': int(route.get('duracion_estimada_min') or 0),
+            'zona_horaria': str(route.get('zona_horaria') or 'America/Guayaquil'),
+            'notas': str(route.get('notas') or ''),
+        })
+
+        for index, point in enumerate(points, start=1):
+            if not isinstance(point, dict):
+                ruta.unlink()
+                return self._json_response({
+                    'status': 'error',
+                    'message': 'El archivo contiene un punto de control inválido.',
+                }, 400)
+            try:
+                latitud = float(point['latitud'])
+                longitud = float(point['longitud'])
+                if not (-90 <= latitud <= 90 and -180 <= longitud <= 180):
+                    raise ValueError
+            except (KeyError, TypeError, ValueError):
+                ruta.unlink()
+                return self._json_response({
+                    'status': 'error',
+                    'message': 'El archivo contiene coordenadas inválidas.',
+                }, 400)
+            Parada.create({
+                'name': str(point.get('name') or 'Punto %d' % index),
+                'ruta_id': ruta.id,
+                'secuencia': int(point.get('secuencia') or index),
+                'latitud': latitud,
+                'longitud': longitud,
+                'radio_proximidad_m': float(point.get('radio_proximidad_m') or 50),
+                'hora_prevista': float(point.get('hora_prevista') or 8),
+                'tolerancia_min': int(point.get('tolerancia_min') or 5),
+                'tipo': point.get('tipo') if point.get('tipo') in ('origen', 'intermedia', 'destino') else (
+                    'origen' if index == 1 else ('destino' if index == len(points) else 'intermedia')
+                ),
+                'descripcion': str(point.get('descripcion') or ''),
+            })
+
+        schedules_created = 0
+        schedules_skipped = []
+        Vehicle = request.env['fleet.vehicle'].sudo()
+        User = request.env['res.users'].sudo()
+        for schedule in payload.get('schedules') or []:
+            if not isinstance(schedule, dict):
+                schedules_skipped.append('Programación inválida')
+                continue
+            vehicle_data = schedule.get('vehicle') or {}
+            if not isinstance(vehicle_data, dict):
+                schedules_skipped.append('Vehículo desconocido')
+                continue
+            vehicle = False
+            if vehicle_data.get('traccar_device_id'):
+                try:
+                    traccar_device_id = int(vehicle_data['traccar_device_id'])
+                    vehicle = Vehicle.search([
+                        ('traccar_device_id', '=', traccar_device_id),
+                    ], limit=1)
+                except (TypeError, ValueError):
+                    vehicle = False
+            if not vehicle and vehicle_data.get('traccar_unique_id'):
+                vehicle = Vehicle.search([
+                    ('traccar_unique_id', '=', str(vehicle_data['traccar_unique_id'])),
+                ], limit=1)
+            if not vehicle and vehicle_data.get('license_plate'):
+                vehicle = Vehicle.search([
+                    ('license_plate', '=', str(vehicle_data['license_plate'])),
+                ], limit=1)
+            if not vehicle:
+                schedules_skipped.append(vehicle_data.get('name') or 'Vehículo desconocido')
+                continue
+
+            fecha_inicio = schedule.get('fecha_inicio')
+            if not fecha_inicio:
+                schedules_skipped.append(vehicle_data.get('name') or 'Vehículo desconocido')
+                continue
+            try:
+                fecha_inicio_dt = fields.Datetime.from_string(str(fecha_inicio).replace('T', ' ')[:19])
+                fecha_fin_dt = False
+                if schedule.get('fecha_fin_estimada'):
+                    fecha_fin_dt = fields.Datetime.from_string(
+                        str(schedule['fecha_fin_estimada']).replace('T', ' ')[:19]
+                    )
+            except Exception:
+                schedules_skipped.append(vehicle_data.get('name') or 'Vehículo desconocido')
+                continue
+
+            driver = False
+            if schedule.get('driver'):
+                driver = User.search([
+                    ('login', '=', str(schedule['driver'])),
+                ], limit=1)
+            estado = schedule.get('estado') if schedule.get('estado') in (
+                'programado', 'en_curso', 'completado', 'cancelado', 'con_incidencias'
+            ) else 'programado'
+            Recorrido.create({
+                'ruta_id': ruta.id,
+                'vehicle_id': vehicle.id,
+                'conductor_id': driver.id if driver else False,
+                'fecha_inicio': fecha_inicio_dt,
+                'fecha_fin_estimada': fecha_fin_dt,
+                'estado': estado,
+                'simulado': bool(schedule.get('simulado')),
+                'notas': str(schedule.get('notas') or ''),
+            })
+            schedules_created += 1
+
+        return self._json_response({
+            'status': 'ok',
+            'route_id': ruta.id,
+            'route_code': candidate,
+            'schedules_created': schedules_created,
+            'schedules_skipped': schedules_skipped,
+        })
+
     @http.route('/fleet_rutas/rutas/nueva', auth='user', type='http', methods=['GET'])
     def nueva_ruta(self, **kwargs):
         route_id = int(kwargs.get('route_id') or 0)

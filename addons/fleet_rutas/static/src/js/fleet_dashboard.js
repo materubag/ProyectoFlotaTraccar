@@ -199,6 +199,65 @@ class FleetRutasDashboard extends Component {
     if (!this.selectedRoute) return;
     window.open("/fleet_rutas/rutas/nueva?route_id=" + this.selectedRoute.id, "_blank");
   }
+  async exportRoute() {
+    if (!this.selectedRoute) return;
+    const response = await fetch(
+      "/fleet_rutas/rutas/" + this.selectedRoute.id + "/exportar",
+    );
+    if (!response.ok) {
+      alert("No se pudo exportar la ruta.");
+      return;
+    }
+    const blob = await response.blob();
+    const disposition = response.headers.get("Content-Disposition") || "";
+    const match = disposition.match(/filename="([^"]+)"/);
+    const filename = match?.[1] || "ruta.json";
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+  async importRouteFile(event) {
+    const input = event.target;
+    const file = input.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const response = await fetch("/fleet_rutas/rutas/importar", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: text,
+      });
+      let result = {};
+      try {
+        result = await response.json();
+      } catch (e) {
+        alert("Odoo no pudo procesar la importación. Actualiza la página e intenta nuevamente.");
+        return;
+      }
+      if (!response.ok) {
+        alert(result.message || "No se pudo importar la ruta.");
+        return;
+      }
+      const skipped = result.schedules_skipped?.length
+        ? "\nVehículos no encontrados: " + result.schedules_skipped.join(", ")
+        : "";
+      alert(
+        "Ruta importada como " + result.route_code +
+        ". Programaciones creadas: " + result.schedules_created + "." +
+        skipped,
+      );
+      await this.loadData();
+    } catch (e) {
+      alert("No se pudo leer el archivo de ruta.");
+    } finally {
+      input.value = "";
+    }
+  }
   setTripTab(id) {
     this.state.tripTab = id;
     this.save();
@@ -898,10 +957,19 @@ FleetRutasDashboard.template = xml/* xml */`
       </nav>
       <t t-if="state.routeTab==='lista'">
         <div class="fleet_route_toolbar">
-          <span />
-          <button class="btn p uta-btn-primary" t-on-click="openNewRoute">
-            <i class="fa fa-plus" /> Nueva ruta
-          </button>
+          <div class="fleet_route_actions">
+            <input class="fleet_route_import_input" type="file" accept=".json,application/json"
+                   t-on-change="importRouteFile" />
+            <button class="btn s" t-on-click="()=&gt;document.querySelector('.fleet_route_import_input').click()">
+              <i class="fa fa-upload" /> Importar ruta
+            </button>
+            <button class="btn s" t-att-disabled="!selectedRoute" t-on-click="exportRoute">
+              <i class="fa fa-download" /> Exportar ruta
+            </button>
+            <button class="btn p uta-btn-primary" t-on-click="openNewRoute">
+              <i class="fa fa-plus" /> Nueva ruta
+            </button>
+          </div>
         </div>
         <div class="fleet_routes_layout">
           <aside class="card fleet_routes_list">

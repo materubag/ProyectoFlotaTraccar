@@ -1539,6 +1539,17 @@ i.o_facet_remove:hover {
     justify-content:space-between;
     margin:-4px 0 12px;
 }
+.o_fleet_rutas_dashboard .fleet_route_actions{
+    display:flex;
+    justify-content:flex-end;
+    align-items:center;
+    gap:8px;
+    width:100%;
+    flex-wrap:wrap;
+}
+.o_fleet_rutas_dashboard .fleet_route_import_input{
+    display:none;
+}
 .o_fleet_rutas_dashboard .fleet_routes_layout{
     display:grid;
     grid-template-columns:280px minmax(0,1fr);
