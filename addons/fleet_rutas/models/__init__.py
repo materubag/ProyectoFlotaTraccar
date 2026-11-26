@@ -6,3 +6,4 @@ from . import fleet_cumplimiento_parada
 from . import fleet_metricas
 from . import fleet_algoritmos
 from . import fleet_traccar_sync
+from . import res_config_settings

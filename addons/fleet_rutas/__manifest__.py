@@ -34,12 +34,17 @@ Características implementadas:
         'views/fleet_metricas_views.xml',
         'views/fleet_recorrido_views.xml',
         'views/fleet_ruta_views.xml',
+        'views/res_config_settings_views.xml',
+        'views/fleet_vehicle_ui_views.xml',
         'views/menu_views.xml',
     ],
     'demo': ['data/fleet_rutas_demo.xml'],
     'assets': {
         'web.assets_backend': [
             'fleet_rutas/static/src/css/fleet_dashboard.css',
+            'fleet_rutas/static/src/js/theme_service.js',
+            'fleet_rutas/static/src/js/color_picker_field.js',
+            'fleet_rutas/static/src/js/fleet_ui_fields.js',
             'fleet_rutas/static/src/js/fleet_dashboard.js',
         ],
     },

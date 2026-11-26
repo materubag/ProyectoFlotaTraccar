@@ -136,6 +136,18 @@ class FleetTraccarSync(models.Model):
             }
         )
 
+    def _publish_realtime_event(self, event_type: str, payload: dict):
+        """Publica una actualización en el bus interno de Odoo para las vistas en vivo."""
+        message = dict(payload or {})
+        message.update({
+            "event": event_type,
+            "timestamp": fields.Datetime.now().isoformat(),
+        })
+        try:
+            self.env["bus.bus"].sudo().sendone("fleet_rutas/traccar", message)
+        except Exception as exc:  # Bus notifications are supplemental to persisted data
+            _logger.debug("No se pudo publicar el evento Traccar en el bus: %s", exc)
+
     def _finalizar_log(
         self,
         sync_record: "FleetTraccarSync",
@@ -226,6 +238,10 @@ class FleetTraccarSync(models.Model):
             if not vehicles:
                 log_lines.append("No hay vehículos con tracking habilitado.")
                 self._finalizar_log(sync_log, stats, log_lines=log_lines)
+                self._publish_realtime_event("posicion", {
+                    "nuevas": stats["nuevos"],
+                    "vehiculos": len(vehicles),
+                })
                 return stats
 
             device_vehicle_map: Dict[int, object] = {
@@ -240,6 +256,10 @@ class FleetTraccarSync(models.Model):
 
             if not positions:
                 self._finalizar_log(sync_log, stats, log_lines=log_lines)
+                self._publish_realtime_event("posicion", {
+                    "nuevas": stats["nuevos"],
+                    "vehiculos": len(vehicles),
+                })
                 return stats
 
             # ── Cargar IDs ya existentes (evita N queries) ───────────────
@@ -304,6 +324,10 @@ class FleetTraccarSync(models.Model):
                         )
 
             self._finalizar_log(sync_log, stats, log_lines=log_lines)
+            self._publish_realtime_event("posicion", {
+                "nuevas": stats["nuevos"],
+                "vehiculos": len(vehicles),
+            })
             return stats
 
         except TraccarAPIError as exc:
@@ -673,52 +697,87 @@ class FleetTraccarSync(models.Model):
                 self._finalizar_log(sync_log, stats, log_lines=log_lines)
                 return stats
 
-            # Mapear device_id → status desde Traccar
-            device_status_map: Dict[int, str] = {}
+            Vehicle = self.env["fleet.vehicle"].sudo()
+            created = 0
+            updated = 0
+
             for device in devices:
                 d_id = device.get("id")
-                status = device.get("status", "unknown").lower()
-                if isinstance(d_id, int):
-                    device_status_map[d_id] = status
+                unique_id = (device.get("uniqueId") or "").strip()
+                name = (device.get("name") or "").strip()
+                status = str(device.get("status") or "unknown").lower()
+                if not isinstance(d_id, int):
+                    stats["errores"] += 1
+                    continue
 
-            # Obtener vehículos con traccar_device_id
-            vehicles = (
-                self.env["fleet.vehicle"]
-                .sudo()
-                .search([("traccar_device_id", "!=", False)])
-            )
+                vehicle = Vehicle.search([("traccar_device_id", "=", d_id)], limit=1)
+                if not vehicle and unique_id:
+                    vehicle = Vehicle.search([("traccar_unique_id", "=", unique_id)], limit=1)
 
-            updated = 0
-            for vehicle in vehicles:
-                d_id = vehicle.traccar_device_id
-                new_status = device_status_map.get(d_id, "unknown")
-                current_status = vehicle.traccar_device_status or "unknown"
-
-                if new_status != current_status:
-                    try:
-                        vehicle.sudo().write({"traccar_device_status": new_status})
+                try:
+                    if not vehicle:
+                        Brand = self.env["fleet.vehicle.model.brand"].sudo()
+                        Model = self.env["fleet.vehicle.model"].sudo()
+                        brand = Brand.search([("name", "=", "Traccar")], limit=1)
+                        if not brand:
+                            brand = Brand.create({"name": "Traccar"})
+                        model = Model.search([
+                            ("name", "=", "Dispositivo GPS automático"),
+                            ("brand_id", "=", brand.id),
+                        ], limit=1)
+                        if not model:
+                            model = Model.create({
+                                "name": "Dispositivo GPS automático",
+                                "brand_id": brand.id,
+                                "vehicle_type": "car",
+                            })
+                        vehicle = Vehicle.create({
+                            "model_id": model.id,
+                            "license_plate": unique_id or f"TR-{d_id}",
+                            "traccar_tracking_enabled": True,
+                            "traccar_device_id": d_id,
+                            "traccar_unique_id": unique_id or False,
+                            "traccar_device_status": status,
+                        })
+                        created += 1
+                        _logger.info(
+                            "sincronizar_dispositivos: vehículo creado para Traccar ID %d (%s).",
+                            d_id, name or unique_id,
+                        )
+                    else:
+                        vals = {
+                            "traccar_tracking_enabled": True,
+                            "traccar_device_id": d_id,
+                            "traccar_unique_id": unique_id or vehicle.traccar_unique_id,
+                            "traccar_device_status": status,
+                        }
+                        changed = any(vehicle[field] != value for field, value in vals.items())
+                        if changed:
+                            vehicle.write(vals)
                         updated += 1
                         _logger.debug(
                             "sincronizar_dispositivos: vehículo id=%d "
-                            "status %s → %s",
+                            "actualizado desde Traccar.",
                             vehicle.id,
-                            current_status,
-                            new_status,
                         )
-                    except Exception as exc:  # noqa: BLE001
-                        stats["errores"] += 1
-                        _logger.error(
-                            "sincronizar_dispositivos: error actualizando "
-                            "vehículo id=%d — %s",
-                            vehicle.id,
-                            exc,
-                        )
+                except Exception as exc:  # noqa: BLE001
+                    stats["errores"] += 1
+                    _logger.error(
+                        "sincronizar_dispositivos: error procesando "
+                        "dispositivo id=%r — %s",
+                        d_id, exc,
+                    )
 
-            stats["nuevos"] = updated
+            stats["nuevos"] = created
             log_lines.append(
-                f"Vehículos actualizados: {updated} | Errores: {stats['errores']}"
+                f"Vehículos creados: {created} | Vehículos actualizados: {updated} "
+                f"| Errores: {stats['errores']}"
             )
             self._finalizar_log(sync_log, stats, log_lines=log_lines)
+            self._publish_realtime_event("dispositivos", {
+                "created": created,
+                "updated": updated,
+            })
             return stats
 
         except TraccarAPIError as exc:

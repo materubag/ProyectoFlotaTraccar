@@ -32,8 +32,8 @@ class FleetReportsDashboard(models.TransientModel):
         # la barra superior y lateral, dejando solo el contenido del panel)
         embed_url = (
             f"{base_url.rstrip('/')}/d/{dashboard_uid}/flota-vehicular-gps-traccar"
-            f"?orgId=1&from={time_from}&to=now&kiosk=tv&refresh={refresh_interval}s"
-            f"&theme=dark"
+            f"?orgId=1&from={time_from}&to=now&kiosk&refresh={refresh_interval}s"
+            f"&theme=light"
         )
 
         return {

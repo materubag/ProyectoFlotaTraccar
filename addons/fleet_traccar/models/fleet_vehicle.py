@@ -21,6 +21,11 @@ class FleetVehicle(models.Model):
         default=False,
         help='Indica si el vehículo tiene activo el seguimiento en tiempo real mediante Traccar.'
     )
+    traccar_marker_color = fields.Char(
+        string='Color del vehículo en el mapa',
+        default='#714b67',
+        help='Color hexadecimal usado por el marcador de este vehículo.'
+    )
     traccar_last_latitude = fields.Float(
         string='Última Latitud',
         digits=(10, 7),

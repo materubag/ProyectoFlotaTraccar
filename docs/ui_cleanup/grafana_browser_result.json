@@ -1,0 +1,36 @@
+{
+  "iframe_url": "http://localhost:3000/d/fleet-traccar-main/flota-vehicular-gps-traccar?orgId=1&from=now-6h&to=now&kiosk&refresh=30s&theme=light",
+  "colors": {
+    "background": "rgb(244, 244, 244)",
+    "text": "rgb(22, 22, 22)"
+  },
+  "grafana": {
+    "background": "rgb(244, 245, 245)",
+    "text": "rgb(36, 41, 46)",
+    "theme": null
+  },
+  "tabs": [
+    "Panel",
+    "Monitoreo en vivo",
+    "Recorridos",
+    "Rutas y programación",
+    "Métricas",
+    "Sincronización",
+    "Dashboard Grafana"
+  ],
+  "active_tab": "Dashboard Grafana",
+  "dynamic_accent": "rgb(15, 98, 254)",
+  "changed_range": "http://localhost:3000/d/fleet-traccar-main/flota-vehicular-gps-traccar?orgId=1&from=now-24h&to=now&kiosk&refresh=30s&theme=light",
+  "remount": "http://localhost:3000/d/fleet-traccar-main/flota-vehicular-gps-traccar?orgId=1&from=now-6h&to=now&kiosk&refresh=30s&theme=light",
+  "layout": [
+    {
+      "width": 1280,
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "overflow": false
+    }
+  ],
+  "errors": []
+}

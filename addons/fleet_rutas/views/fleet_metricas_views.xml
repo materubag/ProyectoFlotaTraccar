@@ -10,10 +10,7 @@
         <field name="name">fleet.metricas.recorrido.tree</field>
         <field name="model">fleet.metricas.recorrido</field>
         <field name="arch" type="xml">
-            <tree string="Métricas de Calidad de Rutas" create="false" edit="false"
-                  decoration-success="pct_cumplimiento_ruta &gt;= 85"
-                  decoration-warning="pct_cumplimiento_ruta &gt;= 60 and pct_cumplimiento_ruta &lt; 85"
-                  decoration-danger="pct_cumplimiento_ruta &lt; 60">
+            <tree string="Métricas de Calidad de Rutas" create="false" edit="false">
                 <field name="fecha_calculo" string="Fecha Cálculo"/>
                 <field name="recorrido_id" string="Recorrido"/>
                 <field name="ruta_id" string="Ruta"/>

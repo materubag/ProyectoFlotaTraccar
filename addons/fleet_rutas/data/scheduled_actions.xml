@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <data noupdate="1">
+    <data noupdate="0">
         <!-- Cron 1: Sincronizar Última Posición GPS (cada 1 minuto) -->
         <record id="ir_cron_sync_traccar_last_position" model="ir.cron">
             <field name="name">Traccar GPS: Sincronizar Última Posición</field>

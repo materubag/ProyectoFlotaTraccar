@@ -1,0 +1,15 @@
+msgid ""
+msgstr ""
+"Language: es_EC\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#. module: fleet_rutas
+#: model:ir.ui.menu,name:fleet.fleet_vehicle_menu
+msgid "Vehículos"
+msgstr "Vehículos"
+
+#. module: fleet_rutas
+#: model:ir.ui.menu,name:fleet.fleet_models_configuration
+msgid "Catálogo de vehículos"
+msgstr "Catálogo de vehículos"
