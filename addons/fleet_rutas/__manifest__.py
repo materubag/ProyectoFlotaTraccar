@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Fleet Rutas — Sistema de Monitoreo de Rutas Universitarias',
-    'version': '16.0.1.0.0',
+    'version': '16.0.2.0.0',
     'category': 'Fleet',
     'summary': 'Monitoreo y evaluación de rutas de transporte universitario con métricas ISO/IEC 25010',
     'description': """
@@ -26,8 +26,10 @@ Características implementadas:
         'fleet_traccar',
         'web',
         'mail',
+        'portal',
     ],
     'data': [
+        'security/mobile_security.xml',
         'security/ir.model.access.csv',
         'data/scheduled_actions.xml',
         'views/fleet_dashboard_views.xml',
@@ -37,6 +39,7 @@ Características implementadas:
         'views/res_config_settings_views.xml',
         'views/fleet_vehicle_ui_views.xml',
         'views/menu_views.xml',
+        'views/mobile_views.xml',
     ],
     'demo': ['data/fleet_rutas_demo.xml'],
     'assets': {

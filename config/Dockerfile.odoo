@@ -1,0 +1,5 @@
+ARG ODOO_IMAGE_TAG=16
+FROM odoo:${ODOO_IMAGE_TAG}
+USER root
+RUN pip3 install --no-cache-dir 'pywebpush>=2.0,<3'
+USER odoo

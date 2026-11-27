@@ -36,7 +36,12 @@ services:
           - db
 
   odoo:
-    image: odoo:${ODOO_IMAGE_TAG:-16}
+    image: flota-odoo:${ODOO_IMAGE_TAG:-16}
+    build:
+      context: ./config
+      dockerfile: Dockerfile.odoo
+      args:
+        ODOO_IMAGE_TAG: ${ODOO_IMAGE_TAG:-16}
     container_name: flota-odoo
     restart: always
     depends_on:

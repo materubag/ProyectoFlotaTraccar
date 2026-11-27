@@ -2,14 +2,20 @@
 import json
 from html import escape
 
+from werkzeug.exceptions import Forbidden
 from odoo import http, fields
 from odoo.http import request, Response
 
 
 class FleetMapa(http.Controller):
+    def _require_admin(self):
+        if not request.env.user.has_group('fleet_rutas.group_fleet_admin'):
+            raise Forbidden('Solo el administrador de Flota puede acceder a esta página.')
+
     @http.route('/fleet_rutas/rutas/<int:route_id>/exportar', auth='user',
                 type='http', methods=['GET'], csrf=False)
     def exportar_ruta(self, route_id, **kwargs):
+        self._require_admin()
         ruta = request.env['fleet.ruta'].sudo().browse(route_id).exists()
         if not ruta:
             return request.not_found()
@@ -73,6 +79,7 @@ class FleetMapa(http.Controller):
     @http.route('/fleet_rutas/rutas/importar', auth='user',
                 type='http', methods=['POST'], csrf=False)
     def importar_ruta(self, **kwargs):
+        self._require_admin()
         try:
             payload = json.loads(request.httprequest.data.decode('utf-8'))
         except (ValueError, UnicodeDecodeError):
@@ -229,6 +236,7 @@ class FleetMapa(http.Controller):
 
     @http.route('/fleet_rutas/rutas/nueva', auth='user', type='http', methods=['GET'])
     def nueva_ruta(self, **kwargs):
+        self._require_admin()
         route_id = int(kwargs.get('route_id') or 0)
         route_data = {'name': 'Ruta D', 'distance': 0, 'departure': '08:00', 'corridor': 100, 'points': []}
         if route_id:
@@ -343,6 +351,7 @@ if(editingRouteId && points.length){setTimeout(()=>redraw(true),100)}
 
     @http.route('/fleet_rutas/rutas/crear', auth='user', type='http', methods=['POST'], csrf=False)
     def crear_ruta(self, **kwargs):
+        self._require_admin()
         try:
             payload = json.loads(request.httprequest.data.decode('utf-8'))
             name = payload['name']
@@ -409,6 +418,7 @@ if(editingRouteId && points.length){setTimeout(()=>redraw(true),100)}
     @http.route('/fleet_rutas/vehiculos_vivos', auth='user', type='http',
                 methods=['GET'], csrf=False)
     def vehiculos_vivos(self, **kwargs):
+        self._require_admin()
         vehicles = request.env['fleet.vehicle'].sudo().search([
             ('traccar_tracking_enabled', '=', True),
         ], order='traccar_last_update desc')
@@ -448,6 +458,7 @@ if(editingRouteId && points.length){setTimeout(()=>redraw(true),100)}
     @http.route('/fleet_rutas/asignar_ruta', auth='user', type='http',
                 methods=['POST'], csrf=False)
     def asignar_ruta(self, **kwargs):
+        self._require_admin()
         try:
             payload = json.loads(request.httprequest.data.decode('utf-8') or '{}')
             vehicle_id = int(payload['vehicle_id'])
@@ -501,6 +512,7 @@ if(editingRouteId && points.length){setTimeout(()=>redraw(true),100)}
 
     @http.route('/fleet_rutas/mapa/vivo', auth='user', type='http', methods=['GET'])
     def mapa_vivo(self, **kwargs):
+        self._require_admin()
         routes = request.env['fleet.ruta'].sudo().search([('estado', '=', 'activa')], order='name')
         routes_json = json.dumps([{'id': route.id, 'name': route.name} for route in routes])
         route_options = ''.join(
@@ -681,6 +693,7 @@ setInterval(refresh, 5000);
     @http.route('/fleet_rutas/repeticion/<int:recorrido_id>/datos', auth='user',
                 type='http', methods=['GET'], csrf=False)
     def repeticion_datos(self, recorrido_id, **kwargs):
+        self._require_admin()
         rec = request.env['fleet.recorrido'].sudo().browse(recorrido_id).exists()
         if not rec:
             return self._json_response({'status': 'error', 'message': 'Recorrido no encontrado'}, 404)
@@ -723,6 +736,7 @@ setInterval(refresh, 5000);
     @http.route('/fleet_rutas/repeticion/<int:recorrido_id>', auth='user',
                 type='http', methods=['GET'])
     def repeticion(self, recorrido_id, **kwargs):
+        self._require_admin()
         rec = request.env['fleet.recorrido'].sudo().browse(recorrido_id).exists()
         if not rec:
             return request.not_found()
@@ -836,6 +850,7 @@ loadTrack();
 
     @http.route('/fleet_rutas/mapa/<int:recorrido_id>', auth='user', type='http')
     def mapa(self, recorrido_id, **kwargs):
+        self._require_admin()
         rec = request.env['fleet.recorrido'].browse(recorrido_id).exists()
         if not rec:
             return request.not_found()
