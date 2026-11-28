@@ -434,6 +434,27 @@ OSRM calcula un camino para automóvil que puede incluir rodeos: **cada trazado 
 
 La app es una PWA servida por Odoo. Confirmar con el ingeniero que cumple "aplicación móvil sencilla aparte".
 
+### Ciclo 2a — realizado (28/11/2026): estimación de llegada en la app del pasajero (O1, H18)
+- **Hacer:** el vehículo se proyecta sobre el trazado; hasta la próxima parada se usa la velocidad de los últimos 3 min (o la prevista por el horario si está detenido) y después los intervalos del horario. No se muestra estimación con señal de más de 120 s, a más de 150 m del trazado o sin posiciones. La app presenta próxima parada, minutos, hora, puntualidad y la lista de paradas. No usa tiempos históricos.
+- **Verificar:** 12 de 12 casos de integración ([resultados](ciclo_eta/pruebas.json), `pwsh scripts/pruebas/prueba_eta.ps1`) y 94 pruebas Pytest (sin `test_revision_pdf.py`). Error en 6 viajes **simulados** (ruta recta, velocidad constante por tramo, ruido de ±5 m, 414 estimaciones):
+
+| Perfil | Error medio de la estimación (min) | Error de suponer el horario (min) |
+|---|--:|--:|
+| Puntual | 0,21 | 0,16 |
+| Sale 6 min tarde | 1,06 | 5,88 |
+| Lento | 1,39 | 5,78 |
+| Rápido | 0,54 | 3,00 |
+| Detenciones de 60 s | 0,49 | 1,00 |
+| Congestión en un tramo | 1,28 | 3,55 |
+| **Total** | **0,93** | **3,65** |
+
+  Percentil 90 del error: 2,57 min. A 5 min o menos de la llegada: 0,47 min. Cálculo: 1,8 ms de media. Cumple la meta propuesta de 3 min **en simulación**; las calles, semáforos y paradas reales aumentarán el error.
+
+![App con estimación (recorrido simulado)](ciclo_eta/app_estimacion.png)
+
+  La captura usa un recorrido simulado en una copia, con posiciones fechadas hasta unos minutos después de la consulta.
+- **Actuar:** medir con recorridos reales mediante `evaluar_estimaciones()`; valorar tiempos históricos por tramo; publicar Odoo por HTTPS (H19).
+
 ### Ciclo 3 — Experiencia en Odoo (O3, O4, O5)
 | Fase | Contenido |
 |---|---|

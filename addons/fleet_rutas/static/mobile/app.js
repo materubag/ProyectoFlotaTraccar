@@ -9,6 +9,35 @@
     programado: 'Programado', en_curso: 'En curso', completado: 'Completado',
     cancelado: 'Cancelado', con_incidencias: 'Con incidencias'};
   const date = value => value ? new Date(value).toLocaleString('es-EC', {dateStyle: 'medium', timeStyle: 'short'}) : 'Sin registro';
+  const clock = value => new Date(value).toLocaleTimeString('es-EC', {hour: '2-digit', minute: '2-digit'});
+  const punctuality = stop => stop.late ? 'Atrasado ' + Math.round(stop.delay) + ' min' : 'A tiempo';
+  function arrivalPanel(eta) {
+    const box = node('div', undefined, 'eta');
+    if (!eta) return box;
+    const pending = eta.stops.filter(s => s.state === 'pendiente');
+    const next = pending.find(s => s.estimated);
+    if (next) {
+      const head = node('div', undefined, 'eta-next' + (next.late ? ' late' : ''));
+      head.append(node('small', 'Próxima parada'), node('strong', next.name),
+        node('span', (next.minutes ? 'Llega en unos ' + next.minutes + ' min' : 'Está llegando') + ' · ' + clock(next.estimated) + ' · ' + punctuality(next)),
+        node('small', 'Hora programada ' + clock(next.scheduled)));
+      box.append(head);
+    } else if (eta.reason) {
+      box.append(node('p', 'Sin estimación de llegada: ' + eta.reason.toLocaleLowerCase('es') + '.', 'eta-reason'));
+    }
+    const list = node('ol', undefined, 'eta-list');
+    eta.stops.forEach(s => {
+      let detail = 'Programada ' + clock(s.scheduled);
+      if (s.state === 'visitada') detail = 'Visitada a las ' + clock(s.arrived);
+      else if (s.state === 'omitida') detail = 'Sin visita registrada';
+      else if (s.estimated) detail = 'Estimada ' + clock(s.estimated) + ' · ' + punctuality(s);
+      const item = node('li', undefined, s.state + (s.late ? ' late' : ''));
+      item.append(node('b', s.name), node('small', detail));
+      list.append(item);
+    });
+    box.append(list);
+    return box;
+  }
   function node(tag, text, cls) {
     const el = document.createElement(tag);
     if (text !== undefined) el.textContent = text;
@@ -60,7 +89,7 @@
       if (path.length > 1) L.polyline(path, {color: '#0057ff', weight: 4, dashArray: route.approximate ? '8 7' : null}).addTo(layers);
       route.stops.forEach((p, i) => {
         L.marker([p.lat, p.lng], {icon: L.divIcon({className: 'stop-marker', html: String(i + 1), iconSize: [26, 26]})})
-          .bindPopup(node('span', p.name + ' · ' + p.time)).addTo(layers);
+          .bindPopup(node('span', p.name + ' · ' + stopTime(route, p))).addTo(layers);
       });
       points.push(...path);
       const vehicles = state.vehicles.filter(v => v.route_id === route.id);
@@ -70,6 +99,7 @@
         const info = node('div');
         info.append(node('strong', v.name));
         info.append(node('span', v.position ? (v.position.stale ? 'Señal sin actualizar' : 'Última posición recibida') + ' · ' + v.position.speed.toFixed(0) + ' km/h · ' + date(v.position.at) : 'Esperando la primera posición GPS.'));
+        info.append(arrivalPanel(v.eta));
         $('vehicle-info').append(info);
         if (v.position) {
           const p = v.position;
@@ -81,6 +111,11 @@
     }
     map.invalidateSize();
     if (fit && points.length) map.fitBounds(L.latLngBounds(points), {padding: [35, 35], maxZoom: 16});
+  }
+  function stopTime(route, stop) {
+    const live = state.vehicles.filter(v => v.route_id === route.id)
+      .flatMap(v => v.eta?.stops || []).find(s => s.id === stop.id && s.estimated);
+    return live ? 'llega ' + clock(live.estimated) : 'programada ' + stop.time;
   }
   let viewingTrack = false;
   function selectRoute(id) {

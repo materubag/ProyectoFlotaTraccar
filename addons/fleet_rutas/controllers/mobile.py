@@ -31,6 +31,19 @@ def json_response(data):
     return private_response(json.dumps(data, ensure_ascii=False))
 
 
+def arrivals(trip, now):
+    """Estimación para el pasajero: solo nombres, horas y estado de cada parada."""
+    def iso(value):
+        return value.isoformat() + 'Z' if value else None
+    result = trip.estimar_llegadas(ahora=now)
+    return {'reason': result['motivo'], 'stops': [{
+        'id': s['id'], 'name': s['nombre'], 'state': s['estado'],
+        'scheduled': iso(s['programada']), 'arrived': iso(s['llegada']),
+        'estimated': iso(s['estimada']), 'minutes': s['minutos'], 'delay': s['retraso_min'],
+        'late': s['retraso_min'] is not None and s['retraso_min'] > s['tolerancia_min'],
+    } for s in result['paradas']]}
+
+
 def route_domain(user):
     return [('mobile_user_ids', 'in', [user.id])]
 
@@ -100,7 +113,8 @@ class FleetMobile(http.Controller):
                 'name': trip.vehicle_id.license_plate or 'Vehículo',
                 'position': {'lat': pos.latitud, 'lng': pos.longitud,
                     'speed': pos.velocidad_kmh, 'at': pos.timestamp.isoformat() + 'Z',
-                    'stale': (now - pos.timestamp).total_seconds() > 120} if pos else None})
+                    'stale': (now - pos.timestamp).total_seconds() > 120} if pos else None,
+                'eta': arrivals(trip, now)})
         incidents = request.env['fleet.incidencia'].sudo().search([
             ('ruta_id', 'in', route_ids), ('resuelta', '=', False),
             ('validacion', '!=', 'falso')], order='id desc', limit=100)
@@ -114,7 +128,7 @@ class FleetMobile(http.Controller):
             'routes': [{'id': r.id, 'name': r.name, 'origin': r.origen, 'destination': r.destino,
                 'status': r.estado, 'duration': r.duracion_estimada_min,
                 'path': r.puntos_referencia(), 'approximate': not r.trazado_vigente,
-                'stops': [{'name': p.name, 'lat': p.latitud, 'lng': p.longitud,
+                'stops': [{'id': p.id, 'name': p.name, 'lat': p.latitud, 'lng': p.longitud,
                     'time': p.hora_prevista_str} for p in r.parada_ids.sorted('secuencia')]}
                 for r in routes], 'vehicles': vehicles,
             'incidents': [{'id': i.id, 'route_id': i.ruta_id.id, 'route': i.ruta_id.name,

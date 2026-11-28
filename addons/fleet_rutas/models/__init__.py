@@ -10,3 +10,4 @@ from . import res_config_settings
 from . import fleet_mobile
 from . import fleet_trazado
 from . import fleet_automatico
+from . import fleet_eta

@@ -123,6 +123,11 @@ try {
   await clic('.fleet_nav_item', 'Panel'); await foto('14_panel_movil');
   await entrar('ui_pasajero');
   await ir('/flota/app', 9000); await foto('15_pasajero_en_vivo');
+  if (process.env.UI_EN_VIVO === '1') {
+    await clic('.route-card', 'Centro', 6000);
+    await js(`document.querySelector('.eta')?.scrollIntoView({block: 'start'})`);
+    await dormir(1500); await foto('15b_pasajero_estimacion');
+  }
   await clic('[data-tab="history"]', '', 4000); await foto('16_pasajero_recorridos');
   await clic('[data-tab="alerts"]', '', 3000); await foto('17_pasajero_avisos');
 } finally {

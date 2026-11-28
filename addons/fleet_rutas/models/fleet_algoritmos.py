@@ -212,6 +212,46 @@ def elegir_secuencia_minima(tamanos: List[int], matriz: List[List[Optional[float
     return min(mejores.values())[1]
 
 
+def proyectar_en_polilinea(lat: float, lon: float, linea: List[Tuple[float, float]],
+                           desde_m: float = 0.0, empate_m: float = 30.0):
+    """
+    Proyecta un punto sobre la línea, sin retroceder de ``desde_m``.
+
+    Devuelve (metros recorridos sobre la línea, separación en metros). Cuando la línea
+    pasa dos veces por el mismo sitio (ida y vuelta) se elige el primer paso posible.
+    """
+    candidatos, acumulado = [], 0.0
+    for (lat_a, lon_a), (lat_b, lon_b) in zip(linea, linea[1:]):
+        largo = haversine_distance_m(lat_a, lon_a, lat_b, lon_b)
+        if largo and acumulado + largo >= desde_m:
+            escala = math.cos(math.radians((lat_a + lat_b) / 2))
+            bx, by = (lon_b - lon_a) * escala, lat_b - lat_a
+            t = ((lon - lon_a) * escala * bx + (lat - lat_a) * by) / (bx * bx + by * by)
+            t = max(0.0, min(1.0, t), (desde_m - acumulado) / largo)
+            separacion = haversine_distance_m(
+                lat, lon, lat_a + t * (lat_b - lat_a), lon_a + t * (lon_b - lon_a))
+            candidatos.append((acumulado + t * largo, separacion))
+        acumulado += largo
+    if not candidatos:
+        return None, float('inf')
+    limite = min(c[1] for c in candidatos) + empate_m
+    primero = next(i for i, c in enumerate(candidatos) if c[1] <= limite)
+    inicio = candidatos[primero][0]
+    paso = [c for c in candidatos[primero:] if c[0] - inicio <= 100]
+    return min(paso, key=lambda c: c[1])
+
+
+def progresos_paradas(paradas: List[Tuple[float, float]],
+                      linea: List[Tuple[float, float]]) -> List[float]:
+    """Metros sobre la línea a los que queda cada parada, siempre en orden creciente."""
+    avances, previo = [], 0.0
+    for lat, lon in paradas:
+        avance, _ = proyectar_en_polilinea(lat, lon, linea, previo)
+        previo = previo if avance is None else avance
+        avances.append(previo)
+    return avances
+
+
 def limpiar_posiciones_gps(posiciones: List[Dict], precision_max_m: float = 30.0,
                            velocidad_max_kmh: float = 120.0,
                            separacion_min_m: float = 5.0) -> List[Tuple[float, float]]:
