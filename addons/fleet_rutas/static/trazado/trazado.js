@@ -117,16 +117,20 @@
     if (window.confirm('¿Quitar el trazado guardado de esta ruta?')) aplicar('quitar', {});
   });
 
+  // La salida está siempre disponible; avisa si hay una propuesta sin guardar.
+  function salir(destino) {
+    if (!propuesta || window.confirm('La propuesta no está guardada. ¿Salir sin guardarla?')) {
+      location.assign(destino);
+    }
+  }
+  $('volver').addEventListener('click', () => salir(`/fleet_rutas/rutas/nueva?route_id=${datos.id}`));
+  $('salir').addEventListener('click', () => salir(panel));
+
   if (asistente) {
-    $('paso').hidden = $('navegacion').hidden = false;
+    $('paso').hidden = false;
     $('quitar').hidden = true;
     $('guardar').textContent = 'Guardar trazado y finalizar';
-    $('volver').addEventListener('click', () => location.assign(`/fleet_rutas/rutas/nueva?route_id=${datos.id}`));
-    $('sinTrazado').addEventListener('click', () => location.assign(panel));
-    if (datos.vigente) {
-      $('sinTrazado').textContent = 'Finalizar con el trazado actual';
-    } else {
-      proponer({ origen: 'osrm' });
-    }
+    $('salir').textContent = datos.vigente ? 'Finalizar con el trazado actual' : 'Continuar sin trazado';
+    if (!datos.vigente) proponer({ origen: 'osrm' });
   }
 })();

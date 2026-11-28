@@ -166,7 +166,7 @@ class FleetMetricasRecorrido(models.Model):
             return self.browse()
 
         posiciones = recorrido.posicion_ids.sorted('timestamp')
-        paradas = recorrido.ruta_id.parada_ids.sorted('secuencia')
+        paradas = recorrido.paradas_del_recorrido()
         cumplimientos = recorrido.cumplimiento_parada_ids
 
         # Preparar datos para los algoritmos

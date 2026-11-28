@@ -211,15 +211,15 @@ class FleetRutasDashboard extends Component {
     this.save();
   }
   openNewRoute() {
-    window.open("/fleet_rutas/rutas/nueva", "_blank");
+    window.location.assign("/fleet_rutas/rutas/nueva");
   }
   openEditRoute() {
     if (!this.selectedRoute) return;
-    window.open("/fleet_rutas/rutas/nueva?route_id=" + this.selectedRoute.id, "_blank");
+    window.location.assign("/fleet_rutas/rutas/nueva?route_id=" + this.selectedRoute.id);
   }
   openRoutePath() {
     if (!this.selectedRoute) return;
-    window.open("/fleet_rutas/trazado/" + this.selectedRoute.id, "_blank");
+    window.location.assign("/fleet_rutas/trazado/" + this.selectedRoute.id);
   }
   async exportRoute() {
     if (!this.selectedRoute) return;
@@ -350,8 +350,10 @@ class FleetRutasDashboard extends Component {
               "radio_proximidad_m",
               "latitud",
               "longitud",
+              "active",
             ],
-            [],
+            // Incluye las archivadas: el detalle de recorridos antiguos las necesita.
+            [["active", "in", [true, false]]],
             "secuencia,id",
           ),
           this.rows("fleet.vehicle", [
@@ -554,7 +556,7 @@ class FleetRutasDashboard extends Component {
   }
   get routeStops() {
     return this.selectedRoute
-      ? this.state.stops.filter((p) => p.ruta_id[0] === this.selectedRoute.id)
+      ? this.state.stops.filter((p) => p.active && p.ruta_id[0] === this.selectedRoute.id)
       : [];
   }
   get activeTrips() {
@@ -607,8 +609,10 @@ class FleetRutasDashboard extends Component {
   get detailRows() {
     const trip = this.selectedTrip;
     if (!trip) return [];
-    const stops = this.state.stops.filter(
-      (p) => p.ruta_id[0] === trip.ruta_id[0],
+    // Un recorrido iniciado se muestra con las paradas que registró.
+    const visited = new Set(this.state.detailStops.map((c) => c.parada_id[0]));
+    const stops = this.state.stops.filter((p) =>
+      visited.size ? visited.has(p.id) : p.active && p.ruta_id[0] === trip.ruta_id[0],
     );
     const base = stops.length ? Math.round(stops[0].hora_prevista * 60) : 0;
     return stops.map((p) => {

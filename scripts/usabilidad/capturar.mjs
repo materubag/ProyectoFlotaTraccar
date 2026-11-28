@@ -100,8 +100,17 @@ try {
   // Asistente de rutas completo sobre la copia temporal.
   await ir('/fleet_rutas/rutas/nueva', 4000);
   if (await js(`!!document.getElementById('savePath')`)) {
+    const bloqueados = () => js(`document.getElementById('save').disabled && document.getElementById('savePath').disabled`);
+    const comprobar = async (esperado, caso) => {
+      if (await bloqueados() !== esperado) errores.push({ pantalla: 'editor', error: caso });
+    };
+    await comprobar(true, 'Con 0 puntos los botones deben estar bloqueados');
+    await js(`points.push({lat:-1.2634,lng:-78.6013,name:'Uno',time:'08:00'}); redraw()`);
+    await comprobar(true, 'Con 1 punto los botones deben estar bloqueados');
+    await js(`points.length = 0; redraw()`);
     await js(`points.push({lat:-1.2634,lng:-78.6013,name:'Inicio',time:'08:00'},
       {lat:-1.2560,lng:-78.6000,name:'Final',time:'08:15'}); redraw(true)`);
+    await comprobar(false, 'Con 2 puntos los botones deben estar activos');
     await dormir(3000); await foto('06c_editor');
     await clic('#savePath', '', 14000); await foto('06d_paso_trazado');
     await clic('#guardar', '', 12000); await foto('06e_ruta_creada');

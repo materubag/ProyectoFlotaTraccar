@@ -375,6 +375,12 @@ OSRM calcula un camino para automóvil que puede incluir rodeos: **cada trazado 
 |---|---|
 | ![Editor](ciclo_trazado/06c_editor.png) | ![Paso de trazado](ciclo_trazado/06d_paso_trazado.png) |
 
+### Ciclo 1e — realizado (28/11/2026): editar rutas con historial (H08)
+- **Planificar:** editar una ruta con recorridos registrados fallaba (`ForeignKeyViolation`) porque el editor borraba todas las paradas.
+- **Hacer:** conservar las paradas sin cambios; sustituir las modificadas archivando las que tengan historial; impedir cambios de paradas con un recorrido en curso; guardar ruta y paradas como una sola operación; proteger la edición y el borrado directos; mostrar cada recorrido con las paradas que registró. De paso, una tolerancia de 0 minutos ya no se convierte en 5.
+- **Verificar:** la misma prueba en una copia de la base: [antes](ciclo_editar_ruta/antes.json) 1 comprobación correcta y varios grupos interrumpidos por error; [después](ciclo_editar_ruta/despues.json) 17 de 17. `pwsh scripts/pruebas/prueba_editar_ruta.ps1`.
+- **Límite:** las paradas se conservan, pero el trazado de referencia no tiene versiones: reprocesar posiciones de un recorrido antiguo usa el trazado actual. Las métricas ya calculadas no cambian.
+
 ### Ciclo 2 — Aplicación del pasajero con ETA (O1)
 | Fase | Contenido |
 |---|---|

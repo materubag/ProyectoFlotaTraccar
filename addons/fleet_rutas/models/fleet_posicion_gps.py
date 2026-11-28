@@ -268,7 +268,7 @@ class FleetPosicionGps(models.Model):
             if dist <= parada.radio_proximidad_m:
                 retraso_min = 0
                 if recorrido.fecha_inicio:
-                    primera = recorrido.ruta_id.parada_ids.sorted('secuencia')[:1]
+                    primera = recorrido.paradas_del_recorrido()[:1]
                     # La primera parada ancla el horario al inicio programado de cada asignación.
                     offset_min = (round(parada.hora_prevista * 60) - round(primera.hora_prevista * 60)) % 1440
                     programado = recorrido.fecha_inicio + timedelta(minutes=offset_min)

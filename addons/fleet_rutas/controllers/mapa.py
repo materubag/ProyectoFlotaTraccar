@@ -5,6 +5,7 @@ from html import escape
 from werkzeug.exceptions import Forbidden
 
 from odoo import http, fields
+from odoo.exceptions import UserError, ValidationError
 from odoo.http import request, Response
 
 from ..models.fleet_algoritmos import longitud_polilinea_m
@@ -241,7 +242,7 @@ class FleetMapa(http.Controller):
     def nueva_ruta(self, **kwargs):
         self._require_admin()
         route_id = int(kwargs.get('route_id') or 0)
-        route_data = {'name': 'Ruta D', 'distance': 0, 'departure': '08:00', 'corridor': 100, 'points': []}
+        route_data = {'name': '', 'distance': 0, 'departure': '08:00', 'corridor': 100, 'points': []}
         if route_id:
             ruta = request.env['fleet.ruta'].sudo().browse(route_id).exists()
             if not ruta:
@@ -274,33 +275,34 @@ class FleetMapa(http.Controller):
 <style>
 *{box-sizing:border-box} body{margin:0;font-family:Arial,sans-serif;background:#f4f5f7;color:#1f2937}
 .header{height:72px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;background:#fff;border-bottom:1px solid #e5e7eb}
-.header h1{font-size:24px;margin:0}.mode{display:flex;gap:8px}
-.mode button{border:1px solid #d1d5db;background:#fff;padding:9px 14px;border-radius:8px;cursor:pointer}.mode button.active{background:#dbeafe;color:#1d4ed8;border-color:#bfdbfe}
+.header h1{font-size:24px;margin:0}
+
 .layout{display:grid;grid-template-columns:minmax(0,1fr) 440px;height:calc(100vh - 72px)}
 .map-wrap{position:relative;padding:16px}.map-wrap input{position:absolute;z-index:500;top:28px;left:28px;width:280px;height:38px;border:1px solid #d1d5db;border-radius:8px;padding:0 12px}
 #map{height:100%;border-radius:12px;border:1px solid #dfe3e8}
 .panel{background:#fff;border-left:1px solid #e5e7eb;padding:20px;overflow:auto}.field{margin-bottom:14px}.field label{display:block;font-size:13px;color:#6b7280;margin-bottom:6px}
 .field input{width:100%;height:42px;border:1px solid #d1d5db;border-radius:8px;padding:0 10px}.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .metric{font-size:13px;color:#6b7280}.metric strong{display:block;color:#111827;font-size:16px;margin-top:3px}
-.point{display:grid;grid-template-columns:28px 1fr auto;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid #edf0f3}.seq{width:24px;height:24px;border-radius:50%;background:#2563eb;color:#fff;text-align:center;line-height:24px;font-weight:bold}
-.point small{display:block;color:#6b7280}.point input{width:72px;border:1px solid #d1d5db;border-radius:6px;padding:5px}.coords{display:none}.coords .coord-row{display:grid;grid-template-columns:28px 1fr 1fr 1fr auto;gap:6px;margin:6px 0}.coords input{min-width:0;height:34px}
-.footer{position:sticky;bottom:-20px;background:#fff;border-top:1px solid #e5e7eb;padding:14px 0 0;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px}.footer button:disabled{opacity:.5;cursor:default}
+.point{display:grid;grid-template-columns:28px minmax(0,1fr) 96px 30px;align-items:center;gap:6px 8px;padding:10px 0;border-bottom:1px solid #edf0f3}.seq{width:24px;height:24px;border-radius:50%;background:#2563eb;color:#fff;text-align:center;line-height:24px;font-weight:bold}
+.point input{width:100%;min-width:0;height:32px;border:1px solid #d1d5db;border-radius:6px;padding:0 6px}.point .latlng{grid-column:2/-1;display:grid;grid-template-columns:1fr 1fr;gap:8px}.latlng label{display:flex;align-items:center;gap:4px;font-size:12px;color:#6b7280}
+.point .remove{height:30px;border:0;border-radius:6px;background:#e5e7eb;cursor:pointer}.add{width:100%;height:36px;margin-top:10px;border:1px dashed #9ca3af;border-radius:8px;background:#fff;cursor:pointer}
+.footer{position:sticky;bottom:-20px;background:#fff;border-top:1px solid #e5e7eb;padding:14px 0 0;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px}.footer button:disabled{opacity:.5;cursor:not-allowed}.footer small{flex-basis:100%;text-align:right;color:#6b7280}.footer small[hidden]{display:none}
 .footer button{height:40px;border:0;border-radius:8px;padding:0 10px;font-size:13px;white-space:nowrap;cursor:pointer}.cancel{background:#e5e7eb}.save{background:#2563eb;color:#fff}.hint{background:#dbeafe;color:#2563eb;padding:12px;border-radius:8px;font-size:13px;margin-top:10px;text-align:center}
 @media(max-width:900px){.layout{grid-template-columns:1fr}.panel{border-left:0}.map-wrap{height:420px}}
 </style>
 </head>
 <body>
-<div class="header"><h1>__ROUTE_TITLE__</h1><div class="mode"><button id="modeMap" class="active">Por mapa</button><button id="modeCoords">Por coordenadas</button></div></div>
+<div class="header"><h1>__ROUTE_TITLE__</h1></div>
 <div class="layout">
 <div class="map-wrap" id="mapWrap"><input id="search" placeholder="Buscar dirección o lugar"><div id="map"></div></div>
 <aside class="panel">
-<div class="row"><div class="field"><label>Nombre de la ruta</label><input id="name" value="__ROUTE_NAME__"></div><div class="field"><label>Hora de salida</label><input id="departure" type="time" value="__ROUTE_DEPARTURE__"></div></div>
+<div class="row"><div class="field"><label>Nombre de la ruta</label><input id="name" value="__ROUTE_NAME__" placeholder="Ej.: Ficoa - UTA"></div><div class="field"><label>Hora de salida</label><input id="departure" type="time" value="__ROUTE_DEPARTURE__"></div></div>
 <div class="row"><div class="metric">Distancia estimada<strong id="distance">__ROUTE_DISTANCE__ km (calculada)</strong></div><div class="field"><label>Corredor de desvío (m)</label><input id="corridor" type="number" value="__ROUTE_CORRIDOR__"></div></div>
 <h3>Puntos de control: <span id="pointCount">0</span></h3>
 <div id="points"></div>
-<div class="coords" id="coords"><div class="coord-row"><b>#</b><b>Latitud</b><b>Longitud</b><b>Nombre</b><b></b></div><div id="coordRows"></div><button type="button" id="addCoord" class="cancel">Agregar punto</button></div>
-<div class="hint" id="hint">Haz clic en el mapa para agregar un punto. Arrastra los marcadores para moverlos.</div>
-<div class="footer"><button class="cancel" onclick="location.href='/web#menu_id=0&action=fleet_rutas.action_fleet_rutas_dashboard'">Cancelar</button><button class="cancel" id="save">Guardar sin trazado</button><button class="save" id="savePath">Continuar con trazado</button></div>
+<button type="button" id="addCoord" class="add">Agregar por coordenadas</button>
+<div class="hint" id="hint">Haz clic en el mapa para agregar un punto o edita sus coordenadas en la lista. Arrastra los marcadores para moverlos. Clic derecho sobre un punto para eliminarlo.</div>
+<div class="footer"><button class="cancel" onclick="location.href='/web#menu_id=0&action=fleet_rutas.action_fleet_rutas_dashboard'">Cancelar</button><button class="cancel" id="save" disabled>Guardar sin trazado</button><button class="save" id="savePath" disabled>Continuar con trazado</button><small id="minimo" role="status">Agrega al menos dos puntos de control para guardar.</small></div>
 </aside>
 </div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -309,32 +311,41 @@ const map=L.map('map').setView([-1.249,-78.617],13);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
 const editingRouteId=__EDIT_ROUTE_ID__;
 let points=__ROUTE_POINTS__;
-let routeLine=null;let mode='map';
+let routeLine=null;
 function haversine(a,b){const R=6371,p1=a.lat*Math.PI/180,p2=b.lat*Math.PI/180,d=Math.PI*(b.lat-a.lat)/180,x=Math.PI*(b.lng-a.lng)/180,s=Math.sin(d/2)**2+Math.cos(p1)*Math.cos(p2)*Math.sin(x/2)**2;return 2*R*Math.asin(Math.sqrt(s))}
 function distance(){let d=0;for(let i=1;i<points.length;i++)d+=haversine(points[i-1],points[i]);document.getElementById('distance').textContent=d.toFixed(2)+' km (calculada)';return d}
 function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function removePoint(i){points.splice(i,1);redraw()}
 function redraw(fitAll=false){
 map.eachLayer(layer=>{if(layer.options&&layer.options.routeMarker)map.removeLayer(layer)});
 if(routeLine){map.removeLayer(routeLine);routeLine=null}
-points.forEach((p,i)=>{const icon=L.divIcon({className:'',html:'<div style="width:28px;height:28px;border-radius:50%;background:#2563eb;color:white;border:3px solid white;line-height:22px;text-align:center;font-weight:bold;box-shadow:0 2px 6px #777">'+(i+1)+'</div>',iconSize:[28,28],iconAnchor:[14,14]});const marker=L.marker([p.lat,p.lng],{icon,draggable:true,routeMarker:true}).addTo(map);marker.on('dragend',e=>{p.lat=e.target.getLatLng().lat;p.lng=e.target.getLatLng().lng;renderPoints();redraw()})});
+points.forEach((p,i)=>{const icon=L.divIcon({className:'',html:'<div style="width:28px;height:28px;border-radius:50%;background:#2563eb;color:white;border:3px solid white;line-height:22px;text-align:center;font-weight:bold;box-shadow:0 2px 6px #777">'+(i+1)+'</div>',iconSize:[28,28],iconAnchor:[14,14]});const marker=L.marker([p.lat,p.lng],{icon,draggable:true,routeMarker:true}).addTo(map);marker.on('contextmenu',()=>removePoint(i));marker.on('dragend',e=>{p.lat=e.target.getLatLng().lat;p.lng=e.target.getLatLng().lng;renderPoints();redraw()})});
 if(points.length>1){routeLine=L.polyline(points.map(p=>[p.lat,p.lng]),{color:'#2563eb',weight:5}).addTo(map)}
 renderPoints();distance();
 if(fitAll && points.length){const bounds=L.latLngBounds(points.map(p=>[p.lat,p.lng]));if(bounds.isValid()){map.fitBounds(bounds,{padding:[40,40],maxZoom:16})}}
 }
 function hhmmToDecimal(value){const [h,m]=(value||'08:00').split(':').map(Number);return h+(m||0)/60}
+let saving=false;
+function updateSaveButtons(){const missing=points.length<2;document.getElementById('save').disabled=document.getElementById('savePath').disabled=missing||saving;document.getElementById('minimo').hidden=!missing}
 function renderPoints(){
+updateSaveButtons();
 document.getElementById('pointCount').textContent=points.length;
 const container=document.getElementById('points');container.innerHTML='';
-points.forEach((p,i)=>{const type=i===0?'origen':i===points.length-1?'destino':'intermedia';const el=document.createElement('div');el.className='point';el.innerHTML='<div class="seq">'+(i+1)+'</div><div><b>'+escapeHtml(p.name||('Punto '+(i+1)))+'</b><small>'+p.lat.toFixed(6)+', '+p.lng.toFixed(6)+'</small></div><input type="time" value="'+(p.time||'08:'+String(i*15).padStart(2,'0'))+'">';const input=el.querySelector('input');input.onchange=()=>p.time=input.value;el.ondblclick=()=>{points.splice(i,1);redraw()};container.appendChild(el)});
-renderCoordRows();
+points.forEach((p,i)=>{const el=document.createElement('div');el.className='point';
+el.innerHTML='<div class="seq">'+(i+1)+'</div><input class="pname" aria-label="Nombre del punto" placeholder="Nombre" value="'+escapeHtml(p.name||'')+'"><input class="ptime" type="time" aria-label="Hora prevista" value="'+escapeHtml(p.time||'08:'+String(i*15).padStart(2,'0'))+'"><button type="button" class="remove" title="Eliminar punto" aria-label="Eliminar punto">×</button><div class="latlng"><label>Lat<input class="plat" type="number" step="0.000001" value="'+Number(p.lat).toFixed(6)+'"></label><label>Lon<input class="plng" type="number" step="0.000001" value="'+Number(p.lng).toFixed(6)+'"></label></div>';
+el.querySelector('.pname').oninput=e=>p.name=e.target.value;
+el.querySelector('.ptime').onchange=e=>p.time=e.target.value;
+el.querySelector('.remove').onclick=()=>removePoint(i);
+// Un valor vacío o fuera de rango no mueve el punto: se recupera el anterior.
+[['.plat','lat',90],['.plng','lng',180]].forEach(([selector,key,limit])=>{const input=el.querySelector(selector);input.onchange=()=>{const value=input.value.trim()===''?NaN:Number(input.value);if(Number.isFinite(value)&&Math.abs(value)<=limit){p[key]=value;redraw(true)}else{input.value=Number(p[key]).toFixed(6)}}});
+el.oncontextmenu=e=>{if(e.target.tagName!=='INPUT'){e.preventDefault();removePoint(i)}};
+container.appendChild(el)});
 }
-function renderCoordRows(){const body=document.getElementById('coordRows');body.innerHTML='';points.forEach((p,i)=>{const row=document.createElement('div');row.className='coord-row';row.innerHTML='<b>'+(i+1)+'</b><input type="number" step="0.000001" value="'+p.lat+'"><input type="number" step="0.000001" value="'+p.lng+'"><input value="'+escapeHtml(p.name||'')+'" placeholder="Nombre"><button class="cancel">×</button>';const inputs=row.querySelectorAll('input');inputs[0].onchange=()=>{p.lat=Number(inputs[0].value)||0;redraw()};inputs[1].onchange=()=>{p.lng=Number(inputs[1].value)||0;redraw()};inputs[2].onchange=()=>{p.name=inputs[2].value};row.querySelector('button').onclick=()=>{points.splice(i,1);redraw()};body.appendChild(row)})}
-map.on('click',e=>{if(mode==='map'){points.push({lat:e.latlng.lat,lng:e.latlng.lng,name:'Punto '+(points.length+1),time:'08:'+String(points.length*15).padStart(2,'0')});redraw(true)}});
+function addPoint(lat,lng){points.push({lat,lng,name:'Punto '+(points.length+1),time:'08:'+String(points.length*15).padStart(2,'0')});redraw(true)}
+map.on('click',e=>addPoint(e.latlng.lat,e.latlng.lng));
 document.getElementById('search').onkeydown=async e=>{if(e.key==='Enter'){e.preventDefault();const q=e.target.value;if(!q)return;const r=await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q='+encodeURIComponent(q));const j=await r.json();if(j[0])map.setView([Number(j[0].lat),Number(j[0].lon)],16)}};
-document.getElementById('modeMap').onclick=()=>{mode='map';document.getElementById('modeMap').classList.add('active');document.getElementById('modeCoords').classList.remove('active');document.getElementById('mapWrap').style.display='block';document.getElementById('coords').style.display='none';document.getElementById('hint').style.display='block';setTimeout(()=>{map.invalidateSize();redraw(true)},50)};
-document.getElementById('modeCoords').onclick=()=>{mode='coords';document.getElementById('modeCoords').classList.add('active');document.getElementById('modeMap').classList.remove('active');document.getElementById('mapWrap').style.display='none';document.getElementById('coords').style.display='block';document.getElementById('hint').style.display='none';renderCoordRows()};
-document.getElementById('addCoord').onclick=()=>{points.push({lat:-1.249,lng:-78.617,name:'Punto '+(points.length+1),time:'08:'+String(points.length*15).padStart(2,'0')});redraw(true)};
-async function saveRoute(withPath){if(points.length<2){alert('Agrega al menos dos puntos de control.');return}const base=hhmmToDecimal(document.getElementById('departure').value);const payload={route_id:editingRouteId,name:document.getElementById('name').value.trim()||(editingRouteId?'Editar ruta':'Nueva ruta'),distance:distance(),departure:document.getElementById('departure').value,corridor:Number(document.getElementById('corridor').value||100),points:points.map((p,i)=>({...p,name:p.name||('Punto '+(i+1)),time:hhmmToDecimal(p.time||document.getElementById('departure').value),type:i===0?'origen':i===points.length-1?'destino':'intermedia',tolerance:p.tolerance||5,radio:p.radio||50}))};const buttons=[document.getElementById('save'),document.getElementById('savePath')];buttons.forEach(b=>b.disabled=true);try{const response=await fetch('/fleet_rutas/rutas/crear',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const data=await response.json();if(!response.ok){alert(data.message||'No se pudo guardar la ruta');buttons.forEach(b=>b.disabled=false);return}location.href=withPath?'/fleet_rutas/trazado/'+data.route_id+'?paso=2':'/web#menu_id=0&action=fleet_rutas.action_fleet_rutas_dashboard'}catch(e){alert('No se pudo guardar la ruta');buttons.forEach(b=>b.disabled=false)}}
+document.getElementById('addCoord').onclick=()=>{const c=map.getCenter();addPoint(Number(c.lat.toFixed(6)),Number(c.lng.toFixed(6)));const rows=document.querySelectorAll('.plat');rows[rows.length-1].focus()};
+async function saveRoute(withPath){if(points.length<2||saving)return;const base=hhmmToDecimal(document.getElementById('departure').value);const payload={route_id:editingRouteId,name:document.getElementById('name').value.trim()||document.getElementById('name').defaultValue||'Nueva ruta',distance:distance(),departure:document.getElementById('departure').value,corridor:Number(document.getElementById('corridor').value||100),points:points.map((p,i)=>({...p,name:p.name||('Punto '+(i+1)),time:hhmmToDecimal(p.time||document.getElementById('departure').value),type:i===0?'origen':i===points.length-1?'destino':'intermedia',tolerance:p.tolerance??5,radio:p.radio||50}))};saving=true;updateSaveButtons();try{const response=await fetch('/fleet_rutas/rutas/crear',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const data=await response.json();if(!response.ok){alert(data.message||'No se pudo guardar la ruta');saving=false;updateSaveButtons();return}location.href=withPath?'/fleet_rutas/trazado/'+data.route_id+'?paso=2':'/web#menu_id=0&action=fleet_rutas.action_fleet_rutas_dashboard'}catch(e){alert('No se pudo guardar la ruta');saving=false;updateSaveButtons()}}
 document.getElementById('save').onclick=()=>saveRoute(false);
 document.getElementById('savePath').onclick=()=>saveRoute(true);
 renderPoints();
@@ -370,7 +381,6 @@ if(editingRouteId && points.length){setTimeout(()=>redraw(true),100)}
         if not isinstance(points, list) or len(points) < 2:
             return self._json_response({'status': 'error', 'message': 'Agrega al menos dos puntos.'}, 400)
         Ruta = request.env['fleet.ruta'].sudo()
-        Parada = request.env['fleet.parada'].sudo()
         clean_name = str(name or '').strip()
         if not clean_name:
             clean_name = 'Nueva ruta'
@@ -394,30 +404,35 @@ if(editingRouteId && points.length){setTimeout(()=>redraw(true),100)}
             'duracion_estimada_min': duration,
             'zona_horaria': 'America/Guayaquil',
         }
+        ruta = Ruta
         if route_id:
             ruta = Ruta.search([('id', '=', route_id)], limit=1)
             if not ruta:
                 return self._json_response({'status': 'error', 'message': 'La ruta no existe.'}, 404)
-            ruta.write(route_values)
-            ruta.parada_ids.unlink()
-        else:
-            route_values.update({
-                'code': candidate,
-                'estado': 'activa',
-            })
-            ruta = Ruta.create(route_values)
-        for index, point in enumerate(points, start=1):
-            Parada.create({
+        try:
+            paradas = [{
                 'name': str(point.get('name') or f'Punto {index}'),
-                'ruta_id': ruta.id,
                 'secuencia': index,
                 'latitud': float(point['lat']),
                 'longitud': float(point['lng']),
-                'radio_proximidad_m': float(corridor if index in (1, len(points)) else point.get('radio', 50)),
-                'hora_prevista': float(point.get('time') or 8),
-                'tolerancia_min': int(point.get('tolerance') or 5),
+                'radio_proximidad_m': float(
+                    corridor if index in (1, len(points)) else point.get('radio') or 50),
+                'hora_prevista': float(point.get('time') if point.get('time') is not None else 8),
+                'tolerancia_min': int(point['tolerance'] if point.get('tolerance') is not None else 5),
                 'tipo': 'origen' if index == 1 else ('destino' if index == len(points) else 'intermedia'),
-            })
+            } for index, point in enumerate(points, start=1)]
+            # Todo o nada: si las paradas no se aceptan, la ruta tampoco cambia.
+            with request.env.cr.savepoint():
+                if ruta:
+                    ruta.write(route_values)
+                else:
+                    route_values.update({'code': candidate, 'estado': 'activa'})
+                    ruta = Ruta.create(route_values)
+                ruta.reemplazar_paradas(paradas)
+        except (UserError, ValidationError) as exc:
+            return self._json_response({'status': 'error', 'message': exc.args[0]}, 400)
+        except (AttributeError, KeyError, TypeError, ValueError):
+            return self._json_response({'status': 'error', 'message': 'Datos de paradas inválidos'}, 400)
         ruta.invalidate_recordset(['parada_ids', 'trazado_vigente'])
         if ruta.trazado_vigente:
             ruta.distancia_estimada_km = round(
@@ -719,7 +734,7 @@ setInterval(refresh, 5000);
             domain,
             order='timestamp asc',
         )
-        stops = rec.ruta_id.parada_ids.sorted('secuencia')
+        stops = rec.paradas_del_recorrido()
         data = {
             'status': 'ok',
             'name': rec.name,
@@ -870,7 +885,7 @@ loadTrack();
         data = {
             'reference': [list(p) for p in rec.ruta_id.puntos_referencia()],
             'track': [[p.latitud, p.longitud] for p in points],
-            'stops': [{'point': [p.latitud, p.longitud], 'name': p.name, 'seq': p.secuencia} for p in rec.ruta_id.parada_ids.sorted('secuencia')],
+            'stops': [{'point': [p.latitud, p.longitud], 'name': p.name, 'seq': p.secuencia} for p in rec.paradas_del_recorrido()],
         }
         payload = json.dumps(data).replace('<', '\\u003c')
         last = str(points[-1].timestamp) + ' UTC' if points else 'Sin posiciones GPS'

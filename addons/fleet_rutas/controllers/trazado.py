@@ -45,7 +45,10 @@ class FleetTrazado(http.Controller):
             'recorridos': [{'id': r.id, 'nombre': r.name + (' (simulado)' if r.simulado else '')}
                            for r in recorridos],
         }
+        # El navegador guarda los estáticos 7 días: la versión evita usar un script antiguo.
+        version = int(PAGINA.with_name('trazado.js').stat().st_mtime)
         cuerpo = PAGINA.read_text(encoding='utf-8').replace(
+            'trazado/trazado.js', 'trazado/trazado.js?v=%d' % version).replace(
             '__DATOS__', json.dumps(datos).replace('<', '\\u003c'))
         return Response(cuerpo, content_type='text/html; charset=utf-8',
                         headers={'Cache-Control': 'no-store', 'X-Frame-Options': 'SAMEORIGIN'})

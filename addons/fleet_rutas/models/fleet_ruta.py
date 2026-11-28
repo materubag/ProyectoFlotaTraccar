@@ -103,7 +103,35 @@ class FleetRuta(models.Model):
             if ruta.distancia_estimada_km < 0 or ruta.duracion_estimada_min < 0:
                 raise ValidationError('La distancia y la duración no pueden ser negativas.')
 
-    @api.depends('parada_ids')
+    def reemplazar_paradas(self, nuevas):
+        """
+        Aplica la lista de paradas de un editor sin alterar el historial.
+
+        Una parada cuya ubicación, orden u horario no cambia se conserva. Las que
+        cambian se sustituyen por una nueva; la anterior se borra, o se archiva si
+        algún recorrido ya la registró.
+        """
+        self.ensure_one()
+        pendientes = list(self.parada_ids)
+        iguales, por_crear = [], []
+        for valores in nuevas:
+            parada = next((p for p in pendientes if p._sin_cambios(valores)), None)
+            if parada:
+                pendientes.remove(parada)
+                iguales.append((parada, valores))
+            else:
+                por_crear.append(valores)
+        if (pendientes or por_crear) and self.env['fleet.recorrido'].search_count(
+                [('ruta_id', '=', self.id), ('estado', '=', 'en_curso')]):
+            raise UserError('No se pueden cambiar las paradas mientras la ruta tiene un recorrido en curso.')
+        for parada, valores in iguales:
+            parada.write({'name': valores['name'], 'tipo': valores['tipo']})
+        self.env['fleet.parada'].browse([p.id for p in pendientes]).unlink()
+        for valores in por_crear:
+            self.env['fleet.parada'].create(dict(valores, ruta_id=self.id))
+        self.invalidate_recordset(['parada_ids'])
+
+    @api.depends('parada_ids', 'parada_ids.active')
     def _compute_total_paradas(self):
         for ruta in self:
             ruta.total_paradas = len(ruta.parada_ids)
@@ -153,6 +181,9 @@ class FleetParada(models.Model):
         string='Nombre de Parada',
         required=True,
     )
+    active = fields.Boolean(
+        string='Activa', default=True,
+        help='Una parada reemplazada se archiva para conservar los recorridos que la registraron.')
     ruta_id = fields.Many2one(
         comodel_name='fleet.ruta',
         string='Ruta',
@@ -205,6 +236,43 @@ class FleetParada(models.Model):
         compute='_compute_hora_prevista_str',
         store=True,
     )
+
+    # Datos con los que se evaluó cada recorrido: no se alteran si ya hay historial.
+    _CAMPOS_HISTORICOS = ('ruta_id', 'secuencia', 'latitud', 'longitud', 'hora_prevista',
+                          'radio_proximidad_m', 'tolerancia_min')
+
+    def _sin_cambios(self, valores):
+        self.ensure_one()
+        return (self.secuencia == valores['secuencia']
+                and abs(self.latitud - valores['latitud']) < 1e-6
+                and abs(self.longitud - valores['longitud']) < 1e-6
+                and abs(self.hora_prevista - valores['hora_prevista']) < 1 / 120
+                and abs(self.radio_proximidad_m - valores['radio_proximidad_m']) < 0.01
+                and self.tolerancia_min == valores['tolerancia_min'])
+
+    def _con_historial(self):
+        grupos = self.env['fleet.cumplimiento.parada'].sudo().search([('parada_id', 'in', self.ids)])
+        return self.browse(grupos.mapped('parada_id').ids)
+
+    def write(self, vals):
+        campos = [c for c in self._CAMPOS_HISTORICOS if c in vals]
+        if campos:
+            for parada in self._con_historial():
+                for campo in campos:
+                    actual = parada[campo].id if campo == 'ruta_id' else parada[campo]
+                    nuevo = vals[campo]
+                    distinto = (abs(actual - nuevo) > 1e-6 if isinstance(actual, float)
+                                else actual != nuevo)
+                    if distinto:
+                        raise UserError(
+                            'La parada "%s" ya tiene recorridos registrados. Cámbiela desde el '
+                            'editor de rutas, o elimínela y cree una nueva.' % parada.name)
+        return super().write(vals)
+
+    def unlink(self):
+        usadas = self._con_historial()
+        usadas.write({'active': False})
+        return super(FleetParada, self - usadas).unlink()
 
     @api.depends('hora_prevista')
     def _compute_hora_prevista_str(self):
@@ -365,6 +433,12 @@ class FleetRecorrido(models.Model):
                 raise ValidationError('El fin estimado debe ser posterior al inicio programado.')
             if rec.fecha_fin_real and (not rec.fecha_inicio_real or rec.fecha_fin_real < rec.fecha_inicio_real):
                 raise ValidationError('El fin real debe ser posterior al inicio real.')
+
+    def paradas_del_recorrido(self):
+        """Paradas con las que se registró el recorrido; si no inició, las actuales de la ruta."""
+        self.ensure_one()
+        registradas = self.cumplimiento_parada_ids.mapped('parada_id')
+        return (registradas or self.ruta_id.parada_ids).sorted('secuencia')
 
     def action_ver_mapa(self):
         self.ensure_one()

@@ -89,7 +89,7 @@ class FleetRutaTrazado(models.Model):
                            for p in self._paradas_ordenadas()])
 
     @api.depends('trazado', 'trazado_firma', 'parada_ids.latitud', 'parada_ids.longitud',
-                 'parada_ids.secuencia')
+                 'parada_ids.secuencia', 'parada_ids.active')
     def _compute_trazado_vigente(self):
         for ruta in self:
             ruta.trazado_vigente = bool(ruta.trazado) and ruta.trazado_firma == ruta._firma_paradas()
@@ -197,4 +197,4 @@ class FleetRutaTrazado(models.Model):
     def action_abrir_trazado(self):
         self.ensure_one()
         return {'type': 'ir.actions.act_url', 'url': '/fleet_rutas/trazado/%d' % self.id,
-                'target': 'new'}
+                'target': 'self'}
