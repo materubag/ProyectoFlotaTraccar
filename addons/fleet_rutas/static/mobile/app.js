@@ -47,15 +47,15 @@
     if (track) {
       const line = track.points.map(p => [p.lat, p.lng]);
       if (line.length) {
-        L.polyline(line, {color: '#a77bd8', weight: 5}).addTo(layers);
-        L.circleMarker(line[0], {radius: 7, color: '#50b2e6'}).bindPopup('Inicio GPS').addTo(layers);
-        L.circleMarker(line[line.length - 1], {radius: 7, color: '#a77bd8'}).bindPopup('Último punto GPS').addTo(layers);
+        L.polyline(line, {color: '#385072', weight: 5}).addTo(layers);
+        L.circleMarker(line[0], {radius: 7, color: '#0057ff'}).bindPopup('Inicio GPS').addTo(layers);
+        L.circleMarker(line[line.length - 1], {radius: 7, color: '#385072'}).bindPopup('Último punto GPS').addTo(layers);
         points.push(...line);
       }
       $('vehicle-info').textContent = line.length ? 'Trazado GPS histórico · ' + date(track.points[0].at) + ' a ' + date(track.points.at(-1).at) + '. Se simplifican los recorridos largos para facilitar su visualización.' : 'Este recorrido todavía no tiene posiciones GPS registradas.';
     } else {
       const stops = route.stops.map(p => [p.lat, p.lng]);
-      if (stops.length > 1) L.polyline(stops, {color: '#50b2e6', weight: 4, dashArray: '8 7'}).addTo(layers);
+      if (stops.length > 1) L.polyline(stops, {color: '#0057ff', weight: 4, dashArray: '8 7'}).addTo(layers);
       route.stops.forEach((p, i) => {
         L.marker([p.lat, p.lng], {icon: L.divIcon({className: 'stop-marker', html: String(i + 1), iconSize: [26, 26]})})
           .bindPopup(node('span', p.name + ' · ' + p.time)).addTo(layers);
