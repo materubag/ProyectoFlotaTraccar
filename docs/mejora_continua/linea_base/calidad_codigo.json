@@ -1,0 +1,272 @@
+{
+ "pruebas": {
+  "passed": 64,
+  "failed": 0,
+  "skipped": 0
+ },
+ "archivos_de_prueba_no_cargados": [
+  "addons.fleet_rutas.tests.test_revision_pdf"
+ ],
+ "python_sloc": 4618,
+ "lineas_no_vacias": {
+  "js": 2074,
+  "css": 1711,
+  "xml": 1670
+ },
+ "cobertura_aprox_pct": 8.2,
+ "lineas_ejecutables": 3713,
+ "lineas_cubiertas": 304,
+ "funciones": 132,
+ "cc_media": 6.92,
+ "funciones_cc_mayor_15": [
+  {
+   "archivo": "addons/fleet_rutas/models/fleet_metricas.py",
+   "funcion": "FleetMetricasRecorrido.get_dashboard_kpis",
+   "linea": 287,
+   "cc": 105
+  },
+  {
+   "archivo": "addons/fleet_rutas/controllers/mapa.py",
+   "funcion": "FleetMapa.importar_ruta",
+   "linea": 81,
+   "cc": 61
+  },
+  {
+   "archivo": "addons/fleet_rutas/models/fleet_metricas.py",
+   "funcion": "FleetMetricasRecorrido.calcular_para_recorrido",
+   "linea": 157,
+   "cc": 33
+  },
+  {
+   "archivo": "addons/fleet_rutas/controllers/mapa.py",
+   "funcion": "FleetMapa.crear_ruta",
+   "linea": 353,
+   "cc": 26
+  },
+  {
+   "archivo": "addons/fleet_rutas/models/fleet_traccar_sync.py",
+   "funcion": "FleetTraccarSync.sincronizar_historial",
+   "linea": 428,
+   "cc": 22
+  },
+  {
+   "archivo": "addons/fleet_rutas/models/fleet_traccar_sync.py",
+   "funcion": "FleetTraccarSync.sincronizar_dispositivos",
+   "linea": 676,
+   "cc": 21
+  },
+  {
+   "archivo": "addons/fleet_rutas/models/fleet_algoritmos.py",
+   "funcion": "calcular_metricas_recorrido",
+   "linea": 467,
+   "cc": 19
+  },
+  {
+   "archivo": "addons/fleet_rutas/models/fleet_mobile.py",
+   "funcion": "FleetMobileDelivery._send_pending",
+   "linea": 110,
+   "cc": 19
+  },
+  {
+   "archivo": "addons/fleet_rutas/controllers/mapa.py",
+   "funcion": "FleetMapa.exportar_ruta",
+   "linea": 17,
+   "cc": 18
+  },
+  {
+   "archivo": "addons/fleet_rutas/controllers/traccar_webhook.py",
+   "funcion": "TraccarWebhookController._process_single_position",
+   "linea": 215,
+   "cc": 18
+  },
+  {
+   "archivo": "addons/fleet_rutas/models/fleet_traccar_sync.py",
+   "funcion": "FleetTraccarSync._procesar_posicion_ultima",
+   "linea": 344,
+   "cc": 18
+  },
+  {
+   "archivo": "addons/fleet_rutas/models/fleet_traccar_sync.py",
+   "funcion": "FleetTraccarSync.sincronizar_ultima_posicion",
+   "linea": 202,
+   "cc": 17
+  }
+ ],
+ "archivos": [
+  {
+   "archivo": "addons/fleet_reports/__init__.py",
+   "sloc": 1,
+   "mi": 100.0,
+   "ejecutables": 1,
+   "cubiertas": 0
+  },
+  {
+   "archivo": "addons/fleet_reports/models/__init__.py",
+   "sloc": 2,
+   "mi": 100.0,
+   "ejecutables": 2,
+   "cubiertas": 0
+  },
+  {
+   "archivo": "addons/fleet_reports/models/fleet_reports_dashboard.py",
+   "sloc": 31,
+   "mi": 100.0,
+   "ejecutables": 25,
+   "cubiertas": 0
+  },
+  {
+   "archivo": "addons/fleet_reports/models/res_config_settings.py",
+   "sloc": 43,
+   "mi": 100.0,
+   "ejecutables": 25,
+   "cubiertas": 0
+  },
+  {
+   "archivo": "addons/fleet_rutas/__init__.py",
+   "sloc": 5,
+   "mi": 100.0,
+   "ejecutables": 5,
+   "cubiertas": 4
+  },
+  {
+   "archivo": "addons/fleet_rutas/controllers/__init__.py",
+   "sloc": 3,
+   "mi": 100.0,
+   "ejecutables": 3,
+   "cubiertas": 0
+  },
+  {
+   "archivo": "addons/fleet_rutas/controllers/mapa.py",
+   "sloc": 958,
+   "mi": 0.0,
+   "ejecutables": 485,
+   "cubiertas": 0
+  },
+  {
+   "archivo": "addons/fleet_rutas/controllers/mobile.py",
+   "sloc": 163,
+   "mi": 35.8,
+   "ejecutables": 158,
+   "cubiertas": 0
+  },
+  {
+   "archivo": "addons/fleet_rutas/controllers/traccar_webhook.py",
+   "sloc": 261,
+   "mi": 50.7,
+   "ejecutables": 223,
+   "cubiertas": 0
+  },
+  {
+   "archivo": "addons/fleet_rutas/models/__init__.py",
+   "sloc": 9,
+   "mi": 100.0,
+   "ejecutables": 9,
+   "cubiertas": 1
+  },
+  {
+   "archivo": "addons/fleet_rutas/models/fleet_algoritmos.py",
+   "sloc": 239,
+   "mi": 45.6,
+   "ejecutables": 229,
+   "cubiertas": 197
+  },
+  {
+   "archivo": "addons/fleet_rutas/models/fleet_cumplimiento_parada.py",
+   "sloc": 83,
+   "mi": 69.7,
+   "ejecutables": 72,
+   "cubiertas": 0
+  },
+  {
+   "archivo": "addons/fleet_rutas/models/fleet_incidencia.py",
+   "sloc": 167,
+   "mi": 61.5,
+   "ejecutables": 134,
+   "cubiertas": 0
+  },
+  {
+   "archivo": "addons/fleet_rutas/models/fleet_metricas.py",
+   "sloc": 511,
+   "mi": 20.6,
+   "ejecutables": 464,
+   "cubiertas": 0
+  },
+  {
+   "archivo": "addons/fleet_rutas/models/fleet_mobile.py",
+   "sloc": 146,
+   "mi": 32.0,
+   "ejecutables": 144,
+   "cubiertas": 0
+  },
+  {
+   "archivo": "addons/fleet_rutas/models/fleet_posicion_gps.py",
+   "sloc": 233,
+   "mi": 45.9,
+   "ejecutables": 200,
+   "cubiertas": 0
+  },
+  {
+   "archivo": "addons/fleet_rutas/models/fleet_ruta.py",
+   "sloc": 507,
+   "mi": 22.5,
+   "ejecutables": 425,
+   "cubiertas": 4
+  },
+  {
+   "archivo": "addons/fleet_rutas/models/fleet_traccar_sync.py",
+   "sloc": 717,
+   "mi": 19.4,
+   "ejecutables": 623,
+   "cubiertas": 0
+  },
+  {
+   "archivo": "addons/fleet_rutas/models/res_config_settings.py",
+   "sloc": 121,
+   "mi": 44.8,
+   "ejecutables": 113,
+   "cubiertas": 0
+  },
+  {
+   "archivo": "addons/fleet_rutas/services/__init__.py",
+   "sloc": 1,
+   "mi": 100.0,
+   "ejecutables": 1,
+   "cubiertas": 0
+  },
+  {
+   "archivo": "addons/fleet_rutas/services/traccar_service.py",
+   "sloc": 324,
+   "mi": 47.0,
+   "ejecutables": 296,
+   "cubiertas": 98
+  },
+  {
+   "archivo": "addons/fleet_traccar/__init__.py",
+   "sloc": 1,
+   "mi": 100.0,
+   "ejecutables": 1,
+   "cubiertas": 0
+  },
+  {
+   "archivo": "addons/fleet_traccar/models/__init__.py",
+   "sloc": 2,
+   "mi": 100.0,
+   "ejecutables": 2,
+   "cubiertas": 0
+  },
+  {
+   "archivo": "addons/fleet_traccar/models/fleet_vehicle.py",
+   "sloc": 71,
+   "mi": 66.4,
+   "ejecutables": 57,
+   "cubiertas": 0
+  },
+  {
+   "archivo": "addons/fleet_traccar/models/res_config_settings.py",
+   "sloc": 19,
+   "mi": 100.0,
+   "ejecutables": 16,
+   "cubiertas": 0
+  }
+ ]
+}
