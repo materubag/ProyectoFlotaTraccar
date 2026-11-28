@@ -178,7 +178,7 @@ class FleetPosicionGps(models.Model):
             paradas = recorrido.ruta_id.parada_ids.sorted('secuencia')
             if len(paradas) >= 2:
                 from .fleet_algoritmos import detectar_desviacion
-                polyline = [(p.latitud, p.longitud) for p in paradas]
+                polyline = recorrido.ruta_id.puntos_referencia()
                 resultado = detectar_desviacion(pos.latitud, pos.longitud, polyline, umbral_m=100.0)
                 pos.write({
                     'es_desviacion': resultado['es_desviacion'],

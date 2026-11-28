@@ -113,6 +113,7 @@ class FleetMobile(http.Controller):
             'push_key': params.get_param('fleet_rutas.vapid_public') if push_ready else None,
             'routes': [{'id': r.id, 'name': r.name, 'origin': r.origen, 'destination': r.destino,
                 'status': r.estado, 'duration': r.duracion_estimada_min,
+                'path': r.puntos_referencia(), 'approximate': not r.trazado_vigente,
                 'stops': [{'name': p.name, 'lat': p.latitud, 'lng': p.longitud,
                     'time': p.hora_prevista_str} for p in r.parada_ids.sorted('secuencia')]}
                 for r in routes], 'vehicles': vehicles,

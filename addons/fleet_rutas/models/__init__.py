@@ -8,3 +8,4 @@ from . import fleet_algoritmos
 from . import fleet_traccar_sync
 from . import res_config_settings
 from . import fleet_mobile
+from . import fleet_trazado

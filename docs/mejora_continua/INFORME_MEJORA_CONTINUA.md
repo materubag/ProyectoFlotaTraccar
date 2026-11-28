@@ -330,6 +330,35 @@ H29 (Integración, severidad alta) se descubrió después de la línea base y no
 
 Tolerancias iniciales a justificar con datos: retraso 5 min (ejemplo del PDF); radio de parada 50 m; corredor 100 m; pérdida de señal 120 s.
 
+### Ciclo 1b — realizado (28/11/2026): trazado vial y distancia geodésica (H01, O6)
+- **Planificar:** evaluar desvíos y distancia contra el camino real y no contra rectas entre paradas.
+- **Hacer:** un trazado por ruta con dos orígenes (OSRM o recorrido GPS), vista previa antes de guardar, pérdida de vigencia si cambian las paradas, rectas como respaldo; usado en desvíos, métricas, mapa del recorrido y app del pasajero; distancia recorrida geodésica WGS84; formularios con token CSRF y Leaflet con verificación de integridad en la página nueva.
+- **Verificar:** 15 de 15 casos de integración ([resultados](ciclo_trazado/pruebas.json), `pwsh scripts/pruebas/prueba_trazado.ps1 -OsrmReal`) y 76 pruebas Pytest (sin `test_revision_pdf.py`). Los mismos 11 escenarios simulados, declarando en E02 su vía real ([después](ciclo_trazado/escenarios.json)):
+
+| Métrica | Antes | Después |
+|---|--:|--:|
+| Precisión | 72,7 % | 80,0 % |
+| Exhaustividad | 80,0 % | 80,0 % |
+| Escenarios exactos | 6 de 11 | 7 de 11 |
+| Desviación calculada en E02 (vía curva correcta) | 24,6 % | 0 % |
+
+La mejora se debe a E02, diseñado para esta debilidad, y supone un trazado correcto; E05, E07, E08 y E11 siguen fallando.
+
+- **OSRM real sobre las rutas de demostración (propuestas, no guardadas):**
+
+| Ruta | Rectas (km) | OSRM (km) |
+|---|--:|--:|
+| Centro - UTA | 2,57 | 4,82 |
+| Ficoa - UTA | 2,74 | 7,11 |
+| Huachi - UTA | 2,38 | 3,36 |
+
+OSRM calcula un camino para automóvil que puede incluir rodeos: **cada trazado debe revisarse**. No hay todavía una distancia medida en campo para calcular el error (meta ≤ 2 %).
+
+![Vista de trazado](ciclo_trazado/vista_trazado.png)
+
+- **Rendimiento:** calcular métricas de 1.000 posiciones contra 500 vértices tardó 567 ms (antes 49 ms con un trazado de 4 puntos). Los trazados de OSRM observados tienen 27 a 73 vértices; falta medir 10.000 posiciones.
+- **Actuar:** **pendiente** definir los trazados reales, validar con recorridos distintos al de referencia y optimizar si el p95 supera 2 s.
+
 ### Ciclo 2 — Aplicación del pasajero con ETA (O1)
 | Fase | Contenido |
 |---|---|
@@ -349,6 +378,15 @@ La app es una PWA servida por Odoo. Confirmar con el ingeniero que cumple "aplic
 | A | Guía de estilo y pruebas visuales |
 
 Integración de Traccar: probar primero un `iframe` autenticado. Puede bloquearse por cookies o por contenido mixto HTTP/HTTPS; en ese caso usar un proxy inverso en el mismo dominio. No incluir credenciales de administrador en la URL.
+
+### Ciclo 3a — realizado (28/11/2026): Traccar dentro de Odoo (O5, H17)
+- **Planificar:** consultar y administrar Traccar sin salir de Odoo y que sus dispositivos aparezcan solos. La creación automática de vehículos ya existía; ignoraba el nombre, reactivaba el seguimiento desactivado y no señalaba dispositivos ausentes.
+- **Hacer:** pestaña **Traccar** en el dashboard (la web de Traccar embebida, con enlace a otra pestaña); parámetro opcional de URL para el navegador; nombre del dispositivo; respeto del seguimiento desactivado; estado "No disponible en Traccar"; los vehículos archivados no se duplican.
+- **Verificar:** 16 de 16 casos de integración en una copia de la base con un Traccar simulado ([resultados](ciclo_traccar/pruebas.json), `pwsh scripts/pruebas/prueba_dispositivos.ps1`). La pantalla de acceso de Traccar se muestra dentro de Odoo:
+
+![Pestaña Traccar](ciclo_traccar/pestana_traccar.png)
+
+- **Actuar:** **pendiente** iniciar sesión dentro de la pestaña, crear un dispositivo real y verlo en Odoo, y probar el despliegue en la nube (con HTTPS hace falta una URL HTTPS de Traccar). La sesión de Traccar es independiente de la de Odoo.
 
 ### Ciclo 4 — Evidencia y calidad (actividades 5 y 9)
 | Fase | Contenido |

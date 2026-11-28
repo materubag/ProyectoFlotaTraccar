@@ -22,6 +22,7 @@
         <field name="arch" type="xml">
             <form string="Ruta">
                 <header>
+                    <button name="action_abrir_trazado" type="object" string="Trazado en calles" class="btn-primary" />
                     <field name="estado" widget="statusbar" statusbar_visible="activa,mantenimiento,suspendida" statusbar_colors="{&quot;suspendida&quot;: &quot;danger&quot;, &quot;mantenimiento&quot;: &quot;warning&quot;}" />
                 </header>
                 <sheet>

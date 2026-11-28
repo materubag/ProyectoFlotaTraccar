@@ -88,6 +88,15 @@ try {
   await clic('.fleet_nav_item', 'Métricas'); await foto('08_metricas');
   await clic('.fleet_nav_item', 'Sincronización'); await foto('09_sincronizacion');
   await clic('.fleet_nav_item', 'Dashboard Grafana', 8000); await foto('10_grafana');
+  // La pestaña Traccar no existe en la versión "antes".
+  if (await js(`[...document.querySelectorAll('.fleet_nav_item')].some((x) => x.textContent.trim() === 'Traccar')`)) {
+    await clic('.fleet_nav_item', 'Traccar', 9000); await foto('10b_traccar');
+  }
+  // Vista de trazado (no existe en la versión "antes"). La propuesta no se guarda.
+  await ir('/fleet_rutas/trazado/1', 4000);
+  if (await js(`!!document.getElementById('osrm')`)) {
+    await clic('#osrm', '', 9000); await foto('06b_trazado');
+  }
   await ir('/web#action=fleet_rutas.action_fleet_recorrido&view_type=list'); await foto('11_lista_recorridos');
   await ir('/web#action=fleet_rutas.action_fleet_incidencia&view_type=list'); await foto('12_lista_incidencias');
   await ir('/web#action=fleet_rutas.action_fleet_metricas&view_type=list'); await foto('13_lista_metricas');

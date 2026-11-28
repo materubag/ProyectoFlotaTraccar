@@ -1,5 +1,5 @@
 /* Only public static assets are cached. Never store sessions, GPS or passenger data. */
-const CACHE = 'fleet-mobile-static-v3-trazabus';
+const CACHE = 'fleet-mobile-static-v4-trazado';
 const ROOT = '/fleet_rutas/static/mobile/';
 const ASSETS = ['app.css', 'app.js', 'icon.svg', 'icon-192.png', 'icon-512.png', 'offline.html'].map(f => ROOT + f);
 self.addEventListener('install', event => {

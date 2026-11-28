@@ -189,7 +189,7 @@ class FleetMetricasRecorrido(models.Model):
                 'es_puntual': c.cumplida and abs(c.retraso_min) <= c.parada_id.tolerancia_min,
             })
 
-        polyline_ruta = [(p.latitud, p.longitud) for p in paradas]
+        polyline_ruta = recorrido.ruta_id.puntos_referencia() if paradas else []
 
         # Invocación al motor algorítmico
         res_alg = calcular_metricas_recorrido(

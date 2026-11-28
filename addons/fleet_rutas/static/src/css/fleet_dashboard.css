@@ -1604,3 +1604,9 @@ i.o_facet_remove:hover {
     .o_fleet_rutas_dashboard .fleet_routes_layout{grid-template-columns:1fr;}
     .o_fleet_rutas_dashboard .fleet_routes_list{min-height:0;}
 }
+
+/* Web de Traccar integrada */
+.o_fleet_rutas_dashboard .fleet_map_frame.fleet_traccar_frame {
+  height: calc(100vh - 230px);
+  min-height: 480px;
+}

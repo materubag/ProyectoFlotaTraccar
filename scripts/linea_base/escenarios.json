@@ -17,7 +17,7 @@
   },
   "escenarios": [
     {"id": "E01", "nombre": "Puntual sobre vía recta", "puntos": [[0,0,0],[900,3000,0]], "esperado": {}},
-    {"id": "E02", "nombre": "Puntual sobre vía real curva (250 m de la recta)", "puntos": [[0,0,0],[300,1000,0],[375,1200,250],[525,1800,250],[600,2000,0],[900,3000,0]], "esperado": {}},
+    {"id": "E02", "nombre": "Puntual sobre vía real curva (250 m de la recta)", "puntos": [[0,0,0],[300,1000,0],[375,1200,250],[525,1800,250],[600,2000,0],[900,3000,0]], "via": [[0,0],[1000,0],[1200,250],[1800,250],[2000,0],[3000,0]], "esperado": {}},
     {"id": "E03", "nombre": "Llegada 8 min tarde a la parada 3", "puntos": [[0,0,0],[300,1000,0],[1080,2000,0],[1140,3000,0]], "esperado": {"retraso": 1}},
     {"id": "E04", "nombre": "Llegada 4 min tarde (dentro de tolerancia)", "puntos": [[0,0,0],[300,1000,0],[840,2000,0],[960,3000,0]], "esperado": {}},
     {"id": "E05", "nombre": "Parada 3 omitida (pasa a 80 m)", "puntos": [[0,0,0],[300,1000,0],[540,1800,0],[570,1920,80],[630,2080,80],[660,2200,0],[900,3000,0]], "esperado": {"parada_omitida": 1}},

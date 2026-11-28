@@ -7,13 +7,37 @@ actualiza fleet.vehicle y crea registros fleet.posicion.gps.
 """
 import json
 import logging
+import os
+from urllib.parse import urlsplit, urlunsplit
 from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Optional, Tuple
 
 from odoo import api, fields, models
 from odoo.exceptions import UserError
+from odoo.http import request
 
 _logger = logging.getLogger(__name__)
+
+
+def traccar_browser_url(configured_url, browser_url, port):
+    """
+    Una URL pública configurada se usa tal cual. Si está vacía o apunta a un nombre
+    local o interno, se usa el servidor con el que el navegador abrió Odoo.
+    """
+    configured = (configured_url or "").strip().rstrip("/")
+    parsed = urlsplit(configured)
+    if configured and parsed.hostname not in ("localhost", "127.0.0.1", "::1", "traccar"):
+        if parsed.scheme not in ("http", "https") or not parsed.hostname or parsed.username or parsed.password:
+            raise UserError("La URL de Traccar debe ser HTTP/HTTPS y no contener credenciales.")
+        return configured
+    browser = urlsplit(browser_url)
+    if not browser.hostname:
+        raise UserError("No se pudo determinar el servidor de Odoo.")
+    host = f"[{browser.hostname}]" if ":" in browser.hostname else browser.hostname
+    published = (parsed.port if parsed.hostname != "traccar" else None) or int(port)
+    if not 1 <= published <= 65535:
+        raise UserError("Puerto de Traccar inválido.")
+    return urlunsplit((browser.scheme, f"{host}:{published}", "", "", ""))
 
 
 class FleetTraccarSync(models.Model):
@@ -647,7 +671,7 @@ class FleetTraccarSync(models.Model):
         Recalcula ``distancia_real_km`` del recorrido sumando la distancia
         Haversine entre posiciones consecutivas.
         """
-        import math
+        from .fleet_algoritmos import calcular_distancia_total_km
 
         positions = (
             self.env["fleet.posicion.gps"]
@@ -660,26 +684,8 @@ class FleetTraccarSync(models.Model):
         if len(positions) < 2:
             return
 
-        R = 6371.0  # Radio de la Tierra en km
-
-        def haversine(lat1, lon1, lat2, lon2):
-            phi1, phi2 = math.radians(lat1), math.radians(lat2)
-            dphi = math.radians(lat2 - lat1)
-            dlambda = math.radians(lon2 - lon1)
-            a = (
-                math.sin(dphi / 2) ** 2
-                + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
-            )
-            return 2 * R * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-
-        total_km = 0.0
-        prev = positions[0]
-        for curr in positions[1:]:
-            total_km += haversine(
-                prev.latitud, prev.longitud, curr.latitud, curr.longitud
-            )
-            prev = curr
-
+        total_km = calcular_distancia_total_km(
+            [{"latitud": p.latitud, "longitud": p.longitud} for p in positions])
         recorrido.sudo().write({"distancia_real_km": round(total_km, 3)})
 
     # ------------------------------------------------------------------
@@ -711,7 +717,8 @@ class FleetTraccarSync(models.Model):
                 self._finalizar_log(sync_log, stats, log_lines=log_lines)
                 return stats
 
-            Vehicle = self.env["fleet.vehicle"].sudo()
+            # Incluye archivados: de lo contrario se intentaría crear un duplicado.
+            Vehicle = self.env["fleet.vehicle"].sudo().with_context(active_test=False)
             created = 0
             updated = 0
 
@@ -747,7 +754,8 @@ class FleetTraccarSync(models.Model):
                             })
                         vehicle = Vehicle.create({
                             "model_id": model.id,
-                            "license_plate": unique_id or f"TR-{d_id}",
+                            "license_plate": name or unique_id or f"TR-{d_id}",
+                            "traccar_device_name": name or False,
                             "traccar_tracking_enabled": True,
                             "traccar_device_id": d_id,
                             "traccar_unique_id": unique_id or False,
@@ -760,11 +768,15 @@ class FleetTraccarSync(models.Model):
                         )
                     else:
                         vals = {
-                            "traccar_tracking_enabled": True,
                             "traccar_device_id": d_id,
                             "traccar_unique_id": unique_id or vehicle.traccar_unique_id,
+                            "traccar_device_name": name or vehicle.traccar_device_name,
                             "traccar_device_status": status,
                         }
+                        # Solo se activa al vincular por primera vez: se respeta
+                        # el seguimiento que el administrador haya desactivado.
+                        if not vehicle.traccar_device_id:
+                            vals["traccar_tracking_enabled"] = True
                         changed = any(vehicle[field] != value for field, value in vals.items())
                         if changed:
                             vehicle.write(vals)
@@ -781,6 +793,19 @@ class FleetTraccarSync(models.Model):
                         "dispositivo id=%r — %s",
                         d_id, exc,
                     )
+
+            # Se señalan, sin borrarlos, los vehículos cuyo dispositivo ya no aparece.
+            # Una lista vacía sale antes: sin datos no se marca nada.
+            presentes = [d["id"] for d in devices if isinstance(d.get("id"), int)]
+            ausentes = Vehicle.search([
+                ("traccar_tracking_enabled", "=", True),
+                ("traccar_device_id", ">", 0),
+                ("traccar_device_id", "not in", presentes),
+                ("traccar_device_status", "!=", "removed"),
+            ])
+            if ausentes:
+                ausentes.write({"traccar_device_status": "removed"})
+                log_lines.append(f"Vehículos sin dispositivo en Traccar: {len(ausentes)}")
 
             stats["nuevos"] = created
             log_lines.append(
@@ -804,6 +829,16 @@ class FleetTraccarSync(models.Model):
             _logger.exception("sincronizar_dispositivos: %s", error_msg)
             self._finalizar_log(sync_log, stats, error_msg=error_msg, log_lines=log_lines)
             return stats
+
+    @api.model
+    def get_traccar_web_url(self):
+        """Dirección de la web de Traccar tal como debe abrirla el navegador."""
+        self._check_sync_access()
+        return traccar_browser_url(
+            self.env["ir.config_parameter"].sudo().get_param("fleet_traccar.public_url", ""),
+            request.httprequest.host_url,
+            os.environ.get("TRACCAR_WEB_PORT", "8082"),
+        )
 
     # ------------------------------------------------------------------
     # verificar_perdida_senal

@@ -63,6 +63,9 @@ for n, esc in enumerate(cfg_all['escenarios']):
     env.cr.execute('SAVEPOINT lb')
     try:
         rec = nuevo_recorrido('LB-' + esc['id'], n)
+        # "via" es la calle real del escenario; solo se usa si el sistema admite trazados.
+        if esc.get('via') and 'trazado' in rec.ruta_id._fields:
+            rec.ruta_id.guardar_trazado([geo(x, y) for x, y in esc['via']], 'osrm')
         fin = esc['puntos'][-1][0]
         inicio = fields.Datetime.now() - timedelta(seconds=fin)
         rec.write({'fecha_inicio': inicio, 'fecha_inicio_real': inicio,

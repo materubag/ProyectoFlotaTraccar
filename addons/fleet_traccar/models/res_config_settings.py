@@ -10,6 +10,12 @@ class ResConfigSettings(models.TransientModel):
         default='http://traccar:8082',
         help='URL base interna o externa para la API REST de Traccar (ej. http://traccar:8082).'
     )
+    traccar_public_url = fields.Char(
+        string='URL de Traccar para el navegador',
+        config_parameter='fleet_traccar.public_url',
+        help='Dirección con la que el navegador abre Traccar. Vacía: mismo servidor que Odoo '
+             'y puerto web publicado de Traccar.'
+    )
     traccar_user = fields.Char(
         string='Usuario de la API Traccar',
         config_parameter='fleet_traccar.user',

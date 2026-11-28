@@ -81,6 +81,100 @@ def haversine_distance_m(lat1: float, lon1: float,
     return RADIO_TIERRA_M * c
 
 
+def distancia_geodesica_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """
+    Distancia en metros sobre el elipsoide WGS84 (fórmula inversa de Vincenty).
+
+    Considera el achatamiento de la Tierra. Para puntos casi antípodas, donde la
+    fórmula no converge, devuelve la distancia Haversine.
+    """
+    if lat1 == lat2 and lon1 == lon2:
+        return 0.0
+    a, f = 6378137.0, 1 / 298.257223563
+    b = a * (1 - f)
+    u1 = math.atan((1 - f) * math.tan(math.radians(lat1)))
+    u2 = math.atan((1 - f) * math.tan(math.radians(lat2)))
+    ele = lam = math.radians(lon2 - lon1)
+    for _ in range(100):
+        sen_s = math.hypot(math.cos(u2) * math.sin(lam),
+                           math.cos(u1) * math.sin(u2) - math.sin(u1) * math.cos(u2) * math.cos(lam))
+        cos_s = math.sin(u1) * math.sin(u2) + math.cos(u1) * math.cos(u2) * math.cos(lam)
+        if sen_s == 0:
+            break
+        sigma = math.atan2(sen_s, cos_s)
+        sen_a = math.cos(u1) * math.cos(u2) * math.sin(lam) / sen_s
+        cos2_a = 1 - sen_a ** 2
+        cos_2m = cos_s - 2 * math.sin(u1) * math.sin(u2) / cos2_a if cos2_a else 0.0
+        c = f / 16 * cos2_a * (4 + f * (4 - 3 * cos2_a))
+        previo, lam = lam, ele + (1 - c) * f * sen_a * (
+            sigma + c * sen_s * (cos_2m + c * cos_s * (-1 + 2 * cos_2m ** 2)))
+        if abs(lam - previo) < 1e-12:
+            k = cos2_a * (a ** 2 - b ** 2) / b ** 2
+            ka = 1 + k / 16384 * (4096 + k * (-768 + k * (320 - 175 * k)))
+            kb = k / 1024 * (256 + k * (-128 + k * (74 - 47 * k)))
+            delta = kb * sen_s * (cos_2m + kb / 4 * (
+                cos_s * (-1 + 2 * cos_2m ** 2)
+                - kb / 6 * cos_2m * (-3 + 4 * sen_s ** 2) * (-3 + 4 * cos_2m ** 2)))
+            return b * ka * (sigma - delta)
+    return haversine_distance_m(lat1, lon1, lat2, lon2)
+
+
+def longitud_polilinea_m(puntos: List[Tuple[float, float]]) -> float:
+    """Longitud geodésica en metros de una secuencia de puntos (lat, lon)."""
+    return sum(distancia_geodesica_m(a[0], a[1], b[0], b[1]) for a, b in zip(puntos, puntos[1:]))
+
+
+def simplificar_polilinea(puntos: List[Tuple[float, float]],
+                          tolerancia_m: float = 5.0) -> List[Tuple[float, float]]:
+    """Douglas-Peucker iterativo: quita vértices que se apartan menos que la tolerancia."""
+    if len(puntos) < 3:
+        return list(puntos)
+    conservar = {0, len(puntos) - 1}
+    pendientes = [(0, len(puntos) - 1)]
+    while pendientes:
+        inicio, fin = pendientes.pop()
+        mayor, indice = 0.0, None
+        for i in range(inicio + 1, fin):
+            distancia = point_to_segment_distance_m(*puntos[i], *puntos[inicio], *puntos[fin])
+            if distancia > mayor:
+                mayor, indice = distancia, i
+        if indice is not None and mayor > tolerancia_m:
+            conservar.add(indice)
+            pendientes += [(inicio, indice), (indice, fin)]
+    return [puntos[i] for i in sorted(conservar)]
+
+
+def limpiar_posiciones_gps(posiciones: List[Dict], precision_max_m: float = 30.0,
+                           velocidad_max_kmh: float = 120.0,
+                           separacion_min_m: float = 5.0) -> List[Tuple[float, float]]:
+    """
+    Prepara un recorrido GPS como trazado: descarta lecturas imprecisas, saltos que
+    exigirían una velocidad imposible y puntos casi repetidos.
+    Una precisión 0 significa desconocida y se acepta.
+    """
+    validas = sorted((p for p in posiciones if (p.get('precision_m') or 0) <= precision_max_m),
+                     key=lambda p: p['timestamp'])
+
+    def alcanzable(a, b):
+        segundos = max((b['timestamp'] - a['timestamp']).total_seconds(), 1.0)
+        metros = haversine_distance_m(a['latitud'], a['longitud'], b['latitud'], b['longitud'])
+        return metros / segundos * 3.6 <= velocidad_max_kmh
+
+    # Un primer punto erróneo haría descartar todos los siguientes.
+    while len(validas) > 2 and not alcanzable(validas[0], validas[1]) and alcanzable(validas[1], validas[2]):
+        validas.pop(0)
+    limpias = []
+    for posicion in validas:
+        if limpias:
+            anterior = limpias[-1]
+            if not alcanzable(anterior, posicion) or haversine_distance_m(
+                    anterior['latitud'], anterior['longitud'],
+                    posicion['latitud'], posicion['longitud']) < separacion_min_m:
+                continue
+        limpias.append(posicion)
+    return [(p['latitud'], p['longitud']) for p in limpias]
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # 2. Distancia punto a segmento
 # ──────────────────────────────────────────────────────────────────────────────
@@ -430,7 +524,7 @@ def filtrar_posiciones_duplicadas(posiciones: List[Dict],
 def calcular_distancia_total_km(historial_gps: List[Dict]) -> float:
     """
     Calcula la distancia total recorrida en kilómetros sumando la distancia
-    Haversine entre posiciones GPS consecutivas.
+    geodésica WGS84 entre posiciones GPS consecutivas.
 
     Parámetros
     ----------
@@ -455,7 +549,7 @@ def calcular_distancia_total_km(historial_gps: List[Dict]) -> float:
         lon_a = a.get('longitud', a.get('lon', 0.0))
         lat_b = b.get('latitud', b.get('lat', 0.0))
         lon_b = b.get('longitud', b.get('lon', 0.0))
-        total_m += haversine_distance_m(lat_a, lon_a, lat_b, lon_b)
+        total_m += distancia_geodesica_m(lat_a, lon_a, lat_b, lon_b)
 
     return round(total_m * KM_POR_M, 4)
 

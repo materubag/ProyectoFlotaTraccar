@@ -10,6 +10,7 @@
                     <group>
                         <group string="Vinculación con Traccar">
                             <field name="traccar_tracking_enabled"/>
+                            <field name="traccar_device_name"/>
                             <field name="traccar_device_id" attrs="{'invisible': [('traccar_tracking_enabled', '=', False)]}"/>
                             <field name="traccar_unique_id" attrs="{'invisible': [('traccar_tracking_enabled', '=', False)]}"/>
                             <field name="traccar_device_status" widget="badge"/>

@@ -859,7 +859,7 @@ loadTrack();
         rec.vehicle_id.check_access_rule('read')
         points = rec.posicion_ids.sorted('timestamp')
         data = {
-            'reference': [[p.latitud, p.longitud] for p in rec.ruta_id.parada_ids.sorted('secuencia')],
+            'reference': [list(p) for p in rec.ruta_id.puntos_referencia()],
             'track': [[p.latitud, p.longitud] for p in points],
             'stops': [{'point': [p.latitud, p.longitud], 'name': p.name, 'seq': p.secuencia} for p in rec.ruta_id.parada_ids.sorted('secuencia')],
         }

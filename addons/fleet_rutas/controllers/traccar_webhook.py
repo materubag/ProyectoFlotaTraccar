@@ -171,7 +171,10 @@ class TraccarWebhookController(http.Controller):
             p.get("deviceId") for p in positions
             if isinstance(p.get("deviceId"), int)
         }
-        missing_device_ids = incoming_device_ids - set(device_vehicle_map)
+        # Un vehículo con seguimiento desactivado no es un dispositivo desconocido.
+        known = Vehicle.with_context(active_test=False).search(
+            [("traccar_device_id", "in", list(incoming_device_ids))])
+        missing_device_ids = incoming_device_ids - set(known.mapped("traccar_device_id"))
         if missing_device_ids:
             try:
                 env["fleet.traccar.sync"].sudo().sincronizar_dispositivos()

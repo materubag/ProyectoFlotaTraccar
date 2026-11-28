@@ -101,6 +101,7 @@
                                     <group string="Flota UTA">
                                         <group string="Conexión Traccar">
                                             <field name="traccar_server_url" />
+                                            <field name="traccar_public_url" placeholder="Automática" />
                                             <field name="traccar_user" />
                                             <field name="traccar_password" password="True" />
                                             <field name="traccar_webhook_url" />

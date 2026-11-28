@@ -11,6 +11,7 @@ const TABS = [
   { id: "metricas", label: "Métricas", icon: "fa-bar-chart" },
   { id: "sync", label: "Sincronización", icon: "fa-refresh" },
   { id: "grafana", label: "Dashboard Grafana", icon: "fa-line-chart" },
+  { id: "traccar", label: "Traccar", icon: "fa-globe" },
 ];
 const STATES = {
   programado: "Programado",
@@ -156,12 +157,15 @@ class FleetRutasDashboard extends Component {
       detailError: "",
       syncBusy: false,
       syncMessage: "",
+      traccarUrl: "",
+      traccarError: "",
       updated: "",
     });
     this.disposed = false;
     this.inFlight = false;
     this.detailRequest = 0;
     onMounted(() => {
+      if (this.state.tab === "traccar") this.loadTraccarUrl();
       this.loadData();
       this.timer = setInterval(() => this.loadData(), 5000);
     });
@@ -188,6 +192,19 @@ class FleetRutasDashboard extends Component {
   setTab(id) {
     this.state.tab = id;
     this.save();
+    if (id === "traccar") this.loadTraccarUrl();
+  }
+  async loadTraccarUrl() {
+    this.state.traccarError = "";
+    try {
+      this.state.traccarUrl = await this.call("fleet.traccar.sync", "get_traccar_web_url");
+    } catch (e) {
+      this.state.traccarError =
+        e?.data?.message || "No se pudo obtener la dirección de Traccar.";
+    }
+  }
+  get traccarBlocked() {
+    return window.location.protocol === "https:" && this.state.traccarUrl.startsWith("http:");
   }
   setRouteTab(id) {
     this.state.routeTab = id;
@@ -199,6 +216,10 @@ class FleetRutasDashboard extends Component {
   openEditRoute() {
     if (!this.selectedRoute) return;
     window.open("/fleet_rutas/rutas/nueva?route_id=" + this.selectedRoute.id, "_blank");
+  }
+  openRoutePath() {
+    if (!this.selectedRoute) return;
+    window.open("/fleet_rutas/trazado/" + this.selectedRoute.id, "_blank");
   }
   async exportRoute() {
     if (!this.selectedRoute) return;
@@ -710,7 +731,7 @@ FleetRutasDashboard.template = xml/* xml */`
     </button>
   </nav>
   <main t-att-class="'fleet_main' + (state.tab === 'grafana' ? ' fleet_main_grafana' : '')">
-    <div class="hd" t-if="state.tab !== 'grafana'">
+    <div class="hd" t-if="state.tab !== 'grafana' &amp;&amp; state.tab !== 'traccar'">
       <h2 t-esc="tabs.find(t=&gt;t.id===state.tab).label" />
       <div class="fleet_toolbar">
         <span class="lb" t-if="state.updated">Lectura: <t t-esc="state.updated" />
@@ -991,6 +1012,9 @@ FleetRutasDashboard.template = xml/* xml */`
             <div class="card fleet_route_summary">
               <div class="fleet_route_summary_header">
                 <h3 t-esc="selectedRoute.name" />
+                <button class="btn s" t-on-click="openRoutePath">
+                  <i class="fa fa-road" /> Trazado
+                </button>
                 <button class="btn s" t-on-click="openEditRoute">
                   <i class="fa fa-pencil" /> Editar ruta
                 </button>
@@ -1135,7 +1159,7 @@ FleetRutasDashboard.template = xml/* xml */`
                 <td t-esc="v.traccar_device_id" />
                 <td t-esc="v.traccar_unique_id||'—'" />
                 <td t-esc="v.display_name || v.license_plate" />
-                <td t-esc="v.traccar_device_status==='online'?'En línea':v.traccar_device_status==='offline'?'Fuera de línea':'Desconocido'" />
+                <td t-esc="v.traccar_device_status==='online'?'En línea':v.traccar_device_status==='offline'?'Fuera de línea':v.traccar_device_status==='removed'?'No disponible en Traccar':'Desconocido'" />
                 <td t-esc="stamp(v.traccar_last_update)" />
               </tr>
             </tbody>
@@ -1143,6 +1167,22 @@ FleetRutasDashboard.template = xml/* xml */`
         </div>
       </div>
       <p class="lb">Conectividad externa: el estado del túnel no está disponible en Odoo.</p>
+    </t>
+    <t t-if="state.tab === 'traccar'">
+      <div class="hd">
+        <h2>Traccar</h2>
+        <div class="fleet_toolbar">
+          <button class="btn s" t-att-disabled="state.syncBusy" t-on-click="triggerSync" t-esc="state.syncBusy?'Sincronizando…':'Sincronizar dispositivos'" />
+          <a t-if="state.traccarUrl" class="btn s" t-att-href="state.traccarUrl" target="_blank" rel="noopener noreferrer">Abrir en otra pestaña</a>
+        </div>
+      </div>
+      <p t-if="state.syncMessage" role="status" t-esc="state.syncMessage" />
+      <p class="lb">Inicie sesión con su cuenta de Traccar. Los dispositivos nuevos aparecen en Odoo al sincronizar, al llegar su primera posición o en un máximo de 5 minutos.</p>
+      <p t-if="state.traccarError" class="fleet_notice is_error" role="alert" t-esc="state.traccarError" />
+      <p t-elif="traccarBlocked" class="fleet_notice is_error" role="alert">El navegador bloquea Traccar por HTTP dentro de Odoo por HTTPS. Configure una URL HTTPS de Traccar en Ajustes.</p>
+      <div t-elif="state.traccarUrl" class="card">
+        <iframe class="fleet_map_frame fleet_traccar_frame" title="Traccar" t-att-src="state.traccarUrl" />
+      </div>
     </t>
     <t t-if="state.tab === 'grafana'">
       <t t-if="GrafanaDashboard"><t t-component="GrafanaDashboard" /></t>
