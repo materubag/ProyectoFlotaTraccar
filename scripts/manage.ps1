@@ -31,7 +31,14 @@ switch ($Action) {
     }
     'start' {
         Write-Host ">>> Iniciando servicios de ProyectoFlotaTraccar..." -ForegroundColor Cyan
-        docker compose up -d
+        docker info --format '{{.ServerVersion}}' 2>$null | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            throw 'Docker Engine no está disponible. Inicie Docker Desktop, espere a que su motor Linux esté listo y vuelva a ejecutar este comando.'
+        }
+        docker compose up -d --wait --wait-timeout 180
+        if ($LASTEXITCODE -ne 0) {
+            throw 'No se confirmó la salud de todos los servicios. Revise docker compose ps y docker compose logs grafana.'
+        }
         docker compose ps
     }
     'stop' {

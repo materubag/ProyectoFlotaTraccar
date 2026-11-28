@@ -18,11 +18,12 @@
                             <span class="o_form_label">URL de Grafana</span>
                             <div class="text-muted">
                                 Dirección base donde está accesible Grafana desde el navegador del usuario.
-                                Ejemplo: <code>http://localhost:3000</code>
+                                Dejar vacío para usar el servidor de Odoo y el puerto de Grafana.
+                                Para HTTPS mediante proxy, indicar la URL pública de Grafana.
                             </div>
                             <div class="content-group">
                                 <div class="mt8">
-                                    <field name="grafana_base_url" class="o_light_label" placeholder="http://localhost:3000"/>
+                                    <field name="grafana_base_url" class="o_light_label" placeholder="Automático: mismo servidor que Odoo"/>
                                 </div>
                             </div>
                         </div>
@@ -49,7 +50,7 @@
                         <div class="o_setting_right_pane">
                             <span class="o_form_label">Intervalo de Actualización (segundos)</span>
                             <div class="text-muted">
-                                Cada cuántos segundos se recargará el dashboard automáticamente.
+                                Cada cuántos segundos Grafana consultará los datos, sin recargar la vista.
                             </div>
                             <div class="content-group">
                                 <div class="mt8">
