@@ -11,6 +11,7 @@ from .fleet_algoritmos import (
     calcular_metricas_recorrido,
     calcular_retraso_min,
     detectar_desviacion,
+    episodios_desvio,
     detectar_perdida_senal,
     calcular_distancia_total_km,
     posicion_coincide_con_origen,
@@ -211,7 +212,11 @@ class FleetMetricasRecorrido(models.Model):
 
         # Cálculo de desviaciones
         total_pos = len(posiciones)
-        pos_desviadas = sum(1 for p in posiciones if detectar_desviacion(p.latitud, p.longitud, polyline_ruta, 100.0)['es_desviacion']) if len(polyline_ruta) >= 2 else 0
+        fuera = [len(polyline_ruta) >= 2 and detectar_desviacion(
+            p.latitud, p.longitud, polyline_ruta, 100.0)['es_desviacion'] for p in posiciones]
+        pos_desviadas = sum(fuera)
+        # El cumplimiento solo se pierde por un desvío confirmado, no por un punto aislado.
+        hay_desvio = bool(episodios_desvio([(p.timestamp, f) for p, f in zip(posiciones, fuera)]))
         pct_desv = round((pos_desviadas / total_pos * 100.0), 2) if total_pos else 0.0
 
         # Duración real
@@ -231,7 +236,7 @@ class FleetMetricasRecorrido(models.Model):
 
         # Binary route compliance permits an aggregate percentage of completed routes.
         pct_punt = res_alg.get('pct_puntualidad', 0.0)
-        pct_cumplimiento_global = 100.0 if (total_pos >= 2 and total_paradas > 0 and pct_paradas == 100 and pct_desv == 0 and recorrido.fecha_fin_real) else 0.0
+        pct_cumplimiento_global = 100.0 if (total_pos >= 2 and total_paradas > 0 and pct_paradas == 100 and not hay_desvio and recorrido.fecha_fin_real) else 0.0
 
         # SQA Metricas
         integridad_gps = res_alg.get('integridad_gps_pct', 100.0)

@@ -381,6 +381,23 @@ OSRM calcula un camino para automóvil que puede incluir rodeos: **cada trazado 
 - **Verificar:** la misma prueba en una copia de la base: [antes](ciclo_editar_ruta/antes.json) 1 comprobación correcta y varios grupos interrumpidos por error; [después](ciclo_editar_ruta/despues.json) 17 de 17. `pwsh scripts/pruebas/prueba_editar_ruta.ps1`.
 - **Límite:** las paradas se conservan, pero el trazado de referencia no tiene versiones: reprocesar posiciones de un recorrido antiguo usa el trazado actual. Las métricas ya calculadas no cambian.
 
+### Ciclo 1f — realizado (28/11/2026): reglas de desvío e incompleto (H04, H28)
+- **Planificar:** corregir E05, E07 y E08: un punto aislado generaba desvío, solo se registraba un desvío por recorrido y omitir una parada intermedia marcaba "incompleto".
+- **Hacer:** desvío confirmado con 3 lecturas seguidas fuera del corredor de 100 m, o 2 que abarquen 60 s; el episodio termina con 2 lecturas dentro; una incidencia por episodio, sin duplicarse al reprocesar; el cumplimiento y la marca "con desvío" usan episodios confirmados; "incompleto" solo sin llegada al destino; en rutas circulares el destino no cuenta al salir.
+- **Justificación de tolerancias:** 3 lecturas descartan saltos aislados del GPS; el límite de 60 s cubre envíos poco frecuentes; 2 lecturas de retorno evitan dividir un desvío por oscilar en el borde. Son valores iniciales, **pendientes de ajustar con recorridos reales**. Consecuencia: un desvío más corto que ese mínimo no se registra.
+- **Verificar:** 17 de 17 casos de integración ([resultados](ciclo_reglas/pruebas.json), `pwsh scripts/pruebas/prueba_reglas.ps1`) y 88 pruebas Pytest (sin `test_revision_pdf.py`). Mismos 11 escenarios simulados ([después](ciclo_reglas/escenarios.json)):
+
+| Métrica | Línea base | Con trazado | Con reglas |
+|---|--:|--:|--:|
+| Precisión | 72,7 % | 80,0 % | 100 % |
+| Exhaustividad | 80,0 % | 80,0 % | 90,0 % |
+| Escenarios exactos | 6 de 11 | 7 de 11 | 10 de 11 |
+| Eventos registrados en curso | 4 de 10 | 4 de 10 | 5 de 10 |
+
+- **Lectura:** los escenarios se diseñaron para estas debilidades; el resultado muestra que se corrigieron, no la precisión en operación. Falla E11 (retraso sin llegada), que corresponde al siguiente bloque (H02).
+- **Rendimiento:** con 10.000 posiciones, ingerir una tardó como máximo 202 ms dentro del corredor y 257 ms fuera (10 muestras; línea base p95 186 ms). H27 sigue pendiente.
+- **Actuar:** las incidencias anteriores no se recalculan; validar con recorridos reales.
+
 ### Ciclo 2 — Aplicación del pasajero con ETA (O1)
 | Fase | Contenido |
 |---|---|

@@ -81,6 +81,49 @@ def haversine_distance_m(lat1: float, lon1: float,
     return RADIO_TIERRA_M * c
 
 
+# Un desvío se confirma con varias lecturas seguidas fuera del corredor, para que
+# un único punto GPS erróneo no genere una incidencia.
+DESVIO_MIN_POSICIONES = 3
+DESVIO_MIN_SEGUNDOS = 60
+DESVIO_RETORNOS = 2   # lecturas seguidas dentro que dan por terminado el episodio
+
+
+def episodios_desvio(muestras: List[Tuple[datetime, bool]]) -> List[Tuple[int, int]]:
+    """
+    Agrupa las lecturas fuera del corredor en episodios de desvío confirmados.
+
+    ``muestras`` son pares (timestamp, fuera_del_corredor) en orden cronológico.
+    Un episodio termina tras DESVIO_RETORNOS lecturas seguidas dentro, así que una
+    oscilación en el borde no lo divide. Se confirma si en algún tramo seguido hay
+    DESVIO_MIN_POSICIONES lecturas fuera, o al menos dos que abarquen
+    DESVIO_MIN_SEGUNDOS. Devuelve los índices (primera, última lectura fuera).
+    """
+    episodios = []
+    inicio = fin = racha = None
+    dentro, confirmado = 0, False
+    for i, (momento, fuera) in enumerate(muestras):
+        if fuera:
+            if inicio is None:
+                inicio, confirmado = i, False
+            if racha is None:
+                racha = i
+            fin, dentro = i, 0
+            largo = i - racha + 1
+            if largo >= DESVIO_MIN_POSICIONES or (
+                    largo >= 2 and (momento - muestras[racha][0]).total_seconds() >= DESVIO_MIN_SEGUNDOS):
+                confirmado = True
+        elif inicio is not None:
+            racha = None
+            dentro += 1
+            if dentro >= DESVIO_RETORNOS:
+                if confirmado:
+                    episodios.append((inicio, fin))
+                inicio = None
+    if inicio is not None and confirmado:
+        episodios.append((inicio, fin))
+    return episodios
+
+
 def distancia_geodesica_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     """
     Distancia en metros sobre el elipsoide WGS84 (fórmula inversa de Vincenty).

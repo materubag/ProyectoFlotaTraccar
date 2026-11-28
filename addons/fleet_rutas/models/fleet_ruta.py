@@ -440,6 +440,24 @@ class FleetRecorrido(models.Model):
         registradas = self.cumplimiento_parada_ids.mapped('parada_id')
         return (registradas or self.ruta_id.parada_ids).sorted('secuencia')
 
+    def _es_destino_sin_recorrer(self, parada):
+        """
+        Verdadero si la parada es el destino de una ruta circular y el vehículo aún
+        no ha visitado ninguna parada intermedia: está saliendo, no llegando.
+        """
+        self.ensure_one()
+        paradas = self.paradas_del_recorrido()
+        if len(paradas) < 3 or parada != paradas[-1]:
+            return False
+        from .fleet_algoritmos import haversine_distance_m
+        origen = paradas[0]
+        if haversine_distance_m(origen.latitud, origen.longitud, parada.latitud,
+                                parada.longitud) > parada.radio_proximidad_m:
+            return False
+        intermedias = paradas[1:-1]
+        return not self.cumplimiento_parada_ids.filtered(
+            lambda c: c.cumplida and c.parada_id in intermedias)
+
     def action_ver_mapa(self):
         self.ensure_one()
         return {'type': 'ir.actions.act_url', 'url': f'/fleet_rutas/mapa/{self.id}', 'target': 'new'}
@@ -495,9 +513,12 @@ class FleetRecorrido(models.Model):
     @api.depends('posicion_ids', 'posicion_ids.es_desviacion')
     def _compute_tiene_desviacion(self):
         for rec in self:
-            rec.tiene_desviacion = any(
-                p.es_desviacion for p in rec.posicion_ids
-            )
+            if not any(p.es_desviacion for p in rec.posicion_ids):
+                rec.tiene_desviacion = False
+                continue
+            from .fleet_algoritmos import episodios_desvio
+            rec.tiene_desviacion = bool(episodios_desvio(
+                [(p.timestamp, p.es_desviacion) for p in rec.posicion_ids.sorted('timestamp')]))
 
     @api.depends('incidencia_ids')
     def _compute_total_incidencias(self):
@@ -594,9 +615,12 @@ class FleetRecorrido(models.Model):
             if not cumplimiento.cumplida:
                 incidence.create({'recorrido_id': self.id, 'tipo': 'parada_omitida', 'timestamp': now,
                                   'descripcion': f'Parada no visitada: {cumplimiento.parada_id.name}'})
-        if not self.posicion_ids or self.cumplimiento_parada_ids.filtered(lambda c: not c.cumplida):
+        # Incompleto es no llegar al destino; las paradas intermedias se registran aparte.
+        destino = self.paradas_del_recorrido()[-1:]
+        llego = self.cumplimiento_parada_ids.filtered(lambda c: c.parada_id == destino and c.cumplida)
+        if not self.posicion_ids or not llego:
             incidence.create({'recorrido_id': self.id, 'tipo': 'incompleto', 'timestamp': now,
-                              'descripcion': 'Recorrido sin GPS o con puntos de control pendientes.'})
+                              'descripcion': 'Recorrido sin GPS o sin llegada al destino.'})
         if self.retraso_inicio_min > 5:
             incidence.create({'recorrido_id': self.id, 'tipo': 'retraso', 'timestamp': self.fecha_inicio_real,
                               'descripcion': 'Inicio fuera de la tolerancia de 5 minutos.',
