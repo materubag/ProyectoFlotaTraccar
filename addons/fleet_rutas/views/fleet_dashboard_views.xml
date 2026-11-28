@@ -24,6 +24,7 @@
                 <field name="recorrido_id" string="Recorrido"/>
                 <field name="ruta_id" string="Ruta"/>
                 <field name="vehicle_id" string="Vehículo"/>
+                <field name="parada_id" string="Parada" optional="show"/>
                 <field name="tipo" string="Tipo" widget="badge"/>
                 <field name="severidad" string="Severidad" widget="badge"
                        decoration-danger="severidad in ('alta', 'critica')"

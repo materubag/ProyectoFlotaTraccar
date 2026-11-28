@@ -845,7 +845,7 @@ class FleetTraccarSync(models.Model):
     # ------------------------------------------------------------------
 
     @api.model
-    def verificar_perdida_senal(self, recorrido_id: int) -> int:
+    def verificar_perdida_senal(self, recorrido_id: int, ahora=None) -> int:
         """
         Analiza el historial GPS del recorrido en busca de pérdida de señal.
         Crea fleet.incidencia de tipo 'senal_perdida' si detecta brechas > 2 min.
@@ -873,7 +873,7 @@ class FleetTraccarSync(models.Model):
         )
 
         if recorrido.fecha_inicio_real:
-            end = recorrido.fecha_fin_real or fields.Datetime.now()
+            end = recorrido.fecha_fin_real or ahora or fields.Datetime.now()
             last = positions[-1].timestamp if positions else recorrido.fecha_inicio_real
             if (end - last).total_seconds() > 120:
                 incidence = self.env['fleet.incidencia'].sudo()

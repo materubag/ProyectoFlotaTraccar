@@ -87,6 +87,9 @@ for n, esc in enumerate(cfg_all['escenarios']):
             enviados += 1
         # Lo que hace el cron de señal mientras el recorrido sigue en curso.
         env['fleet.traccar.sync'].verificar_perdida_senal(rec.id)
+        # Revisión en tiempo real, si la versión la ofrece (la tarea programada omite simulados).
+        if hasattr(rec, 'revisar_paradas_pendientes'):
+            rec.revisar_paradas_pendientes()
         antes = conteo(rec)
         metricas = {}
         if esc.get('cerrar', True):

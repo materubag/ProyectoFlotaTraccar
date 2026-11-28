@@ -281,10 +281,7 @@ class FleetPosicionGps(models.Model):
                     continue
                 retraso_min = 0
                 if recorrido.fecha_inicio:
-                    primera = recorrido.paradas_del_recorrido()[:1]
-                    # La primera parada ancla el horario al inicio programado de cada asignación.
-                    offset_min = (round(parada.hora_prevista * 60) - round(primera.hora_prevista * 60)) % 1440
-                    programado = recorrido.fecha_inicio + timedelta(minutes=offset_min)
+                    programado = recorrido.hora_programada(parada)
                     diff_seg = (posicion.timestamp - programado).total_seconds()
                     retraso_min = round(diff_seg / 60, 2)
 
@@ -295,11 +292,18 @@ class FleetPosicionGps(models.Model):
                     'posicion_id': posicion.id,
                     'retraso_min': retraso_min,
                 })
+                incidencias = self.env['fleet.incidencia']
+                previas = incidencias.search([('recorrido_id', '=', recorrido.id),
+                                              ('parada_id', '=', parada.id), ('resuelta', '=', False)])
                 if retraso_min > parada.tolerancia_min:
-                    self.env['fleet.incidencia'].create({
-                        'recorrido_id': recorrido.id, 'tipo': 'retraso', 'timestamp': posicion.timestamp,
+                    incidencias.registrar_en_parada(recorrido, parada, 'retraso', {
+                        'timestamp': posicion.timestamp,
                         'descripcion': f'Retraso en {parada.name}: {retraso_min} minutos.',
-                        'valor_detectado': retraso_min, 'valor_esperado': parada.tolerancia_min, 'unidad': 'min'})
+                        'valor_detectado': retraso_min, 'valor_esperado': parada.tolerancia_min,
+                        'unidad': 'min'})
+                # Una parada dada por omitida que finalmente se visitó queda resuelta.
+                previas.filtered(lambda i: i.tipo == 'parada_omitida').write(
+                    {'resuelta': True, 'notas_resolucion': 'La parada se visitó después.'})
                 _logger.info(
                     'Parada "%s" cumplida para recorrido %s (distancia: %.1f m, retraso: %d min)',
                     parada.name, recorrido.name, dist, retraso_min,

@@ -527,7 +527,7 @@ class FleetRecorrido(models.Model):
 
     # ── Action methods ─────────────────────────────────────────────────────
 
-    def action_iniciar(self):
+    def action_iniciar(self, momento=None):
         """Inicia el recorrido: cambia estado y registra hora de inicio real."""
         self.ensure_one()
         if self.estado not in ('programado',):
@@ -540,7 +540,7 @@ class FleetRecorrido(models.Model):
             raise UserError('Este vehículo ya tiene un recorrido en curso.')
         if self.ruta_id.estado != 'activa' or not self.ruta_id.parada_ids:
             raise UserError('La ruta debe estar activa y tener paradas.')
-        now = fields.Datetime.now()
+        now = momento or fields.Datetime.now()
         self.write({
             'estado': 'en_curso',
             'fecha_inicio_real': now,
@@ -552,14 +552,14 @@ class FleetRecorrido(models.Model):
             self.name, now, self.env.user.name,
         )
 
-    def action_completar(self):
+    def action_completar(self, momento=None):
         """Completa el recorrido: registra fin real y calcula métricas."""
         self.ensure_one()
         if self.estado != 'en_curso' or self.fecha_fin_real:
             raise UserError(
                 f'Solo se puede completar un recorrido "En Curso" o "Con Incidencias".'
             )
-        now = fields.Datetime.now()
+        now = momento or fields.Datetime.now()
         # Calcular distancia real y velocidad promedio desde historial GPS
         distancia_km = 0.0
         velocidad_prom = 0.0
@@ -579,6 +579,8 @@ class FleetRecorrido(models.Model):
         for pos in posiciones:
             pos.detectar_desviacion()
         self._registrar_incidencias_cierre(now)
+        # El fin queda fijado antes de revisar la señal: el silencio se mide hasta el cierre.
+        self.write({'fecha_fin_real': now})
         self.env['fleet.traccar.sync'].verificar_perdida_senal(self.id)
         # Determinar estado final
         estado_final = 'completado'
@@ -611,25 +613,31 @@ class FleetRecorrido(models.Model):
     def _registrar_incidencias_cierre(self, now):
         self.ensure_one()
         incidence = self.env['fleet.incidencia']
+        paradas = self.paradas_del_recorrido()
         for cumplimiento in self.cumplimiento_parada_ids:
             if not cumplimiento.cumplida:
-                incidence.create({'recorrido_id': self.id, 'tipo': 'parada_omitida', 'timestamp': now,
-                                  'descripcion': f'Parada no visitada: {cumplimiento.parada_id.name}'})
+                incidence.registrar_en_parada(self, cumplimiento.parada_id, 'parada_omitida', {
+                    'timestamp': now,
+                    'descripcion': f'Parada no visitada: {cumplimiento.parada_id.name}'}, actualizar=False)
         # Incompleto es no llegar al destino; las paradas intermedias se registran aparte.
-        destino = self.paradas_del_recorrido()[-1:]
+        destino = paradas[-1:]
         llego = self.cumplimiento_parada_ids.filtered(lambda c: c.parada_id == destino and c.cumplida)
         if not self.posicion_ids or not llego:
             incidence.create({'recorrido_id': self.id, 'tipo': 'incompleto', 'timestamp': now,
                               'descripcion': 'Recorrido sin GPS o sin llegada al destino.'})
+        # Inicio y llegada final comparten incidencia con la parada para no contarse dos veces.
         if self.retraso_inicio_min > 5:
-            incidence.create({'recorrido_id': self.id, 'tipo': 'retraso', 'timestamp': self.fecha_inicio_real,
-                              'descripcion': 'Inicio fuera de la tolerancia de 5 minutos.',
-                              'valor_detectado': self.retraso_inicio_min, 'valor_esperado': 5, 'unidad': 'min'})
+            incidence.registrar_en_parada(self, paradas[:1], 'retraso', {
+                'timestamp': self.fecha_inicio_real,
+                'descripcion': 'Inicio fuera de la tolerancia de 5 minutos.',
+                'valor_detectado': self.retraso_inicio_min, 'valor_esperado': 5, 'unidad': 'min'},
+                actualizar=False)
         if self.fecha_fin_estimada and (now - self.fecha_fin_estimada).total_seconds() > 300:
-            incidence.create({'recorrido_id': self.id, 'tipo': 'retraso', 'timestamp': now,
-                              'descripcion': 'Llegada final fuera de la tolerancia de 5 minutos.',
-                              'valor_detectado': (now - self.fecha_fin_estimada).total_seconds() / 60,
-                              'valor_esperado': 5, 'unidad': 'min'})
+            incidence.registrar_en_parada(self, destino, 'retraso', {
+                'timestamp': now,
+                'descripcion': 'Llegada final fuera de la tolerancia de 5 minutos.',
+                'valor_detectado': (now - self.fecha_fin_estimada).total_seconds() / 60,
+                'valor_esperado': 5, 'unidad': 'min'}, actualizar=False)
 
     def _inicializar_cumplimiento_paradas(self):
         """Crea registros de cumplimiento para cada parada de la ruta."""

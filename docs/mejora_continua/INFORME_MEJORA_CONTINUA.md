@@ -398,6 +398,32 @@ OSRM calcula un camino para automóvil que puede incluir rodeos: **cada trazado 
 - **Rendimiento:** con 10.000 posiciones, ingerir una tardó como máximo 202 ms dentro del corredor y 257 ms fuera (10 muestras; línea base p95 186 ms). H27 sigue pendiente.
 - **Actuar:** las incidencias anteriores no se recalculan; validar con recorridos reales.
 
+### Ciclo 1g — realizado (28/11/2026): incidencias en tiempo real y recorridos automáticos (H02, H03)
+- **Planificar:** alertar sin esperar al cierre y no depender de iniciar y cerrar a mano.
+- **Hacer:** tarea cada minuto, que además revisa la señal perdida de los recorridos reales en curso (antes solo cada 10 min):
+
+| Regla | Condición |
+|---|---|
+| Inicio automático | Vehículo en el radio del origen entre 5 min antes y 60 min después de la hora programada |
+| Sin iniciar | Pasada la tolerancia del origen (hasta 12 h) |
+| Retraso en curso | Sin llegada y pasada la tolerancia de la parada |
+| Omisión en curso | Se visitó una parada posterior; se resuelve si luego se visita |
+| Cierre por llegada | Destino alcanzado y al menos la mitad de las intermedias |
+| Cierre vencido | 60 min tras el fin previsto y 15 min sin posiciones |
+
+  Una incidencia por recorrido, parada y tipo. Los recorridos **simulados** no se modifican. El inicio y cierre automáticos se desactivan con el parámetro `fleet_rutas.recorridos_automaticos = 0`.
+- **Verificar:** 26 de 26 casos con hora controlada ([resultados](ciclo_automatico/pruebas.json), `pwsh scripts/pruebas/prueba_automatico.ps1`; en la primera ejecución falló 1 por una expectativa errónea de la prueba, que contaba un retraso legítimo de otra parada). Mismos 11 escenarios simulados ([después](ciclo_automatico/escenarios.json)):
+
+| Métrica | Línea base | Con reglas | En tiempo real |
+|---|--:|--:|--:|
+| Precisión | 72,7 % | 100 % | 100 % |
+| Exhaustividad | 80,0 % | 90,0 % | 100 % |
+| Escenarios exactos | 6 de 11 | 10 de 11 | 11 de 11 |
+| Eventos registrados en curso | 4 de 10 | 5 de 10 | 7 de 10 |
+
+  Los 3 eventos restantes (E10) solo se conocen al cerrar el recorrido. En los escenarios la revisión se invoca al final de la traza: **no miden la latencia**, que en operación depende de la tarea de cada minuto.
+- **Actuar:** pendiente validar con recorridos reales y ajustar los plazos.
+
 ### Ciclo 2 — Aplicación del pasajero con ETA (O1)
 | Fase | Contenido |
 |---|---|

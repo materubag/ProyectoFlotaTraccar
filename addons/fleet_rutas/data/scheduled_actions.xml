@@ -42,5 +42,19 @@
             <field name="doall">False</field>
             <field name="priority">15</field>
         </record>
+
+        <!-- Cron 4: inicio y cierre automáticos, retrasos y paradas omitidas en curso -->
+        <record id="ir_cron_revisar_recorridos" model="ir.cron">
+            <field name="name">Recorridos: Revisión en Tiempo Real</field>
+            <field name="model_id" ref="model_fleet_recorrido"/>
+            <field name="state">code</field>
+            <field name="code">model.revisar_recorridos()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">minutes</field>
+            <field name="numbercall">-1</field>
+            <field name="active">True</field>
+            <field name="doall">False</field>
+            <field name="priority">8</field>
+        </record>
     </data>
 </odoo>
