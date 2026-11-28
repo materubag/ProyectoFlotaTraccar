@@ -449,15 +449,7 @@ if(editingRouteId && points.length){setTimeout(()=>redraw(true),100)}
         active_trips = request.env['fleet.recorrido'].sudo().search([
             ('estado', '=', 'en_curso'),
         ])
-        trip_by_vehicle = {
-            trip.vehicle_id.id: {
-                'id': trip.id,
-                'name': trip.name,
-                'ruta_id': trip.ruta_id.id,
-                'ruta_name': trip.ruta_id.name,
-            }
-            for trip in active_trips
-        }
+        trip_by_vehicle = {trip.vehicle_id.id: self._recorrido_en_vivo(trip) for trip in active_trips}
         items = []
         for vehicle in vehicles:
             items.append({
@@ -478,6 +470,35 @@ if(editingRouteId && points.length){setTimeout(()=>redraw(true),100)}
             'vehicles': items,
             'server_time': fields.Datetime.now().isoformat(),
         })
+
+    @staticmethod
+    def _recorrido_en_vivo(trip):
+        """Ruta, rastro reciente e incidencias de un recorrido en curso, para el mapa."""
+        recientes = request.env['fleet.posicion.gps'].sudo().search(
+            [('recorrido_id', '=', trip.id)], order='timestamp desc, id desc', limit=200)
+        tipos = dict(request.env['fleet.incidencia']._fields['tipo'].selection)
+        incidencias = []
+        for i in trip.incidencia_ids.filtered(lambda i: not i.resuelta):
+            # Las alertas de retraso u omisión se ubican en su parada.
+            lat = i.latitud or i.parada_id.latitud
+            lng = i.longitud or i.parada_id.longitud
+            if lat and lng:
+                incidencias.append({'lat': lat, 'lng': lng, 'type': tipos.get(i.tipo, i.tipo),
+                                    'text': i.descripcion or ''})
+        return {
+            'id': trip.id,
+            'name': trip.name,
+            'ruta_id': trip.ruta_id.id,
+            'ruta_name': trip.ruta_id.name,
+            'simulated': trip.simulado,
+            'path': trip.ruta_id.puntos_referencia(),
+            'approximate': not trip.ruta_id.trazado_vigente,
+            'stops': [{'lat': p.latitud, 'lng': p.longitud, 'name': p.name}
+                      for p in trip.paradas_del_recorrido()],
+            'trail': [[p.latitud, p.longitud] for p in reversed(recientes)],
+            'incidents': incidencias,
+            'pending_incidents': len(trip.incidencia_ids.filtered(lambda i: not i.resuelta)),
+        }
 
     @http.route('/fleet_rutas/asignar_ruta', auth='user', type='http',
                 methods=['POST'], csrf=False)
@@ -556,6 +577,9 @@ body { margin: 0; height: 100vh; font-family: Arial,sans-serif; }
 #layout { display:grid; grid-template-columns:270px 1fr; height:100vh; }
 #sidebar { overflow:auto; border-right:1px solid #ddd; background:#fff; padding:12px; }
 #map { height:100vh; }
+body.panel #layout { grid-template-columns:1fr; } body.panel #sidebar { display:none; }
+#legend { position:fixed; right:10px; bottom:22px; z-index:1000; background:#fff; padding:8px 10px; font-size:12px; box-shadow:0 1px 5px #0004; max-width:260px; }
+#legend i { display:inline-block; width:18px; height:4px; margin-right:6px; vertical-align:middle; }
 .vehicle { border:1px solid #ddd; padding:8px; margin-bottom:8px; cursor:pointer; }
 .vehicle:hover { background:#f7f7f7; }
 .vehicle.selected { border-left:4px solid #714b67; }
@@ -574,9 +598,13 @@ button { border:0; background:#714b67; color:#fff; cursor:pointer; }
   </aside>
   <div id="map"></div>
 </div>
+<div id="legend"><i style="background:#2f6df0"></i>Ruta <i style="background:#ea580c"></i>Rastro <i style="background:#b42a2a;height:10px;width:10px;border-radius:50%"></i>Incidencia<div id="live-summary" role="status"></div></div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
+if (new URLSearchParams(location.search).has('panel')) document.body.classList.add('panel');
 const map = L.map('map').setView([-1.249, -78.617], 13);
+const tripLayers = L.layerGroup().addTo(map);
+const localTime = value => value ? new Date(value.replace(' ', 'T') + 'Z').toLocaleString('es-EC') : 'Sin posición';
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19}).addTo(map);
 const markers = {};
 const markerStates = {};
@@ -617,6 +645,22 @@ async function refresh() {
   const data = await response.json();
   const container = document.getElementById('vehicles');
   const points = [];
+  const summary = [];
+  const tripPoints = [];
+  tripLayers.clearLayers();
+  for (const vehicle of data.vehicles) {
+    const trip = vehicle.active_trip;
+    if (!trip) continue;
+    if (trip.path.length > 1) L.polyline(trip.path, {color:'#2f6df0', weight:6, opacity:.5, dashArray: trip.approximate ? '8 8' : null}).addTo(tripLayers);
+    trip.stops.forEach((s, i) => L.circleMarker([s.lat, s.lng], {radius:6, color:'#1d4ed8', fillColor:'#fff', fillOpacity:1})
+      .bindPopup(escapeHtml((i + 1) + '. ' + s.name)).addTo(tripLayers));
+    if (trip.trail.length > 1) L.polyline(trip.trail, {color:'#ea580c', weight:3}).addTo(tripLayers);
+    trip.incidents.forEach(inc => L.circleMarker([inc.lat, inc.lng], {radius:8, color:'#fff', weight:2, fillColor:'#b42a2a', fillOpacity:.95})
+      .bindPopup('<b>' + escapeHtml(inc.type) + '</b><br>' + escapeHtml(inc.text)).addTo(tripLayers));
+    tripPoints.push(...trip.path, ...trip.trail);
+    summary.push(escapeHtml(trip.ruta_name) + (trip.simulated ? ' (simulado)' : '') + ': ' + trip.pending_incidents + ' pendientes');
+  }
+  document.getElementById('live-summary').innerHTML = summary.length ? summary.join('<br>') : 'Sin recorridos en curso';
   for (const vehicle of data.vehicles) {
     const lat = Number(vehicle.latitude), lng = Number(vehicle.longitude);
     if (lat && lng) points.push([lat,lng]);
@@ -691,11 +735,12 @@ async function refresh() {
       (isStale?'<span class="stale">Desactualizado</span>':'<span class="ok">Reciente</span>')+
       ' · '+escapeHtml(vehicle.speed.toFixed ? vehicle.speed.toFixed(1) : vehicle.speed)+' km/h';
     div.querySelector('.vehicle-trip').textContent =
-      activeName + ' · ' + (vehicle.last_update || 'Sin posición');
+      activeName + ' · ' + localTime(vehicle.last_update);
   }
-  if (initialFitPending && !userChangedMap && points.length) {
+  const fitTarget = tripPoints.length ? tripPoints : points;
+  if (initialFitPending && !userChangedMap && fitTarget.length) {
     applyingInitialFit = true;
-    map.fitBounds(L.latLngBounds(points).pad(0.15));
+    map.fitBounds(L.latLngBounds(fitTarget).pad(0.15));
     applyingInitialFit = false;
     initialFitPending = false;
   }

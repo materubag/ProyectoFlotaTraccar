@@ -474,6 +474,20 @@ Integración de Traccar: probar primero un `iframe` autenticado. Puede bloquears
 
 - **Actuar:** **pendiente** iniciar sesión dentro de la pestaña, crear un dispositivo real y verlo en Odoo, y probar el despliegue en la nube (con HTTPS hace falta una URL HTTPS de Traccar). La sesión de Traccar es independiente de la de Odoo.
 
+### Ciclo 3b — realizado (28/11/2026): dashboard único y mapa en vivo (O4, H10, H15)
+- **Planificar:** reunir en una pantalla lo que exigía recorrer varias pestañas, sin mezclar datos reales y simulados. Las métricas del desarrollo (pruebas, cobertura) quedan en SonarQube y este informe.
+- **Hacer:** un Panel en Odoo con filtros de ruta, período y origen de datos; las 8 métricas de transporte con comparación frente al período anterior; mapa con ruta, rastro e incidencias; comparación entre rutas; evolución diaria; incidencias frecuentes y pendientes; últimos recorridos; las 4 métricas de calidad del sistema y la tabla de fórmulas. Se retiró la pestaña Métricas. Barras proporcionales, "Sin muestra" sin unidad y hora local en el mapa (U05, U08, U14).
+- **Verificar:** 11 de 11 pruebas de los cálculos (`node scripts/pruebas/prueba_dashboard.mjs`), 94 pruebas Pytest (sin `test_revision_pdf.py`) y recorrido en una copia sin errores de JavaScript.
+
+| Pantallas para consultar lo que pide la actividad 8 | Antes | Después |
+|---|--:|--:|
+| Pestañas necesarias | 5 | 1 (con desplazamiento) |
+
+![Panel unificado, datos simulados](ciclo_dashboard/panel_despues.png)
+
+- **Límites:** la selección por defecto muestra datos reales solo cuando existen recorridos reales medidos; hoy muestra simulados y lo indica. El mapa es en vivo y no responde a los filtros. La detección correcta se mide como precisión sobre incidencias validadas.
+- **Actuar:** pendientes las pruebas de usabilidad con participantes y la comprobación de cada indicador contra una consulta SQL.
+
 ### Ciclo 4 — Evidencia y calidad (actividades 5 y 9)
 | Fase | Contenido |
 |---|---|

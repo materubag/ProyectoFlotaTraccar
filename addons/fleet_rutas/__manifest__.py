@@ -48,6 +48,7 @@ Características implementadas:
             'fleet_rutas/static/src/js/theme_service.js',
             'fleet_rutas/static/src/js/color_picker_field.js',
             'fleet_rutas/static/src/js/fleet_ui_fields.js',
+            'fleet_rutas/static/src/js/dashboard_metrics.js',
             'fleet_rutas/static/src/js/fleet_dashboard.js',
         ],
     },
