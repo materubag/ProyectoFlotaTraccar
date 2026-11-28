@@ -6,8 +6,8 @@
  * Flujo:
  * 1. Al montar, llama vía RPC a fleet.reports.dashboard.get_grafana_config()
  * 2. Construye la URL del iframe Grafana en modo kiosk
- * 3. Refresca el iframe automáticamente según el intervalo configurado
- * 4. Muestra barra de progreso de cuenta regresiva
+ * 3. Grafana consulta los datos según el intervalo configurado sin recargar el iframe
+ * 4. Muestra la fecha de carga de la vista
  * 5. Permite cambiar rango de tiempo y forzar refresh manual
  */
 
@@ -38,22 +38,19 @@ class FleetReportsDashboard extends Component {
             error:           false,
             errorMsg:        "",
             iframeUrl:       "",
-            grafanaBaseUrl:  "http://localhost:3000",
+            grafanaBaseUrl:  "",
             dashboardUid:    "fleet-traccar-main",
             refreshInterval: 30,    // segundos
             timeFrom:        "now-6h",
-            countdown:       30,    // cuenta regresiva actual
             isFullscreen:    false,
             lastRefresh:     null,
             timeRanges:      TIME_RANGES,
         });
 
         this.disposed = false;
-        this._refreshTimer  = null;
-        this._countdownTimer = null;
 
         onMounted(() => this._init());
-        onWillUnmount(() => { this.disposed = true; this._clearTimers(); });
+        onWillUnmount(() => { this.disposed = true; });
     }
 
     // ── Inicialización ──────────────────────────────────────────────────────
@@ -73,20 +70,14 @@ class FleetReportsDashboard extends Component {
             this.state.dashboardUid   = config.dashboard_uid;
             this.state.refreshInterval = config.refresh_interval;
             this.state.timeFrom        = config.time_from;
-            this.state.countdown       = config.refresh_interval;
             this.state.iframeUrl       = this._buildUrl(this.state.timeFrom);
             this.state.loading         = false;
-            this.state.lastRefresh     = new Date();
-
-            this._startAutoRefresh();
         } catch (err) {
             if (this.disposed) return;
             console.error("[FleetReports] Error al obtener configuración Grafana:", err);
             this.state.loading = false;
             this.state.error   = true;
             this.state.errorMsg = String(err?.message || err || "Error desconocido");
-            // Intentar con URL por defecto
-            this._buildAndSetUrl();
         }
     }
 
@@ -103,45 +94,13 @@ class FleetReportsDashboard extends Component {
         );
     }
 
-    _buildAndSetUrl() {
-        this.state.iframeUrl = this._buildUrl(this.state.timeFrom);
-        this.state.loading   = false;
-    }
-
     // ── Auto-refresh ────────────────────────────────────────────────────────
-    _startAutoRefresh() {
-        this._clearTimers();
-        const interval = this.state.refreshInterval * 1000;
-
-        // Refresca el iframe recargando su src
-        this._refreshTimer = setInterval(() => {
-            this._reloadIframe();
-            this.state.countdown  = this.state.refreshInterval;
-            this.state.lastRefresh = new Date();
-        }, interval);
-
-        // Cuenta regresiva cada segundo
-        this._countdownTimer = setInterval(() => {
-            if (this.state.countdown > 0) {
-                this.state.countdown -= 1;
-            }
-        }, 1000);
-    }
-
-    _clearTimers() {
-        if (this._refreshTimer)   clearInterval(this._refreshTimer);
-        if (this._countdownTimer) clearInterval(this._countdownTimer);
-        this._refreshTimer   = null;
-        this._countdownTimer = null;
-    }
-
     _reloadIframe() {
         const iframe = this.iframeRef.el;
         if (iframe) {
-            // Reconstruye la URL para forzar un reload limpio del iframe
-            const current = iframe.src;
-            iframe.src = "";
-            requestAnimationFrame(() => { iframe.src = current; });
+            const url = new URL(this._buildUrl(this.state.timeFrom));
+            url.searchParams.set('_reload', String(Date.now()));
+            this.state.iframeUrl = url.href;
         }
     }
 
@@ -150,8 +109,6 @@ class FleetReportsDashboard extends Component {
     onTimeRangeChange(ev) {
         this.state.timeFrom  = ev.target.value;
         this.state.iframeUrl = this._buildUrl(this.state.timeFrom);
-        this.state.countdown = this.state.refreshInterval;
-        this._startAutoRefresh();
     }
 
     onManualRefresh() {
@@ -159,10 +116,7 @@ class FleetReportsDashboard extends Component {
             this._init();
             return;
         }
-        this.state.countdown = this.state.refreshInterval;
-        this.state.lastRefresh = new Date();
         this._reloadIframe();
-        this._startAutoRefresh();
     }
 
     onToggleFullscreen() {
@@ -176,6 +130,7 @@ class FleetReportsDashboard extends Component {
     onIframeLoad() {
         this.state.loading = false;
         this.state.error   = false;
+        this.state.lastRefresh = new Date();
     }
 
     onIframeError() {
@@ -189,21 +144,12 @@ class FleetReportsDashboard extends Component {
 
     // ── Computed helpers ────────────────────────────────────────────────────
 
-    get countdownPercent() {
-        const pct = (this.state.countdown / this.state.refreshInterval) * 100;
-        return Math.max(0, Math.min(100, pct));
-    }
-
     get lastRefreshLabel() {
         const d = this.state.lastRefresh;
         if (!d) return "—";
         return d.toLocaleTimeString("es", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
     }
 
-    get countdownLabel() {
-        const s = this.state.countdown;
-        return s > 0 ? `${s}s` : "Actualizando…";
-    }
 }
 
 // ── Template OWL (inline XML) ───────────────────────────────────────────────
@@ -308,15 +254,9 @@ FleetReportsDashboard.template = xml/* xml */`
 
   <!-- ── Barra de estado inferior ──────────────────────────── -->
   <div class="o_fleet_reports_statusbar">
-    <span>Última actualización: <strong t-esc="lastRefreshLabel"/></span>
-
-    <div class="o_fleet_countdown">
-      <span>Próxima actualización: <strong t-esc="countdownLabel"/></span>
-      <div class="o_fleet_countdown_bar">
-        <div class="o_fleet_countdown_fill"
-             t-attf-style="width: {{ countdownPercent }}%"/>
-      </div>
-    </div>
+    <span>Vista cargada: <strong t-esc="lastRefreshLabel"/></span>
+    <span>Datos: actualización cada <t t-esc="state.refreshInterval"/> s en Grafana.</span>
+    <span>Se requiere iniciar sesión en Grafana para consultar los paneles.</span>
 
     <span class="o_fleet_server_label">
       Grafana: <t t-esc="state.grafanaBaseUrl"/>
