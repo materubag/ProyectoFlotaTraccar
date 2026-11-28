@@ -134,7 +134,8 @@ class FleetRuta(models.Model):
     @api.depends('parada_ids', 'parada_ids.active')
     def _compute_total_paradas(self):
         for ruta in self:
-            ruta.total_paradas = len(ruta.parada_ids)
+            # La lista en memoria puede incluir aún una parada recién archivada.
+            ruta.total_paradas = len(ruta.parada_ids.filtered('active'))
 
     @api.depends('distancia_estimada_km', 'duracion_estimada_min')
     def _compute_velocidad_promedio(self):

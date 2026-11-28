@@ -5,7 +5,7 @@ import logging
 from contextlib import nullcontext
 from datetime import datetime, timedelta
 from pathlib import Path
-from types import SimpleNamespace
+from types import MethodType, SimpleNamespace
 from typing import Dict, List, Optional
 from unittest.mock import MagicMock
 
@@ -117,15 +117,29 @@ class Records(list):
         return Records(r for r in self if predicate(r))
 
 
+class FirstSlice:
+    """Imita `recordset[:1]`, que en Odoo devuelve el primer registro."""
+    def __init__(self, first):
+        self.first = first
+
+    def __getitem__(self, _):
+        return self.first
+
+
 def test_stop_schedule_follows_assigned_shift():
     first = SimpleNamespace(hora_prevista=8, secuencia=1)
-    stop = SimpleNamespace(hora_prevista=8.25, secuencia=2, latitud=-1, longitud=-78,
+    stop = SimpleNamespace(id=2, hora_prevista=8.25, secuencia=2, latitud=-1, longitud=-78,
                            radio_proximidad_m=50, tolerancia_min=5, name='Parada')
     compliance = SimpleNamespace(cumplida=False, parada_id=stop, timestamp_llegada=False)
     compliance.write = lambda vals: compliance.__dict__.update(vals)
     rec = SimpleNamespace(id=1, name='Turno de tarde', fecha_inicio=datetime(2026, 11, 4, 19),
                           ruta_id=SimpleNamespace(zona_horaria='America/Guayaquil', parada_ids=Records([first, stop])),
                           cumplimiento_parada_ids=Records([compliance]))
+    # La hora programada la calcula el método real; solo se sustituye el acceso a las paradas.
+    rec.ensure_one = lambda: None
+    rec.paradas_del_recorrido = lambda: FirstSlice(first)
+    rec.hora_programada = MethodType(method('fleet_automatico.py', 'hora_programada'), rec)
+    rec._es_destino_sin_recorrer = lambda parada: False
     pos = SimpleNamespace(id=1, latitud=-1, longitud=-78, timestamp=datetime(2026, 11, 4, 19, 23))
     method('fleet_posicion_gps.py', '_verificar_paradas')(SimpleNamespace(env=MagicMock()), rec, pos)
     assert compliance.retraso_min == 8
