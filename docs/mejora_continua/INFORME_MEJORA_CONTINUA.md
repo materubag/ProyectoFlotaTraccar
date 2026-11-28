@@ -311,6 +311,15 @@ Hallazgos posteriores a la línea base; no modifican su Pareto.
 - **Verificar:** antes, `base` y `web` no cargaban; después, inicio de sesión HTTP 200, `fleet_rutas` 16.0.2.0.0, webhook 401 sin token y 200 con token, manifiesto PWA 200, firma VAPID y cifrado push correctos, sin errores en el log tras 75 s. Se conservaron los conteos: 15 recorridos, 740 posiciones, 34 incidencias, 12 métricas.
 - **Actuar:** probar siempre la imagen que se despliega. Pendiente: GPS real tras el cambio, envío push a un teléfono y revisar la antigüedad de `cryptography 3.3.2`.
 
+### Ciclo 1a — realizado (27/11/2026): pérdida de posiciones del reenvío (H29)
+H29 (Integración, severidad alta) se descubrió después de la línea base y no modifica su Pareto.
+- **Síntoma:** con el teléfono de prueba, desde las 00:59 UTC del 28/11 Traccar tenía 50 posiciones y Odoo 4. Un compañero reportó un problema parecido en el despliegue en la nube (pendiente de confirmar que tenga la misma causa).
+- **Planificar (causa):** una posición reenviada llegó con `id = 0`; Odoo la guardaba como identificador único y trataba las siguientes con 0 como duplicadas. Que todas las perdidas llegaran con 0 es una deducción, coherente con la reproducción.
+- **Hacer:** el 0 se trata como "sin ID"; los duplicados sin ID se reconocen por vehículo, segundo y coordenadas (`buscar_equivalente`); cuando el cron o el historial traen el ID real se completa en el mismo registro; los conflictos de concurrencia ya no descartan la posición en el webhook.
+- **Verificar:** misma prueba de integración en una copia de la base ([antes](ciclo_webhook/antes.json), [después](ciclo_webhook/despues.json)): antes 4 de 9 casos correctos y 0 de 10 posiciones reenviadas guardadas; después 9 de 9 y 10 de 10. Pytest: 64 aprobadas más 4 de `test_revision_pdf.py` ejecutadas sustituyendo `pytz`. Reproducir: `pwsh scripts/pruebas/prueba_posiciones.ps1`.
+- **Primera comprobación real (teléfono en la red local, 28/11 03:58 UTC):** 2 de 2 posiciones distintas de Traccar aparecieron en Odoo, ambas por el reenvío (sin ID), unos 3 s después y sin errores. Muestra pequeña y sin recorrido en curso; no equivale a un recorrido documentado.
+- **Actuar:** **pendiente** comparar Traccar y Odoo con un recorrido real posterior al cambio y probar en la nube. La concurrencia entre reenvío y cron no está cubierta por la prueba. Las posiciones perdidas pueden recuperarse con la sincronización de historial de cada recorrido.
+
 ### Ciclo 1 — Detección automática confiable (O2, O6)
 | Fase | Contenido |
 |---|---|

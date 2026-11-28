@@ -13,6 +13,8 @@ import hashlib
 import os
 from datetime import datetime, timezone
 
+import psycopg2
+
 from odoo import http
 from odoo.http import request, Response
 
@@ -115,6 +117,8 @@ class TraccarWebhookController(http.Controller):
         # ── Procesar posiciones ─────────────────────────────────────────
         try:
             processed = self._process_positions(positions)
+        except psycopg2.OperationalError:
+            raise  # Odoo reintenta la petición ante conflictos de concurrencia
         except Exception as exc:
             _logger.exception("Webhook Traccar: error inesperado procesando posiciones — %s", exc)
             return self._json_response(
@@ -146,7 +150,8 @@ class TraccarWebhookController(http.Controller):
         # Pre-cargar los traccar_position_id ya existentes para la sesión
         # (evita N consultas individuales para duplicados)
         incoming_pos_ids = [
-            p["id"] for p in positions if isinstance(p.get("id"), int)
+            p["id"] for p in positions
+            if isinstance(p.get("id"), int) and p["id"] > 0
         ]
         existing_pos_ids = set()
         if incoming_pos_ids:
@@ -190,6 +195,8 @@ class TraccarWebhookController(http.Controller):
                         device_vehicle_map=device_vehicle_map,
                         existing_pos_ids=existing_pos_ids, pos=pos,
                     )
+            except psycopg2.OperationalError:
+                raise  # no descartar la posición por un conflicto con el cron
             except Exception as exc:  # noqa: BLE001
                 _logger.error(
                     "Webhook Traccar: error procesando posición id=%s — %s",
@@ -229,8 +236,12 @@ class TraccarWebhookController(http.Controller):
         traccar_position_id = pos.get("id")
         device_id = pos.get("deviceId")
 
-        # Ignorar posiciones sin id o sin device
-        if not isinstance(traccar_position_id, int) or not isinstance(device_id, int):
+        # El reenvío puede llegar con id 0: significa "todavía sin ID", no un duplicado.
+        if isinstance(traccar_position_id, int) and traccar_position_id <= 0:
+            traccar_position_id = None
+
+        # Ignorar posiciones con id no numérico o sin device
+        if (traccar_position_id is not None and not isinstance(traccar_position_id, int))                 or not isinstance(device_id, int):
             _logger.debug(
                 "Webhook Traccar: posición ignorada (sin id o deviceId válido): %s", pos
             )
@@ -274,6 +285,10 @@ class TraccarWebhookController(http.Controller):
             )
             return 0
 
+        if PosicionGps.buscar_equivalente(
+                vehicle.id, timestamp, float(latitude), float(longitude), traccar_position_id):
+            return 0
+
         # ── Buscar recorrido activo ─────────────────────────────────────
         recorrido = Recorrido.search(
             [
@@ -288,7 +303,6 @@ class TraccarWebhookController(http.Controller):
         # ── Crear fleet.posicion.gps ────────────────────────────────────
         vals_posicion = {
             "payload_origen": json.dumps(pos),
-            "traccar_position_id": traccar_position_id,
             "vehicle_id": vehicle.id,
             "recorrido_id": recorrido.id if recorrido else False,
             "latitud": float(latitude),
@@ -300,8 +314,12 @@ class TraccarWebhookController(http.Controller):
             "timestamp": timestamp,
             "atributos_raw": json.dumps(attributes) if attributes else "{}",
         }
+        # Sin ID se omite el campo (queda NULL) para no chocar con la restricción única.
+        if traccar_position_id:
+            vals_posicion["traccar_position_id"] = traccar_position_id
         new_pos = PosicionGps.create(vals_posicion)
-        existing_pos_ids.add(traccar_position_id)
+        if traccar_position_id:
+            existing_pos_ids.add(traccar_position_id)
 
         # ── Actualizar última posición en fleet.vehicle ─────────────────
         if not vehicle.traccar_last_update or timestamp >= vehicle.traccar_last_update:
