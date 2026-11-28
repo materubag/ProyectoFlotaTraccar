@@ -383,6 +383,11 @@ class FleetTraccarSync(models.Model):
 
         if timestamp is None or pos.get("valid") is False:
             raise ValueError("Invalid GPS timestamp or fix")
+        if self.env["fleet.posicion.gps"].sudo().buscar_equivalente(
+                vehicle.id, timestamp, float(latitude), float(longitude), traccar_pos_id):
+            existing_ids.add(traccar_pos_id)
+            stats["duplicados"] += 1
+            return None
         recorrido = vehicle_recorrido_map.get(vehicle.id)
         if recorrido and recorrido.fecha_inicio_real and timestamp < recorrido.fecha_inicio_real:
             recorrido = None
@@ -620,7 +625,16 @@ class FleetTraccarSync(models.Model):
                     "atributos_raw": json.dumps(attributes) if attributes else "{}",
                 }
                 with self.env.cr.savepoint():
-                    record = self.env["fleet.posicion.gps"].sudo().create(vals)
+                    Posicion = self.env["fleet.posicion.gps"].sudo()
+                    previa = Posicion.buscar_equivalente(
+                        vehicle.id, timestamp, vals["latitud"], vals["longitud"], pos["id"])
+                    if previa:
+                        stats["duplicados"] = stats.get("duplicados", 0) + 1
+                        if not previa.recorrido_id:
+                            previa.write({"recorrido_id": recorrido.id})
+                            records.append(previa)  # falta evaluar desvío y paradas
+                        continue
+                    record = Posicion.create(vals)
                 records.append(record)
                 stats["nuevos"] += 1
             except Exception:

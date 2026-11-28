@@ -55,6 +55,7 @@ def test_bulk_bad_number_does_not_discard_good_position():
     model = MagicMock()
     model.sudo.return_value = model
     model.create.side_effect = lambda vals: SimpleNamespace(**vals)
+    model.buscar_equivalente.return_value = None
     env = MagicMock()
     env.__getitem__.return_value = model
     env.cr.savepoint.side_effect = nullcontext

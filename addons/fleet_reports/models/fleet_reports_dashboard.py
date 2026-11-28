@@ -1,5 +1,28 @@
 # -*- coding: utf-8 -*-
 from odoo import models, api
+from odoo.http import request
+import os
+from urllib.parse import urlsplit, urlunsplit
+
+
+def grafana_browser_url(configured_url, browser_url, port=3000):
+    """Resolver el servidor desde el navegador; conservar URLs externas explícitas."""
+    configured = (configured_url or '').strip().rstrip('/')
+    parsed = urlsplit(configured)
+    if configured and parsed.hostname not in ('localhost', '127.0.0.1', '::1', 'grafana'):
+        if parsed.scheme not in ('http', 'https') or not parsed.hostname or parsed.username or parsed.password:
+            raise ValueError('La URL de Grafana debe ser HTTP/HTTPS y no contener credenciales.')
+        return configured
+    browser = urlsplit(browser_url)
+    hostname = browser.hostname
+    if not hostname:
+        raise ValueError('No se pudo determinar el servidor de Odoo.')
+    host = f'[{hostname}]' if ':' in hostname else hostname
+    # Una URL antigua de localhost conserva su puerto publicado personalizado.
+    published_port = parsed.port or int(port)
+    if not 1 <= published_port <= 65535:
+        raise ValueError('Puerto de Grafana inválido.')
+    return urlunsplit((browser.scheme, f'{host}:{published_port}', '', '', ''))
 
 
 class FleetReportsDashboard(models.TransientModel):
@@ -15,15 +38,20 @@ class FleetReportsDashboard(models.TransientModel):
         """
         ICP = self.env['ir.config_parameter'].sudo()
 
-        base_url = ICP.get_param(
-            'fleet_reports.grafana_base_url', 'http://localhost:3000'
+        base_url = grafana_browser_url(
+            ICP.get_param('fleet_reports.grafana_base_url', ''),
+            request.httprequest.host_url,
+            os.environ.get('GRAFANA_PORT', '3000'),
         )
         dashboard_uid = ICP.get_param(
             'fleet_reports.grafana_fleet_dashboard_uid', 'fleet-traccar-main'
         )
-        refresh_interval = int(ICP.get_param(
-            'fleet_reports.grafana_refresh_interval', 30
-        ))
+        try:
+            refresh_interval = max(5, int(ICP.get_param(
+                'fleet_reports.grafana_refresh_interval', 30
+            )))
+        except (TypeError, ValueError):
+            refresh_interval = 30
         time_from = ICP.get_param(
             'fleet_reports.grafana_default_time_range', 'now-6h'
         )

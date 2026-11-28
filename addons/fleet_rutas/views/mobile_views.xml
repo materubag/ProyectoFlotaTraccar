@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_fleet_ruta_mobile_users" model="ir.ui.view">
+        <field name="name">fleet.ruta.mobile.users</field>
+        <field name="model">fleet.ruta</field>
+        <field name="inherit_id" ref="view_fleet_ruta_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook" position="inside">
+                <page string="Usuarios de la aplicación" groups="fleet_rutas.group_fleet_admin">
+                    <p>Asigna los usuarios que toman esta ruta. Podrán ver sus vehículos, historial e incidencias.</p>
+                    <field name="mobile_user_ids" widget="many2many_tags"
+                        domain="[('share', '=', True), ('active', '=', True)]"
+                        options="{'no_create': True}"/>
+                </page>
+            </xpath>
+        </field>
+    </record>
+    <record id="action_mobile_users" model="ir.actions.act_window">
+        <field name="name">Usuarios de la aplicación</field>
+        <field name="res_model">res.users</field>
+        <field name="view_mode">tree,form</field>
+        <field name="domain" eval="[('groups_id', 'in', [ref('group_mobile_user')])]"/>
+        <field name="context" eval="{'default_groups_id': [(6, 0, [ref('base.group_portal'), ref('group_mobile_user')])], 'default_share': True}"/>
+    </record>
+    <menuitem id="menu_mobile_users" name="Usuarios de la aplicación" parent="fleet.fleet_configuration"
+        action="action_mobile_users" groups="base.group_system" sequence="25"/>
+    <record id="view_mobile_push_settings" model="ir.ui.view">
+        <field name="name">fleet.mobile.push.settings</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[hasclass('settings')]" position="inside">
+                <div class="app_settings_block" data-string="Aplicación móvil" string="Aplicación móvil"
+                    data-key="fleet_mobile" groups="base.group_system">
+                    <h2>Notificaciones de la aplicación móvil</h2>
+                    <div class="row mt16 o_settings_container">
+                        <div class="col-12 col-lg-8 o_setting_box">
+                            <div class="o_setting_right_pane">
+                                <p>La PWA está en /flota/app. Las notificaciones push requieren HTTPS y pywebpush en el servidor.</p>
+                                <label for="mobile_vapid_subject"/>
+                                <field name="mobile_vapid_subject" placeholder="mailto:soporte@universidad.edu.ec"/>
+                                <label for="mobile_vapid_public"/>
+                                <field name="mobile_vapid_public" readonly="1"/>
+                                <field name="mobile_vapid_private" invisible="1" password="True"/>
+                                <button name="action_generate_mobile_keys" type="object" string="Generar claves Web Push" class="btn-primary"/>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </xpath>
+        </field>
+    </record>
+    <data noupdate="1">
+        <record id="cron_mobile_push" model="ir.cron">
+            <field name="name">Flota: enviar notificaciones móviles</field>
+            <field name="model_id" ref="model_fleet_mobile_delivery"/>
+            <field name="state">code</field>
+            <field name="code">model._send_pending()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">minutes</field>
+            <field name="numbercall">-1</field>
+            <field name="user_id" ref="base.user_root"/>
+        </record>
+    </data>
+</odoo>

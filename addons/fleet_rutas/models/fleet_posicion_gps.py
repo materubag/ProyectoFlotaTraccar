@@ -139,6 +139,33 @@ class FleetPosicionGps(models.Model):
             if pos.recorrido_id and pos.recorrido_id.vehicle_id != pos.vehicle_id:
                 raise ValidationError('La posición y el recorrido deben pertenecer al mismo vehículo.')
 
+    @api.model
+    def buscar_equivalente(self, vehicle_id, timestamp, latitud, longitud, traccar_id=None):
+        """
+        Busca el mismo punto GPS cuando el ID de Traccar no sirve para compararlo.
+
+        El reenvío de Traccar puede entregar posiciones con ``id = 0``, mientras
+        que la API entrega después el mismo punto con su ID real. Se consideran
+        iguales si coinciden vehículo, segundo y coordenadas, y al menos uno de
+        los dos no tiene ID. Si llega el ID real, se completa en el registro.
+        Dos puntos con ID real distinto nunca se fusionan.
+        """
+        segundo = timestamp.replace(microsecond=0)
+        candidatas = self.search([
+            ('vehicle_id', '=', vehicle_id),
+            ('timestamp', '>=', segundo),
+            ('timestamp', '<', segundo + timedelta(seconds=1)),
+        ])
+        for candidata in candidatas:
+            if candidata.traccar_position_id and traccar_id:
+                continue
+            if (math.isclose(candidata.latitud, latitud, rel_tol=0, abs_tol=1e-6)
+                    and math.isclose(candidata.longitud, longitud, rel_tol=0, abs_tol=1e-6)):
+                if traccar_id:
+                    candidata.write({'traccar_position_id': traccar_id})
+                return candidata
+        return self.browse()
+
     def detectar_desviacion(self):
         """
         Evalúa si la posición actual se aparta del corredor geográfico de la ruta

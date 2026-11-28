@@ -47,4 +47,8 @@ scripts/data_generator.py
 agent_context/
 .agent_context/
 
+# Reporte de cobertura generado
+coverage.xml
 
+# Temporales de sonar-scanner
+.scannerwork/

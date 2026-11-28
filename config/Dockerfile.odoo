@@ -1,0 +1,9 @@
+ARG ODOO_IMAGE_TAG=16
+FROM odoo:${ODOO_IMAGE_TAG}
+USER root
+# cryptography debe quedarse en la versión del sistema: una más nueva rompe el
+# pyOpenSSL de Odoo. Al fijarla, pip elige un py-vapid compatible.
+RUN pip3 install --no-cache-dir 'pywebpush>=2.0,<3' 'cryptography==3.3.2'
+# La construcción falla aquí si Odoo o Web Push no pueden importarse.
+RUN python3 -c "import OpenSSL.SSL, odoo.addons.base, pywebpush, py_vapid"
+USER odoo

@@ -1,0 +1,31 @@
+{
+  "descripcion": "Escenarios SIMULADOS con resultado esperado definido antes de ejecutar. Coordenadas locales en metros: x hacia el este, y hacia el norte.",
+  "configuracion": {
+    "origen": [-1.25, -78.62],
+    "paradas_x_m": [0, 1000, 2000, 3000],
+    "paradas_minuto": [0, 5, 10, 15],
+    "radio_parada_m": 50,
+    "tolerancia_min": 5,
+    "intervalo_gps_s": 15
+  },
+  "definiciones": {
+    "retraso": "Llegada a una parada (o falta de llegada) más de 5 min después de lo previsto",
+    "parada_omitida": "El bus pasa o termina sin entrar en el radio de la parada",
+    "desviacion": "Un evento por cada episodio continuo fuera de la vía real de la ruta",
+    "senal_perdida": "Más de 120 s sin posiciones",
+    "incompleto": "El recorrido termina sin llegar al destino"
+  },
+  "escenarios": [
+    {"id": "E01", "nombre": "Puntual sobre vía recta", "puntos": [[0,0,0],[900,3000,0]], "esperado": {}},
+    {"id": "E02", "nombre": "Puntual sobre vía real curva (250 m de la recta)", "puntos": [[0,0,0],[300,1000,0],[375,1200,250],[525,1800,250],[600,2000,0],[900,3000,0]], "esperado": {}},
+    {"id": "E03", "nombre": "Llegada 8 min tarde a la parada 3", "puntos": [[0,0,0],[300,1000,0],[1080,2000,0],[1140,3000,0]], "esperado": {"retraso": 1}},
+    {"id": "E04", "nombre": "Llegada 4 min tarde (dentro de tolerancia)", "puntos": [[0,0,0],[300,1000,0],[840,2000,0],[960,3000,0]], "esperado": {}},
+    {"id": "E05", "nombre": "Parada 3 omitida (pasa a 80 m)", "puntos": [[0,0,0],[300,1000,0],[540,1800,0],[570,1920,80],[630,2080,80],[660,2200,0],[900,3000,0]], "esperado": {"parada_omitida": 1}},
+    {"id": "E06", "nombre": "Un desvío real de 300 m", "puntos": [[0,0,0],[60,200,0],[90,300,300],[210,700,300],[240,800,0],[900,3000,0]], "esperado": {"desviacion": 1}},
+    {"id": "E07", "nombre": "Dos desvíos reales separados", "puntos": [[0,0,0],[60,200,0],[90,300,300],[210,700,300],[240,800,0],[660,2200,0],[690,2300,300],[810,2700,300],[840,2800,0],[900,3000,0]], "esperado": {"desviacion": 2}},
+    {"id": "E08", "nombre": "Un único punto GPS erróneo a 150 m", "puntos": [[0,0,0],[900,3000,0]], "atipico": [450,150], "esperado": {}},
+    {"id": "E09", "nombre": "Pérdida de señal de 240 s", "puntos": [[0,0,0],[900,3000,0]], "hueco": [330,570], "esperado": {"senal_perdida": 1}},
+    {"id": "E10", "nombre": "Recorrido termina en la parada 2", "puntos": [[0,0,0],[300,1000,0]], "esperado": {"incompleto": 1, "parada_omitida": 2}},
+    {"id": "E11", "nombre": "Detenido en curso, 9 min sin llegar a la parada 2", "puntos": [[0,0,0],[150,500,0],[840,500,0]], "cerrar": false, "esperado": {"retraso": 1}}
+  ]
+}

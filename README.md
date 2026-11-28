@@ -1,5 +1,24 @@
 # Proyecto Flota Traccar (Odoo 16 + Traccar + PostgreSQL)
 
+Aplicación móvil PWA, roles de acceso y configuración de notificaciones: [docs/APLICACION_MOVIL.md](docs/APLICACION_MOVIL.md).
+
+Grafana se abre en **Flota → Dashboard Grafana** y requiere iniciar sesión en Grafana
+con una cuenta autorizada. El administrador puede crear cuentas con rol Viewer para consulta;
+el registro público y el acceso anónimo están deshabilitados. La sesión de Odoo es independiente.
+Configure `GRAFANA_ADMIN_USER`, `GRAFANA_ADMIN_PASSWORD` y `GRAFANA_PORT` en `.env`.
+La contraseña de inicialización no modifica la de un administrador ya existente en el volumen.
+
+En Ajustes → Flota → Reportes Grafana, deje la URL vacía para usar el mismo servidor
+que el navegador usa para Odoo y el puerto publicado de Grafana (3000 por defecto).
+Las configuraciones antiguas con `localhost` también se adaptan al servidor del navegador.
+Desde un móvil use la IP o el nombre del servidor para abrir Odoo, con acceso de red a ambos puertos.
+Si Odoo se publica mediante HTTPS, configure una URL pública HTTPS para Grafana mediante
+su proxy; el contenedor sirve HTTP por defecto. Grafana actualiza sus datos sin recargar
+el marco de Odoo. El botón Actualizar recarga la vista únicamente cuando se solicita.
+
+Para comprobar el arranque y la salud del servicio use `./scripts/manage.ps1 start`
+desde esta carpeta, o `docker compose up -d --wait --wait-timeout 180`.
+
 Revisión de requisitos, correcciones, resultados y tabla de pendientes: [docs/REVISION_PROYECTO.md](docs/REVISION_PROYECTO.md). Matriz automatizada: [docs/MATRIZ_PRUEBAS.md](docs/MATRIZ_PRUEBAS.md).
 
 Plataforma de gestión de flota vehicular y monitoreo GPS que integra **Odoo 16**, **Traccar 6.16** y **PostgreSQL 15** bajo contenedores Docker aislados.

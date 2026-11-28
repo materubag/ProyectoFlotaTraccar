@@ -10,10 +10,11 @@ class ResConfigSettings(models.TransientModel):
     grafana_base_url = fields.Char(
         string='URL de Grafana',
         config_parameter='fleet_reports.grafana_base_url',
-        default='http://localhost:3000',
+        default='',
         help=(
             'URL base donde está disponible Grafana. '
-            'Ejemplo: http://localhost:3000  o  http://grafana:3000'
+            'Dejar vacío para usar el mismo servidor y protocolo que Odoo, '
+            'con el puerto publicado de Grafana. Para un proxy HTTPS, indicar su URL pública.'
         ),
     )
 
@@ -33,7 +34,7 @@ class ResConfigSettings(models.TransientModel):
         string='Intervalo de Actualización (seg)',
         config_parameter='fleet_reports.grafana_refresh_interval',
         default=30,
-        help='Intervalo en segundos para refrescar el iframe de Grafana automáticamente.',
+        help='Intervalo de consulta de datos de Grafana, sin recargar el iframe (mínimo 5 segundos).',
     )
 
     # ─── Rango de tiempo por defecto ───────────────────────────────────────

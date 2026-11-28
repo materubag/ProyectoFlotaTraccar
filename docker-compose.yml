@@ -36,7 +36,12 @@ services:
           - db
 
   odoo:
-    image: odoo:${ODOO_IMAGE_TAG:-16}
+    image: flota-odoo:${ODOO_IMAGE_TAG:-16}
+    build:
+      context: ./config
+      dockerfile: Dockerfile.odoo
+      args:
+        ODOO_IMAGE_TAG: ${ODOO_IMAGE_TAG:-16}
     container_name: flota-odoo
     restart: always
     depends_on:
@@ -51,6 +56,7 @@ services:
       - PASSWORD=${ODOO_DB_PASSWORD}
       - ODOO_DB_NAME=${ODOO_DB_NAME:-odoo_flota}
       - TRACCAR_WEBHOOK_SECRET=${TRACCAR_WEBHOOK_SECRET:-}
+      - GRAFANA_PORT=${GRAFANA_PORT:-3000}
     entrypoint: ["/bin/bash", "-c"]
     command:
       - |
@@ -227,14 +233,16 @@ services:
     ports:
       - "${GRAFANA_PORT:-3000}:3000"
     environment:
-      # ── Acceso anónimo (para el iframe de Odoo sin login) ──
-      - GF_AUTH_ANONYMOUS_ENABLED=true
-      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+      # Los paneles requieren una sesión de Grafana, también dentro de Odoo.
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_AUTH_DISABLE_LOGIN_FORM=false
+      - GF_SECURITY_COOKIE_SAMESITE=lax
       # ── Seguridad del iframe ────────────────────────────────
       - GF_SECURITY_ALLOW_EMBEDDING=true
       # ── Admin por defecto (para crear/editar dashboards) ───
       - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-GrafanaFlota2026!}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:?Defina GRAFANA_ADMIN_PASSWORD en .env}
       # ── Credenciales BD Traccar (usadas en el datasource) ──
       - TRACCAR_DB_USER=${TRACCAR_DB_USER:-traccar}
       - TRACCAR_DB_PASSWORD=${TRACCAR_DB_PASSWORD}
@@ -248,6 +256,12 @@ services:
       - flota-grafana-data:/var/lib/grafana
       - ./config/grafana/provisioning:/etc/grafana/provisioning:ro
       - ./config/grafana/dashboards:/etc/grafana/dashboards:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:3000/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     networks:
       flota-net:
         aliases:
