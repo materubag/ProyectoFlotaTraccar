@@ -3,14 +3,18 @@
 import { Component, useState, onMounted, onWillUnmount, useRef, xml } from "@odoo/owl";
 import { registry } from "@web/core/registry";
 import { useService } from "@web/core/utils/hooks";
+import {
+  byRoute, compare, dailyTrend, formatValue, incidentsByType, periodRange, resolveOrigin,
+  selectTrips, summarize,
+} from "@fleet_rutas/js/dashboard_metrics";
 const TABS = [
   { id: "panel", label: "Panel", icon: "fa-dashboard" },
   { id: "monitoreo", label: "Monitoreo en vivo", icon: "fa-map-marker" },
   { id: "recorridos", label: "Recorridos", icon: "fa-road" },
   { id: "rutas", label: "Rutas y programación", icon: "fa-calendar" },
-  { id: "metricas", label: "Métricas", icon: "fa-bar-chart" },
   { id: "sync", label: "Sincronización", icon: "fa-refresh" },
   { id: "grafana", label: "Dashboard Grafana", icon: "fa-line-chart" },
+  { id: "traccar", label: "Traccar", icon: "fa-globe" },
 ];
 const STATES = {
   programado: "Programado",
@@ -79,7 +83,7 @@ const METRICS = [
   ],
   [
     "Frecuencia de incidencias",
-    "Eventos / horas de operación",
+    "Incidencias de recorridos medidos / horas de operación",
     "frecuencia_incidencias",
     "inc/h",
     "Frecuencia de eventos detectados",
@@ -139,6 +143,7 @@ class FleetRutasDashboard extends Component {
       routeId: null,
       routeFilter: "",
       period: "",
+      origin: "auto",
       search: "",
       trips: [],
       routes: [],
@@ -156,12 +161,15 @@ class FleetRutasDashboard extends Component {
       detailError: "",
       syncBusy: false,
       syncMessage: "",
+      traccarUrl: "",
+      traccarError: "",
       updated: "",
     });
     this.disposed = false;
     this.inFlight = false;
     this.detailRequest = 0;
     onMounted(() => {
+      if (this.state.tab === "traccar") this.loadTraccarUrl();
       this.loadData();
       this.timer = setInterval(() => this.loadData(), 5000);
     });
@@ -188,17 +196,34 @@ class FleetRutasDashboard extends Component {
   setTab(id) {
     this.state.tab = id;
     this.save();
+    if (id === "traccar") this.loadTraccarUrl();
+  }
+  async loadTraccarUrl() {
+    this.state.traccarError = "";
+    try {
+      this.state.traccarUrl = await this.call("fleet.traccar.sync", "get_traccar_web_url");
+    } catch (e) {
+      this.state.traccarError =
+        e?.data?.message || "No se pudo obtener la dirección de Traccar.";
+    }
+  }
+  get traccarBlocked() {
+    return window.location.protocol === "https:" && this.state.traccarUrl.startsWith("http:");
   }
   setRouteTab(id) {
     this.state.routeTab = id;
     this.save();
   }
   openNewRoute() {
-    window.open("/fleet_rutas/rutas/nueva", "_blank");
+    window.location.assign("/fleet_rutas/rutas/nueva");
   }
   openEditRoute() {
     if (!this.selectedRoute) return;
-    window.open("/fleet_rutas/rutas/nueva?route_id=" + this.selectedRoute.id, "_blank");
+    window.location.assign("/fleet_rutas/rutas/nueva?route_id=" + this.selectedRoute.id);
+  }
+  openRoutePath() {
+    if (!this.selectedRoute) return;
+    window.location.assign("/fleet_rutas/trazado/" + this.selectedRoute.id);
   }
   async exportRoute() {
     if (!this.selectedRoute) return;
@@ -329,8 +354,10 @@ class FleetRutasDashboard extends Component {
               "radio_proximidad_m",
               "latitud",
               "longitud",
+              "active",
             ],
-            [],
+            // Incluye las archivadas: el detalle de recorridos antiguos las necesita.
+            [["active", "in", [true, false]]],
             "secuencia,id",
           ),
           this.rows("fleet.vehicle", [
@@ -350,6 +377,7 @@ class FleetRutasDashboard extends Component {
             "fecha_recorrido",
             "calidad_sync_disponible",
             "deteccion_validada",
+            "distancia_real_km",
             ...METRICS.map((m) => m[2]),
           ]),
           this.rows(
@@ -450,19 +478,9 @@ class FleetRutasDashboard extends Component {
         120000
     );
   }
-  get filteredTrips() {
-    const s = this.state;
-    const cutoff = s.period ? Date.now() - Number(s.period) * 86400000 : null;
-    return s.trips.filter(
-      (t) =>
-        (!s.routeFilter || t.ruta_id[0] === Number(s.routeFilter)) &&
-        (!cutoff ||
-          new Date(t.fecha_inicio.replace(" ", "T") + "Z").getTime() >= cutoff),
-    );
-  }
   get history() {
     const q = this.state.search.toLocaleLowerCase("es");
-    return this.filteredTrips.filter((t) =>
+    return this.state.trips.filter((t) =>
       (
         this.label(t.ruta_id) +
         this.label(t.vehicle_id) +
@@ -473,57 +491,68 @@ class FleetRutasDashboard extends Component {
         .includes(q),
     );
   }
-  get measured() {
-    const ids = new Set(this.filteredTrips.map((t) => t.id));
-    return this.state.metrics.filter((m) => ids.has(m.recorrido_id[0]));
+  show(value) {
+    return formatValue(value);
   }
-  mean(field, items = this.measured) {
-    if (field === "exactitud_sincronizacion_pct")
-      items = items.filter((m) => m.calidad_sync_disponible);
-    if (field === "tasa_verdaderos_positivos_pct")
-      items = items.filter((m) => m.deteccion_validada);
-    return items.length
-      ? (
-          items.reduce((s, m) => s + Number(m[field] || 0), 0) / items.length
-        ).toFixed(1)
-      : "Sin muestra";
-  }
-  get metricRows() {
-    return METRICS.map(([name, formula, field, unit, interpretation]) => ({
-      name,
-      formula,
-      field,
-      unit,
-      interpretation,
-      result: this.mean(field),
-      source: `fleet.metricas.recorrido.${field}`,
-    }));
-  }
-  get routeBars() {
-    return this.state.routes
-      .filter(
-        (r) =>
-          !this.state.routeFilter || r.id === Number(this.state.routeFilter),
-      )
-      .map((r) => {
-        const items = this.measured.filter((m) => m.ruta_id[0] === r.id);
-        return {
-          id: r.id,
-          name: r.name,
-          result: this.mean("pct_puntualidad", items),
-          pct: items.length ? Number(this.mean("pct_puntualidad", items)) : 0,
-        };
-      });
-  }
-  get incidentBars() {
-    const ids = new Set(this.filteredTrips.map((t) => t.id));
-    return Object.entries(TYPES).map(([type, name]) => ({
-      type,
-      name,
-      count: this.state.incidents.filter(
-        (i) => ids.has(i.recorrido_id[0]) && i.tipo === type,
-      ).length,
-    }));
+  /** Todo lo que muestra el panel, calculado una vez por dibujo con los mismos filtros. */
+  get board() {
+    const s = this.state;
+    const origin = resolveOrigin(s.origin, s.trips, s.metrics);
+    const range = periodRange(s.period);
+    const pick = (window) => selectTrips(s.trips, { routeId: s.routeFilter, origin, range: window });
+    const trips = pick(range.current);
+    const summary = summarize(trips, s.metrics, s.incidents);
+    const before = range.previous ? summarize(pick(range.previous), s.metrics, s.incidents) : null;
+    const card = (name, field, unit, better, detail = "") => ({
+      name, unit, detail,
+      value: formatValue(summary[field]),
+      change: before ? compare(summary[field], before[field], better) : null,
+    });
+    const frequency = summary.frecuencia_incidencias;
+    const incidentsCard = {
+      name: "Incidencias", unit: "eventos", value: String(summary.incidents),
+      detail: frequency === null ? "Frecuencia sin muestra" : `${frequency.toFixed(2)} por hora de operación`,
+      change: before ? compare(summary.incidents, before.incidents, -1) : null,
+    };
+    const ids = new Set(trips.map((t) => t.id));
+    const pending = s.incidents.filter((i) => ids.has(i.recorrido_id[0]) && !i.resuelta);
+    const synced = s.metrics.filter((m) => ids.has(m.recorrido_id[0]) && m.calidad_sync_disponible).length;
+    const validated = s.metrics.filter((m) => ids.has(m.recorrido_id[0]) && m.deteccion_validada).length;
+    const quality = (name, field, unit, detail) => ({ name, unit, detail, value: formatValue(summary[field]) });
+    const routes = s.routes.filter((r) => !s.routeFilter || r.id === Number(s.routeFilter));
+    return {
+      origin,
+      summary,
+      cards: [
+        card("Cumplimiento de rutas", "pct_cumplimiento_ruta", "%", 1),
+        card("Puntualidad", "pct_puntualidad", "%", 1),
+        card("Retraso promedio", "retraso_promedio_min", "min", -1),
+        card("Paradas cumplidas", "pct_paradas_cumplidas", "%", 1),
+        card("Desviación de ruta", "pct_desviacion_ruta", "%", -1),
+        card("Diferencia de distancia", "diferencia_distancia_km", "km", 0, "Recorrida menos estimada"),
+        card("Tiempo de recorrido", "duracion_real_min", "min", 0, "Promedio"),
+        incidentsCard,
+      ],
+      quality: [
+        quality("Integridad GPS", "integridad_gps_pct", "%", `${summary.measured} recorridos medidos`),
+        quality("Exactitud Traccar–Odoo", "exactitud_sincronizacion_pct", "%",
+          synced ? `${synced} con datos originales de Traccar` : "Requiere posiciones recibidas de Traccar"),
+        quality("Tiempo del cálculo", "tiempo_respuesta_ms", "ms", "Solo el cálculo; excluye red e interfaz"),
+        quality("Precisión de incidencias", "tasa_verdaderos_positivos_pct", "%",
+          validated ? `${validated} recorridos con eventos validados` : "Requiere validar incidencias"),
+      ],
+      routes: byRoute(routes, trips, s.metrics, s.incidents),
+      trend: dailyTrend(trips, s.metrics, s.incidents),
+      incidentBars: incidentsByType(TYPES, trips, s.incidents),
+      pending: pending.slice(0, 5),
+      pendingTotal: pending.length,
+      recent: trips.filter((t) => t.estado !== "programado").slice(0, 5),
+      rows: METRICS.map(([name, formula, field, unit, interpretation]) => ({
+        name, formula, field, unit, interpretation,
+        result: formatValue(summary[field]),
+        source: `Métricas de recorrido (${field})`,
+      })),
+    };
   }
   get selectedRoute() {
     return (
@@ -533,7 +562,7 @@ class FleetRutasDashboard extends Component {
   }
   get routeStops() {
     return this.selectedRoute
-      ? this.state.stops.filter((p) => p.ruta_id[0] === this.selectedRoute.id)
+      ? this.state.stops.filter((p) => p.active && p.ruta_id[0] === this.selectedRoute.id)
       : [];
   }
   get activeTrips() {
@@ -586,8 +615,10 @@ class FleetRutasDashboard extends Component {
   get detailRows() {
     const trip = this.selectedTrip;
     if (!trip) return [];
-    const stops = this.state.stops.filter(
-      (p) => p.ruta_id[0] === trip.ruta_id[0],
+    // Un recorrido iniciado se muestra con las paradas que registró.
+    const visited = new Set(this.state.detailStops.map((c) => c.parada_id[0]));
+    const stops = this.state.stops.filter((p) =>
+      visited.size ? visited.has(p.id) : p.active && p.ruta_id[0] === trip.ruta_id[0],
     );
     const base = stops.length ? Math.round(stops[0].hora_prevista * 60) : 0;
     return stops.map((p) => {
@@ -666,7 +697,6 @@ class FleetRutasDashboard extends Component {
         this.state.routeTab === "programacion"
           ? "fleet_rutas.action_fleet_recorrido"
           : "fleet_rutas.action_fleet_ruta",
-      metricas: "fleet_rutas.action_fleet_metricas",
       sync: "fleet_rutas.action_fleet_traccar_sync",
     };
     this.actionService.doAction(actions[this.state.tab]);
@@ -710,7 +740,7 @@ FleetRutasDashboard.template = xml/* xml */`
     </button>
   </nav>
   <main t-att-class="'fleet_main' + (state.tab === 'grafana' ? ' fleet_main_grafana' : '')">
-    <div class="hd" t-if="state.tab !== 'grafana'">
+    <div class="hd" t-if="state.tab !== 'grafana' &amp;&amp; state.tab !== 'traccar'">
       <h2 t-esc="tabs.find(t=&gt;t.id===state.tab).label" />
       <div class="fleet_toolbar">
         <span class="lb" t-if="state.updated">Lectura: <t t-esc="state.updated" />
@@ -724,7 +754,8 @@ FleetRutasDashboard.template = xml/* xml */`
       <span t-esc="state.error" />
       <button class="btn s" t-on-click="loadData">Reintentar</button>
     </div>
-    <t t-if="state.tab==='panel' || state.tab==='metricas'">
+    <t t-if="state.tab==='panel'">
+      <t t-set="d" t-value="board" />
       <div class="fleet_filters">
         <label>Ruta <select t-model="state.routeFilter">
             <option value="">Todas las rutas</option>
@@ -738,59 +769,134 @@ FleetRutasDashboard.template = xml/* xml */`
             <option value="90">Últimos 90 días</option>
           </select>
         </label>
-        <span class="lb">
-          <t t-esc="measured.length" /> mediciones · <t t-esc="filteredTrips.filter(t=&gt;t.simulado).length" /> recorridos simulados</span>
+        <label>Datos <select t-on-change="(ev) =&gt; state.origin = ev.target.value">
+            <option value="real" t-att-selected="d.origin==='real'">Reales</option>
+            <option value="simulado" t-att-selected="d.origin==='simulado'">Simulados</option>
+            <option value="todos" t-att-selected="d.origin==='todos'">Todos (mezclados)</option>
+          </select>
+        </label>
+        <span class="lb"><t t-esc="d.summary.trips" /> recorridos · <t t-esc="d.summary.measured" /> medidos</span>
       </div>
-    </t>
-    <t t-if="state.tab==='panel'">
+      <p t-if="d.origin!=='real'" class="fleet_notice is_warning" role="status">
+        <t t-if="d.origin==='simulado'">Mostrando datos SIMULADOS: no son resultados de la operación.</t>
+        <t t-else="">Datos reales y simulados mezclados: no usar como resultados de la operación.</t>
+      </p>
+
+      <h3 class="fleet_section_title">Operación del transporte</h3>
       <div class="g g4">
-        <div class="card" t-foreach="metricRows.slice(0,4)" t-as="m" t-key="m.field">
+        <div class="card fleet_kpi" t-foreach="d.cards" t-as="m" t-key="m.name">
           <div class="lb" t-esc="m.name" />
-          <div class="big">
-            <t t-esc="m.result" />
-            <small t-esc="m.unit" />
+          <div t-att-class="'big' + (m.value==='Sin muestra' ? ' empty' : '')">
+            <t t-esc="m.value" /> <small t-if="m.value!=='Sin muestra'" t-esc="m.unit" />
           </div>
+          <div class="lb" t-if="m.detail" t-esc="m.detail" />
+          <div t-if="m.change" t-att-class="'fleet_change ' + m.change.tone" t-esc="m.change.text" />
         </div>
       </div>
-      <div class="g g2">
-        <section class="card">
-          <h3>Puntualidad por ruta</h3>
-          <div t-foreach="routeBars" t-as="r" t-key="r.id" class="hb">
-            <p>
-              <span t-esc="r.name" />
-              <b>
-                <t t-esc="r.result" /> %</b>
-            </p>
-            <u>
-              <i t-att-style="'width:'+r.pct+'%;'" />
-            </u>
-          </div>
-        </section>
-        <section class="card">
-          <h3>Incidencias por tipo</h3>
-          <div class="hb" t-foreach="incidentBars" t-as="i" t-key="i.type">
-            <p>
-              <span t-esc="i.name" />
-              <b t-esc="i.count" />
-            </p>
-            <u>
-              <i t-att-style="'width:'+Math.min(100,i.count*5)+'%;'" />
-            </u>
-          </div>
-        </section>
-      </div>
+
       <section class="card">
-        <h3>Calidad del sistema</h3>
-        <div class="g g4">
-          <div t-foreach="metricRows.slice(8)" t-as="m" t-key="m.field">
-            <div class="lb" t-esc="m.name" />
-            <strong>
-              <t t-esc="m.result" />
-              <t t-esc="m.unit" />
-            </strong>
-          </div>
+        <h3>Mapa en vivo: ruta, rastro e incidencias</h3>
+        <iframe class="fleet_map_frame fleet_panel_map" title="Mapa en vivo del panel" src="/fleet_rutas/mapa/vivo?panel=1" />
+      </section>
+
+      <section class="card">
+        <h3>Comparación entre rutas</h3>
+        <div class="tw">
+          <table class="uta-table">
+            <thead><tr><th>Ruta</th><th>Distancia (km)</th><th>Recorridos</th><th>Cumplimiento %</th><th>Puntualidad %</th><th>Retraso (min)</th><th>Desviación %</th><th>Distancia GPS (km)</th><th>Tiempo (min)</th><th>Incidencias</th></tr></thead>
+            <tbody>
+              <tr t-foreach="d.routes" t-as="r" t-key="r.id">
+                <td><button class="btn btn-link p-0 text-start" t-on-click="()=&gt;state.routeFilter=String(r.id)" t-esc="r.name" /></td>
+                <td t-esc="(r.distance || 0).toFixed(2)" />
+                <td t-esc="r.trips" />
+                <td><t t-esc="show(r.pct_cumplimiento_ruta)" /></td>
+                <td>
+                  <t t-esc="show(r.pct_puntualidad)" />
+                  <u class="fleet_mini_bar" t-if="r.pct_puntualidad !== null"><i t-att-style="'width:'+r.pct_puntualidad+'%'" /></u>
+                </td>
+                <td t-esc="show(r.retraso_promedio_min)" />
+                <td t-esc="show(r.pct_desviacion_ruta)" />
+                <td t-esc="show(r.distancia_real_km)" />
+                <td t-esc="show(r.duracion_real_min)" />
+                <td t-esc="r.incidents" />
+              </tr>
+            </tbody>
+          </table>
         </div>
       </section>
+
+      <div class="g g2">
+        <section class="card">
+          <h3>Evolución por día</h3>
+          <p class="lb">Puntualidad (barra oscura) y cumplimiento (barra clara), en %.</p>
+          <div class="fleet_trend" t-if="d.trend.length">
+            <div class="fleet_trend_day" t-foreach="d.trend" t-as="day" t-key="day.key"
+                 t-att-title="day.label+': puntualidad '+show(day.pct_puntualidad)+' %, cumplimiento '+show(day.pct_cumplimiento_ruta)+' %, '+day.measured+' recorridos'">
+              <div class="fleet_trend_bars">
+                <i class="a" t-att-style="'height:'+(day.pct_puntualidad || 0)+'%'" />
+                <i class="b" t-att-style="'height:'+(day.pct_cumplimiento_ruta || 0)+'%'" />
+              </div>
+              <small t-esc="day.label" />
+              <small><t t-esc="Math.round(day.pct_puntualidad || 0)" /> / <t t-esc="Math.round(day.pct_cumplimiento_ruta || 0)" /></small>
+            </div>
+          </div>
+          <p t-else="">Sin recorridos medidos en la selección.</p>
+        </section>
+        <section class="card">
+          <h3>Incidencias más frecuentes (<t t-esc="d.summary.incidents" />)</h3>
+          <div class="hb" t-foreach="d.incidentBars" t-as="i" t-key="i.type">
+            <p><span t-esc="i.name" /><b><t t-esc="i.count" /> · <t t-esc="Math.round(i.share)" /> %</b></p>
+            <u><i t-att-style="'width:'+i.width+'%;'" /></u>
+          </div>
+        </section>
+      </div>
+
+      <div class="g g2">
+        <section class="card">
+          <h3>Incidencias pendientes (<t t-esc="d.pendingTotal" />)</h3>
+          <div class="fleet_list" t-foreach="d.pending" t-as="i" t-key="i.id">
+            <button class="btn btn-link p-0 text-start" t-on-click="()=&gt;this.selectTrip(i.recorrido_id[0],'incidencias')">
+              <b t-esc="type(i.tipo)" /> · <t t-esc="stamp(i.timestamp)" />
+            </button>
+            <div class="lb" t-esc="i.descripcion" />
+          </div>
+          <p t-if="!d.pending.length">No hay incidencias pendientes.</p>
+        </section>
+        <section class="card">
+          <h3>Últimos recorridos</h3>
+          <div class="fleet_list" t-foreach="d.recent" t-as="t" t-key="t.id">
+            <button class="btn btn-link p-0 text-start" t-on-click="()=&gt;this.selectTrip(t.id,'mapa')">
+              <b t-esc="label(t.ruta_id)" /> · <t t-esc="stamp(t.fecha_inicio)" />
+            </button>
+            <div class="lb"><t t-esc="vehicleLabel(t.vehicle_id)" /> · <span t-att-class="badge(t.estado)" t-esc="status(t.estado)" /> · <t t-esc="origin(t)" /></div>
+          </div>
+          <p t-if="!d.recent.length">Sin recorridos en la selección.</p>
+        </section>
+      </div>
+
+      <h3 class="fleet_section_title">Calidad del sistema</h3>
+      <div class="g g4">
+        <div class="card fleet_kpi" t-foreach="d.quality" t-as="m" t-key="m.name">
+          <div class="lb" t-esc="m.name" />
+          <div t-att-class="'big' + (m.value==='Sin muestra' ? ' empty' : '')">
+            <t t-esc="m.value" /> <small t-if="m.value!=='Sin muestra'" t-esc="m.unit" />
+          </div>
+          <div class="lb" t-esc="m.detail" />
+        </div>
+      </div>
+      <details class="card fleet_formulas">
+        <summary>Fórmula, fuente, unidad, resultado e interpretación de cada indicador</summary>
+        <div class="tw">
+          <table class="uta-table fleet_metrics_table">
+            <thead><tr><th>Indicador</th><th>Fórmula</th><th>Fuente</th><th>Unidad</th><th>Resultado</th><th>Interpretación</th></tr></thead>
+            <tbody>
+              <tr t-foreach="d.rows" t-as="m" t-key="m.field">
+                <td t-esc="m.name" /><td t-esc="m.formula" /><td t-esc="m.source" /><td t-esc="m.unit" /><td t-esc="m.result" /><td t-esc="m.interpretation" />
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </details>
     </t>
     <t t-if="state.tab==='monitoreo'">
       <div class="card">
@@ -991,9 +1097,14 @@ FleetRutasDashboard.template = xml/* xml */`
             <div class="card fleet_route_summary">
               <div class="fleet_route_summary_header">
                 <h3 t-esc="selectedRoute.name" />
-                <button class="btn s" t-on-click="openEditRoute">
-                  <i class="fa fa-pencil" /> Editar ruta
-                </button>
+                <div class="fleet_route_summary_actions">
+                  <button class="btn s" t-on-click="openRoutePath">
+                    <i class="fa fa-road" /> Trazado
+                  </button>
+                  <button class="btn s" t-on-click="openEditRoute">
+                    <i class="fa fa-pencil" /> Editar ruta
+                  </button>
+                </div>
               </div>
               <div class="g g4">
                 <div><span class="lb">Origen</span><b t-esc="selectedRoute.origen" /></div>
@@ -1062,33 +1173,6 @@ FleetRutasDashboard.template = xml/* xml */`
         <p t-if="!programming.length">Sin salidas programadas ni en curso.</p>
       </div>
     </t>
-    <section t-if="state.tab==='metricas'" class="card">
-      <h3>Indicadores almacenados · media de las mediciones seleccionadas</h3>
-      <div class="tw">
-        <table class="uta-table fleet_metrics_table">
-          <thead>
-            <tr>
-              <th>Indicador</th>
-              <th>Fórmula</th>
-              <th>Fuente</th>
-              <th>Unidad</th>
-              <th>Resultado</th>
-              <th>Interpretación</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr t-foreach="metricRows" t-as="m" t-key="m.field">
-              <td><span class="fleet_cell_text" t-att-title="m.name" t-esc="m.name" /></td>
-              <td><span class="fleet_cell_text" t-att-title="m.formula" t-esc="m.formula" /></td>
-              <td><span class="fleet_cell_text" t-att-title="m.source" t-esc="m.source" /></td>
-              <td><span class="fleet_cell_text" t-att-title="m.unit" t-esc="m.unit" /></td>
-              <td><span class="fleet_cell_text" t-att-title="m.result" t-esc="m.result" /></td>
-              <td><span class="fleet_cell_text" t-att-title="m.interpretation" t-esc="m.interpretation" /></td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
     <t t-if="state.tab==='sync'">
       <div class="hd">
         <h3>Traccar y recepción de posiciones</h3>
@@ -1135,7 +1219,7 @@ FleetRutasDashboard.template = xml/* xml */`
                 <td t-esc="v.traccar_device_id" />
                 <td t-esc="v.traccar_unique_id||'—'" />
                 <td t-esc="v.display_name || v.license_plate" />
-                <td t-esc="v.traccar_device_status==='online'?'En línea':v.traccar_device_status==='offline'?'Fuera de línea':'Desconocido'" />
+                <td t-esc="v.traccar_device_status==='online'?'En línea':v.traccar_device_status==='offline'?'Fuera de línea':v.traccar_device_status==='removed'?'No disponible en Traccar':'Desconocido'" />
                 <td t-esc="stamp(v.traccar_last_update)" />
               </tr>
             </tbody>
@@ -1143,6 +1227,22 @@ FleetRutasDashboard.template = xml/* xml */`
         </div>
       </div>
       <p class="lb">Conectividad externa: el estado del túnel no está disponible en Odoo.</p>
+    </t>
+    <t t-if="state.tab === 'traccar'">
+      <div class="hd">
+        <h2>Traccar</h2>
+        <div class="fleet_toolbar">
+          <button class="btn s" t-att-disabled="state.syncBusy" t-on-click="triggerSync" t-esc="state.syncBusy?'Sincronizando…':'Sincronizar dispositivos'" />
+          <a t-if="state.traccarUrl" class="btn s" t-att-href="state.traccarUrl" target="_blank" rel="noopener noreferrer">Abrir en otra pestaña</a>
+        </div>
+      </div>
+      <p t-if="state.syncMessage" role="status" t-esc="state.syncMessage" />
+      <p class="lb">Inicie sesión con su cuenta de Traccar. Los dispositivos nuevos aparecen en Odoo al sincronizar, al llegar su primera posición o en un máximo de 5 minutos.</p>
+      <p t-if="state.traccarError" class="fleet_notice is_error" role="alert" t-esc="state.traccarError" />
+      <p t-elif="traccarBlocked" class="fleet_notice is_error" role="alert">El navegador bloquea Traccar por HTTP dentro de Odoo por HTTPS. Configure una URL HTTPS de Traccar en Ajustes.</p>
+      <div t-elif="state.traccarUrl" class="card">
+        <iframe class="fleet_map_frame fleet_traccar_frame" title="Traccar" t-att-src="state.traccarUrl" />
+      </div>
     </t>
     <t t-if="state.tab === 'grafana'">
       <t t-if="GrafanaDashboard"><t t-component="GrafanaDashboard" /></t>

@@ -63,6 +63,9 @@ for n, esc in enumerate(cfg_all['escenarios']):
     env.cr.execute('SAVEPOINT lb')
     try:
         rec = nuevo_recorrido('LB-' + esc['id'], n)
+        # "via" es la calle real del escenario; solo se usa si el sistema admite trazados.
+        if esc.get('via') and 'trazado' in rec.ruta_id._fields:
+            rec.ruta_id.guardar_trazado([geo(x, y) for x, y in esc['via']], 'osrm')
         fin = esc['puntos'][-1][0]
         inicio = fields.Datetime.now() - timedelta(seconds=fin)
         rec.write({'fecha_inicio': inicio, 'fecha_inicio_real': inicio,
@@ -84,6 +87,9 @@ for n, esc in enumerate(cfg_all['escenarios']):
             enviados += 1
         # Lo que hace el cron de señal mientras el recorrido sigue en curso.
         env['fleet.traccar.sync'].verificar_perdida_senal(rec.id)
+        # Revisión en tiempo real, si la versión la ofrece (la tarea programada omite simulados).
+        if hasattr(rec, 'revisar_paradas_pendientes'):
+            rec.revisar_paradas_pendientes()
         antes = conteo(rec)
         metricas = {}
         if esc.get('cerrar', True):

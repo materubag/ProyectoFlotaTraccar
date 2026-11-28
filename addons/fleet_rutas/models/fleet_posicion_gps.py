@@ -11,6 +11,8 @@ import pytz
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
 
+from .fleet_algoritmos import episodios_desvio
+
 _logger = logging.getLogger(__name__)
 
 
@@ -178,14 +180,14 @@ class FleetPosicionGps(models.Model):
             paradas = recorrido.ruta_id.parada_ids.sorted('secuencia')
             if len(paradas) >= 2:
                 from .fleet_algoritmos import detectar_desviacion
-                polyline = [(p.latitud, p.longitud) for p in paradas]
+                polyline = recorrido.ruta_id.puntos_referencia()
                 resultado = detectar_desviacion(pos.latitud, pos.longitud, polyline, umbral_m=100.0)
                 pos.write({
                     'es_desviacion': resultado['es_desviacion'],
                     'distancia_ruta_m': resultado['distancia_m'],
                 })
-                if resultado['es_desviacion'] and resultado['distancia_m'] > 100.0:
-                    pos._crear_incidencia_desviacion(recorrido, pos, resultado['distancia_m'])
+                if resultado['es_desviacion']:
+                    pos._registrar_episodio_desviacion(recorrido)
             pos._verificar_paradas(recorrido, pos)
 
     @api.model
@@ -228,33 +230,42 @@ class FleetPosicionGps(models.Model):
 
         return posicion
 
-    def _crear_incidencia_desviacion(self, recorrido, posicion, distancia_m):
-        """Crea una incidencia de desviación si no existe una reciente."""
-        ultima_incidencia = self.env['fleet.incidencia'].search([
-            ('recorrido_id', '=', recorrido.id),
-            ('tipo', '=', 'desviacion'),
-            ('resuelta', '=', False),
-        ], limit=1, order='timestamp desc')
-
-        if not ultima_incidencia:
-            severidad = 'baja'
-            if distancia_m > 400:
-                severidad = 'alta'
-            elif distancia_m > 200:
-                severidad = 'media'
-
-            self.env['fleet.incidencia'].create({
-                'recorrido_id': recorrido.id,
-                'tipo': 'desviacion',
+    def _registrar_episodio_desviacion(self, recorrido):
+        """
+        Registra una incidencia por cada episodio de desvío confirmado que contenga
+        esta posición. Reprocesar o recibir posiciones tardías no la duplica.
+        """
+        self.ensure_one()
+        self.flush_model(['recorrido_id', 'timestamp', 'es_desviacion', 'distancia_ruta_m',
+                          'latitud', 'longitud'])
+        self.env.cr.execute(
+            '''SELECT id, timestamp, es_desviacion, distancia_ruta_m, latitud, longitud
+                 FROM fleet_posicion_gps WHERE recorrido_id = %s ORDER BY timestamp, id''',
+            [recorrido.id])
+        filas = self.env.cr.fetchall()
+        for inicio, fin in episodios_desvio([(f[1], bool(f[2])) for f in filas]):
+            tramo = filas[inicio:fin + 1]
+            if not any(f[0] == self.id for f in tramo):
+                continue
+            peor = max((f for f in tramo if f[2]), key=lambda f: f[3])
+            distancia = peor[3]
+            severidad = 'alta' if distancia > 400 else ('media' if distancia > 200 else 'baja')
+            valores = {
                 'severidad': severidad,
-                'timestamp': posicion.timestamp,
-                'latitud': posicion.latitud,
-                'longitud': posicion.longitud,
-                'descripcion': f'Vehículo a {distancia_m:.0f}m del corredor de ruta base.',
-                'valor_detectado': distancia_m,
-                'valor_esperado': 100.0,
-                'unidad': 'm',
-            })
+                'latitud': peor[4],
+                'longitud': peor[5],
+                'descripcion': f'Desvío de la ruta: hasta {distancia:.0f} m del corredor.',
+                'valor_detectado': distancia,
+            }
+            existente = self.env['fleet.incidencia'].search([
+                ('recorrido_id', '=', recorrido.id), ('tipo', '=', 'desviacion'),
+                ('timestamp', '>=', tramo[0][1]), ('timestamp', '<=', tramo[-1][1])], limit=1)
+            if not existente:
+                self.env['fleet.incidencia'].create(dict(
+                    valores, recorrido_id=recorrido.id, tipo='desviacion',
+                    timestamp=tramo[0][1], valor_esperado=100.0, unidad='m'))
+            elif distancia > existente.valor_detectado:
+                existente.write(valores)
 
     def _verificar_paradas(self, recorrido, posicion):
         """Verifica si la posición actual completa alguna parada pendiente."""
@@ -266,12 +277,11 @@ class FleetPosicionGps(models.Model):
                 parada.latitud, parada.longitud,
             )
             if dist <= parada.radio_proximidad_m:
+                if recorrido._es_destino_sin_recorrer(parada):
+                    continue
                 retraso_min = 0
                 if recorrido.fecha_inicio:
-                    primera = recorrido.ruta_id.parada_ids.sorted('secuencia')[:1]
-                    # La primera parada ancla el horario al inicio programado de cada asignación.
-                    offset_min = (round(parada.hora_prevista * 60) - round(primera.hora_prevista * 60)) % 1440
-                    programado = recorrido.fecha_inicio + timedelta(minutes=offset_min)
+                    programado = recorrido.hora_programada(parada)
                     diff_seg = (posicion.timestamp - programado).total_seconds()
                     retraso_min = round(diff_seg / 60, 2)
 
@@ -282,11 +292,18 @@ class FleetPosicionGps(models.Model):
                     'posicion_id': posicion.id,
                     'retraso_min': retraso_min,
                 })
+                incidencias = self.env['fleet.incidencia']
+                previas = incidencias.search([('recorrido_id', '=', recorrido.id),
+                                              ('parada_id', '=', parada.id), ('resuelta', '=', False)])
                 if retraso_min > parada.tolerancia_min:
-                    self.env['fleet.incidencia'].create({
-                        'recorrido_id': recorrido.id, 'tipo': 'retraso', 'timestamp': posicion.timestamp,
+                    incidencias.registrar_en_parada(recorrido, parada, 'retraso', {
+                        'timestamp': posicion.timestamp,
                         'descripcion': f'Retraso en {parada.name}: {retraso_min} minutos.',
-                        'valor_detectado': retraso_min, 'valor_esperado': parada.tolerancia_min, 'unidad': 'min'})
+                        'valor_detectado': retraso_min, 'valor_esperado': parada.tolerancia_min,
+                        'unidad': 'min'})
+                # Una parada dada por omitida que finalmente se visitó queda resuelta.
+                previas.filtered(lambda i: i.tipo == 'parada_omitida').write(
+                    {'resuelta': True, 'notas_resolucion': 'La parada se visitó después.'})
                 _logger.info(
                     'Parada "%s" cumplida para recorrido %s (distancia: %.1f m, retraso: %d min)',
                     parada.name, recorrido.name, dist, retraso_min,

@@ -11,7 +11,7 @@ try {
     if ($LASTEXITCODE) { throw 'Falló la copia' }
     docker exec flota-odoo cp -a /var/lib/odoo/filestore/odoo_flota "/var/lib/odoo/filestore/$db"
     Get-Content -Raw -Encoding utf8 "$PSScriptRoot/usuarios_captura.py" |
-        docker exec -i -e UI_PASSWORD flota-odoo /entrypoint.sh odoo shell -d $db --no-http --max-cron-threads=0 --log-level=error
+        docker exec -i -e UI_PASSWORD -e UI_EN_VIVO="$env:UI_EN_VIVO" flota-odoo /entrypoint.sh odoo shell -d $db --no-http --max-cron-threads=0 --log-level=error
     if ($LASTEXITCODE) { throw 'Falló la creación de usuarios' }
     docker compose run -d --name flota-ui -p 127.0.0.1:8099:8069 --entrypoint /entrypoint.sh odoo odoo -d $db "--db-filter=^$db`$" --max-cron-threads=0 | Out-Null
     $listo = $false

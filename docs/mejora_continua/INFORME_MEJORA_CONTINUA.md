@@ -330,6 +330,100 @@ H29 (Integración, severidad alta) se descubrió después de la línea base y no
 
 Tolerancias iniciales a justificar con datos: retraso 5 min (ejemplo del PDF); radio de parada 50 m; corredor 100 m; pérdida de señal 120 s.
 
+### Ciclo 1b — realizado (28/11/2026): trazado vial y distancia geodésica (H01, O6)
+- **Planificar:** evaluar desvíos y distancia contra el camino real y no contra rectas entre paradas.
+- **Hacer:** un trazado por ruta con dos orígenes (OSRM o recorrido GPS), vista previa antes de guardar, pérdida de vigencia si cambian las paradas, rectas como respaldo; usado en desvíos, métricas, mapa del recorrido y app del pasajero; distancia recorrida geodésica WGS84; formularios con token CSRF y Leaflet con verificación de integridad en la página nueva.
+- **Verificar:** 15 de 15 casos de integración ([resultados](ciclo_trazado/pruebas.json), `pwsh scripts/pruebas/prueba_trazado.ps1 -OsrmReal`) y 76 pruebas Pytest (sin `test_revision_pdf.py`). Los mismos 11 escenarios simulados, declarando en E02 su vía real ([después](ciclo_trazado/escenarios.json)):
+
+| Métrica | Antes | Después |
+|---|--:|--:|
+| Precisión | 72,7 % | 80,0 % |
+| Exhaustividad | 80,0 % | 80,0 % |
+| Escenarios exactos | 6 de 11 | 7 de 11 |
+| Desviación calculada en E02 (vía curva correcta) | 24,6 % | 0 % |
+
+La mejora se debe a E02, diseñado para esta debilidad, y supone un trazado correcto; E05, E07, E08 y E11 siguen fallando.
+
+- **OSRM real sobre las rutas de demostración (propuestas, no guardadas):**
+
+| Ruta | Rectas (km) | OSRM (km) |
+|---|--:|--:|
+| Centro - UTA | 2,57 | 4,82 |
+| Ficoa - UTA | 2,74 | 7,11 |
+| Huachi - UTA | 2,38 | 3,36 |
+
+OSRM calcula un camino para automóvil que puede incluir rodeos: **cada trazado debe revisarse**. No hay todavía una distancia medida en campo para calcular el error (meta ≤ 2 %).
+
+![Vista de trazado](ciclo_trazado/vista_trazado.png)
+
+- **Rendimiento:** calcular métricas de 1.000 posiciones contra 500 vértices tardó 567 ms (antes 49 ms con un trazado de 4 puntos). Los trazados de OSRM observados tienen 27 a 73 vértices; falta medir 10.000 posiciones.
+- **Actuar:** **pendiente** definir los trazados reales, validar con recorridos distintos al de referencia y optimizar si el p95 supera 2 s.
+
+### Ciclo 1c — realizado (28/11/2026): rodeos de OSRM en vías de doble calzada
+- **Síntoma:** al probar una ruta real de 5 paradas, el trazado sobrepasaba el último punto y medía 42,0 km frente a 4,08 km en rectas.
+- **Causa verificada:** las paradas estaban junto a la calzada de sentido contrario; OSRM avanzaba hasta un retorno en cada tramo.
+- **Hacer:** buscar calzadas a 40 m o menos de cada parada y elegir la combinación de menor recorrido total (`nearest` y `table` de OSRM); aviso en la vista cuando el trazado supera el doble de las rectas.
+- **Verificar:** la misma ruta pasó a 5,77 km (propuesta con el servicio real); 79 pruebas Pytest, 3 de ellas nuevas para la selección, y 15 de 15 casos de integración. En las rutas de demostración: Centro 4,82 → 3,72 km, Ficoa 7,11 → 6,91 km, Huachi 3,36 → 2,89 km.
+- **Actuar:** revisar cada propuesta; el ajuste elige el camino más corto, que puede no ser el del bus. Los trazados guardados antes del cambio deben regenerarse. Las cifras OSRM del ciclo 1b son anteriores a esta corrección y `ciclo_trazado/pruebas.json` contiene las nuevas.
+
+### Ciclo 1d — realizado (28/11/2026): trazado dentro de la creación de rutas
+- **Planificar:** el usuario esperaba el trazado al marcar las paradas y encontraba los botones separados.
+- **Hacer:** el editor ofrece **Guardar sin trazado** y **Continuar con trazado**; el segundo abre el paso 2 con la propuesta de OSRM calculada, sin guardarla, y opciones para volver o terminar. Al guardar paradas se conserva la distancia de un trazado aún vigente. Botones Trazado y Editar ruta juntos.
+- **Verificar:** recorrido automatizado en una copia de la base (editor → paso 2 → guardar) sin errores de JavaScript ni de Odoo; 79 pruebas Pytest. Falta la prueba con usuarios.
+
+| Paradas | Trazado |
+|---|---|
+| ![Editor](ciclo_trazado/06c_editor.png) | ![Paso de trazado](ciclo_trazado/06d_paso_trazado.png) |
+
+### Ciclo 1e — realizado (28/11/2026): editar rutas con historial (H08)
+- **Planificar:** editar una ruta con recorridos registrados fallaba (`ForeignKeyViolation`) porque el editor borraba todas las paradas.
+- **Hacer:** conservar las paradas sin cambios; sustituir las modificadas archivando las que tengan historial; impedir cambios de paradas con un recorrido en curso; guardar ruta y paradas como una sola operación; proteger la edición y el borrado directos; mostrar cada recorrido con las paradas que registró. De paso, una tolerancia de 0 minutos ya no se convierte en 5.
+- **Verificar:** la misma prueba en una copia de la base: [antes](ciclo_editar_ruta/antes.json) 1 comprobación correcta y varios grupos interrumpidos por error; [después](ciclo_editar_ruta/despues.json) 17 de 17. `pwsh scripts/pruebas/prueba_editar_ruta.ps1`.
+- **Límite:** las paradas se conservan, pero el trazado de referencia no tiene versiones: reprocesar posiciones de un recorrido antiguo usa el trazado actual. Las métricas ya calculadas no cambian.
+
+### Ciclo 1f — realizado (28/11/2026): reglas de desvío e incompleto (H04, H28)
+- **Planificar:** corregir E05, E07 y E08: un punto aislado generaba desvío, solo se registraba un desvío por recorrido y omitir una parada intermedia marcaba "incompleto".
+- **Hacer:** desvío confirmado con 3 lecturas seguidas fuera del corredor de 100 m, o 2 que abarquen 60 s; el episodio termina con 2 lecturas dentro; una incidencia por episodio, sin duplicarse al reprocesar; el cumplimiento y la marca "con desvío" usan episodios confirmados; "incompleto" solo sin llegada al destino; en rutas circulares el destino no cuenta al salir.
+- **Justificación de tolerancias:** 3 lecturas descartan saltos aislados del GPS; el límite de 60 s cubre envíos poco frecuentes; 2 lecturas de retorno evitan dividir un desvío por oscilar en el borde. Son valores iniciales, **pendientes de ajustar con recorridos reales**. Consecuencia: un desvío más corto que ese mínimo no se registra.
+- **Verificar:** 17 de 17 casos de integración ([resultados](ciclo_reglas/pruebas.json), `pwsh scripts/pruebas/prueba_reglas.ps1`) y 88 pruebas Pytest (sin `test_revision_pdf.py`). Mismos 11 escenarios simulados ([después](ciclo_reglas/escenarios.json)):
+
+| Métrica | Línea base | Con trazado | Con reglas |
+|---|--:|--:|--:|
+| Precisión | 72,7 % | 80,0 % | 100 % |
+| Exhaustividad | 80,0 % | 80,0 % | 90,0 % |
+| Escenarios exactos | 6 de 11 | 7 de 11 | 10 de 11 |
+| Eventos registrados en curso | 4 de 10 | 4 de 10 | 5 de 10 |
+
+- **Lectura:** los escenarios se diseñaron para estas debilidades; el resultado muestra que se corrigieron, no la precisión en operación. Falla E11 (retraso sin llegada), que corresponde al siguiente bloque (H02).
+- **Rendimiento:** con 10.000 posiciones, ingerir una tardó como máximo 202 ms dentro del corredor y 257 ms fuera (10 muestras; línea base p95 186 ms). H27 sigue pendiente.
+- **Actuar:** las incidencias anteriores no se recalculan; validar con recorridos reales.
+
+### Ciclo 1g — realizado (28/11/2026): incidencias en tiempo real y recorridos automáticos (H02, H03)
+- **Planificar:** alertar sin esperar al cierre y no depender de iniciar y cerrar a mano.
+- **Hacer:** tarea cada minuto, que además revisa la señal perdida de los recorridos reales en curso (antes solo cada 10 min):
+
+| Regla | Condición |
+|---|---|
+| Inicio automático | Vehículo en el radio del origen entre 5 min antes y 60 min después de la hora programada |
+| Sin iniciar | Pasada la tolerancia del origen (hasta 12 h) |
+| Retraso en curso | Sin llegada y pasada la tolerancia de la parada |
+| Omisión en curso | Se visitó una parada posterior; se resuelve si luego se visita |
+| Cierre por llegada | Destino alcanzado y al menos la mitad de las intermedias |
+| Cierre vencido | 60 min tras el fin previsto y 15 min sin posiciones |
+
+  Una incidencia por recorrido, parada y tipo. Los recorridos **simulados** no se modifican. El inicio y cierre automáticos se desactivan con el parámetro `fleet_rutas.recorridos_automaticos = 0`.
+- **Verificar:** 26 de 26 casos con hora controlada ([resultados](ciclo_automatico/pruebas.json), `pwsh scripts/pruebas/prueba_automatico.ps1`; en la primera ejecución falló 1 por una expectativa errónea de la prueba, que contaba un retraso legítimo de otra parada). Mismos 11 escenarios simulados ([después](ciclo_automatico/escenarios.json)):
+
+| Métrica | Línea base | Con reglas | En tiempo real |
+|---|--:|--:|--:|
+| Precisión | 72,7 % | 100 % | 100 % |
+| Exhaustividad | 80,0 % | 90,0 % | 100 % |
+| Escenarios exactos | 6 de 11 | 10 de 11 | 11 de 11 |
+| Eventos registrados en curso | 4 de 10 | 5 de 10 | 7 de 10 |
+
+  Los 3 eventos restantes (E10) solo se conocen al cerrar el recorrido. En los escenarios la revisión se invoca al final de la traza: **no miden la latencia**, que en operación depende de la tarea de cada minuto.
+- **Actuar:** pendiente validar con recorridos reales y ajustar los plazos.
+
 ### Ciclo 2 — Aplicación del pasajero con ETA (O1)
 | Fase | Contenido |
 |---|---|
@@ -340,6 +434,27 @@ Tolerancias iniciales a justificar con datos: retraso 5 min (ejemplo del PDF); r
 
 La app es una PWA servida por Odoo. Confirmar con el ingeniero que cumple "aplicación móvil sencilla aparte".
 
+### Ciclo 2a — realizado (28/11/2026): estimación de llegada en la app del pasajero (O1, H18)
+- **Hacer:** el vehículo se proyecta sobre el trazado; hasta la próxima parada se usa la velocidad de los últimos 3 min (o la prevista por el horario si está detenido) y después los intervalos del horario. No se muestra estimación con señal de más de 120 s, a más de 150 m del trazado o sin posiciones. La app presenta próxima parada, minutos, hora, puntualidad y la lista de paradas. No usa tiempos históricos.
+- **Verificar:** 12 de 12 casos de integración ([resultados](ciclo_eta/pruebas.json), `pwsh scripts/pruebas/prueba_eta.ps1`) y 94 pruebas Pytest (sin `test_revision_pdf.py`). Error en 6 viajes **simulados** (ruta recta, velocidad constante por tramo, ruido de ±5 m, 414 estimaciones):
+
+| Perfil | Error medio de la estimación (min) | Error de suponer el horario (min) |
+|---|--:|--:|
+| Puntual | 0,21 | 0,16 |
+| Sale 6 min tarde | 1,06 | 5,88 |
+| Lento | 1,39 | 5,78 |
+| Rápido | 0,54 | 3,00 |
+| Detenciones de 60 s | 0,49 | 1,00 |
+| Congestión en un tramo | 1,28 | 3,55 |
+| **Total** | **0,93** | **3,65** |
+
+  Percentil 90 del error: 2,57 min. A 5 min o menos de la llegada: 0,47 min. Cálculo: 1,8 ms de media. Cumple la meta propuesta de 3 min **en simulación**; las calles, semáforos y paradas reales aumentarán el error.
+
+![App con estimación (recorrido simulado)](ciclo_eta/app_estimacion.png)
+
+  La captura usa un recorrido simulado en una copia, con posiciones fechadas hasta unos minutos después de la consulta.
+- **Actuar:** medir con recorridos reales mediante `evaluar_estimaciones()`; valorar tiempos históricos por tramo; publicar Odoo por HTTPS (H19).
+
 ### Ciclo 3 — Experiencia en Odoo (O3, O4, O5)
 | Fase | Contenido |
 |---|---|
@@ -349,6 +464,29 @@ La app es una PWA servida por Odoo. Confirmar con el ingeniero que cumple "aplic
 | A | Guía de estilo y pruebas visuales |
 
 Integración de Traccar: probar primero un `iframe` autenticado. Puede bloquearse por cookies o por contenido mixto HTTP/HTTPS; en ese caso usar un proxy inverso en el mismo dominio. No incluir credenciales de administrador en la URL.
+
+### Ciclo 3a — realizado (28/11/2026): Traccar dentro de Odoo (O5, H17)
+- **Planificar:** consultar y administrar Traccar sin salir de Odoo y que sus dispositivos aparezcan solos. La creación automática de vehículos ya existía; ignoraba el nombre, reactivaba el seguimiento desactivado y no señalaba dispositivos ausentes.
+- **Hacer:** pestaña **Traccar** en el dashboard (la web de Traccar embebida, con enlace a otra pestaña); parámetro opcional de URL para el navegador; nombre del dispositivo; respeto del seguimiento desactivado; estado "No disponible en Traccar"; los vehículos archivados no se duplican.
+- **Verificar:** 16 de 16 casos de integración en una copia de la base con un Traccar simulado ([resultados](ciclo_traccar/pruebas.json), `pwsh scripts/pruebas/prueba_dispositivos.ps1`). La pantalla de acceso de Traccar se muestra dentro de Odoo:
+
+![Pestaña Traccar](ciclo_traccar/pestana_traccar.png)
+
+- **Actuar:** **pendiente** iniciar sesión dentro de la pestaña, crear un dispositivo real y verlo en Odoo, y probar el despliegue en la nube (con HTTPS hace falta una URL HTTPS de Traccar). La sesión de Traccar es independiente de la de Odoo.
+
+### Ciclo 3b — realizado (28/11/2026): dashboard único y mapa en vivo (O4, H10, H15)
+- **Planificar:** reunir en una pantalla lo que exigía recorrer varias pestañas, sin mezclar datos reales y simulados. Las métricas del desarrollo (pruebas, cobertura) quedan en SonarQube y este informe.
+- **Hacer:** un Panel en Odoo con filtros de ruta, período y origen de datos; las 8 métricas de transporte con comparación frente al período anterior; mapa con ruta, rastro e incidencias; comparación entre rutas; evolución diaria; incidencias frecuentes y pendientes; últimos recorridos; las 4 métricas de calidad del sistema y la tabla de fórmulas. Se retiró la pestaña Métricas. Barras proporcionales, "Sin muestra" sin unidad y hora local en el mapa (U05, U08, U14).
+- **Verificar:** 11 de 11 pruebas de los cálculos (`node scripts/pruebas/prueba_dashboard.mjs`), 94 pruebas Pytest (sin `test_revision_pdf.py`) y recorrido en una copia sin errores de JavaScript.
+
+| Pantallas para consultar lo que pide la actividad 8 | Antes | Después |
+|---|--:|--:|
+| Pestañas necesarias | 5 | 1 (con desplazamiento) |
+
+![Panel unificado, datos simulados](ciclo_dashboard/panel_despues.png)
+
+- **Límites:** la selección por defecto muestra datos reales solo cuando existen recorridos reales medidos; hoy muestra simulados y lo indica. El mapa es en vivo y no responde a los filtros. La detección correcta se mide como precisión sobre incidencias validadas.
+- **Actuar:** pendientes las pruebas de usabilidad con participantes y la comprobación de cada indicador contra una consulta SQL.
 
 ### Ciclo 4 — Evidencia y calidad (actividades 5 y 9)
 | Fase | Contenido |

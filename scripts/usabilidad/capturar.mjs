@@ -70,7 +70,16 @@ try {
   await tamano(1440, 900);
   await entrar('ui_admin');
   await ir('/web#action=fleet_rutas.action_fleet_rutas_dashboard', 12000);
-  await clic('.fleet_nav_item', 'Panel'); await foto('01_panel');
+  await clic('.fleet_nav_item', 'Panel'); await dormir(5000); await foto('01_panel');
+  // Panel completo en una ventana alta, y con el detalle de fórmulas abierto.
+  await tamano(1440, 2500); await dormir(5000); await foto('01b_panel_completo');
+  if (await js(`!!document.querySelector('.fleet_formulas summary')`)) {
+    await clic('.fleet_formulas summary', '', 1500); await foto('01c_panel_formulas');
+    await js(`(() => { const s = [...document.querySelectorAll('.fleet_filters select')][2]; s.value = 'real'; s.dispatchEvent(new Event('change')); })()`);
+    await dormir(2000); await foto('01d_panel_reales');
+    await js(`(() => { const s = [...document.querySelectorAll('.fleet_filters select')][2]; s.value = 'simulado'; s.dispatchEvent(new Event('change')); })()`);
+  }
+  await tamano(1440, 900);
   for (const [nombre, pestana] of [['02_monitoreo', 'Monitoreo en vivo'], ['03_recorridos', 'Recorridos']]) {
     await clic('.fleet_nav_item', pestana, 7000); await foto(nombre);
   }
@@ -85,9 +94,38 @@ try {
   await clic('.fleet_subtabs button', 'Incidencias'); await foto('05b_recorrido_incidencias');
   await clic('.fleet_nav_item', 'Rutas y programación'); await foto('06_rutas');
   await clic('.fleet_subtabs button', 'Programación'); await foto('07_programacion');
-  await clic('.fleet_nav_item', 'Métricas'); await foto('08_metricas');
+  if (await js(`[...document.querySelectorAll('.fleet_nav_item')].some((x) => x.textContent.trim() === 'Métricas')`)) {
+    await clic('.fleet_nav_item', 'Métricas'); await foto('08_metricas');
+  }
   await clic('.fleet_nav_item', 'Sincronización'); await foto('09_sincronizacion');
   await clic('.fleet_nav_item', 'Dashboard Grafana', 8000); await foto('10_grafana');
+  // La pestaña Traccar no existe en la versión "antes".
+  if (await js(`[...document.querySelectorAll('.fleet_nav_item')].some((x) => x.textContent.trim() === 'Traccar')`)) {
+    await clic('.fleet_nav_item', 'Traccar', 9000); await foto('10b_traccar');
+  }
+  // Vista de trazado (no existe en la versión "antes"). La propuesta no se guarda.
+  await ir('/fleet_rutas/trazado/1', 4000);
+  if (await js(`!!document.getElementById('osrm')`)) {
+    await clic('#osrm', '', 9000); await foto('06b_trazado');
+  }
+  // Asistente de rutas completo sobre la copia temporal.
+  await ir('/fleet_rutas/rutas/nueva', 4000);
+  if (await js(`!!document.getElementById('savePath')`)) {
+    const bloqueados = () => js(`document.getElementById('save').disabled && document.getElementById('savePath').disabled`);
+    const comprobar = async (esperado, caso) => {
+      if (await bloqueados() !== esperado) errores.push({ pantalla: 'editor', error: caso });
+    };
+    await comprobar(true, 'Con 0 puntos los botones deben estar bloqueados');
+    await js(`points.push({lat:-1.2634,lng:-78.6013,name:'Uno',time:'08:00'}); redraw()`);
+    await comprobar(true, 'Con 1 punto los botones deben estar bloqueados');
+    await js(`points.length = 0; redraw()`);
+    await js(`points.push({lat:-1.2634,lng:-78.6013,name:'Inicio',time:'08:00'},
+      {lat:-1.2560,lng:-78.6000,name:'Final',time:'08:15'}); redraw(true)`);
+    await comprobar(false, 'Con 2 puntos los botones deben estar activos');
+    await dormir(3000); await foto('06c_editor');
+    await clic('#savePath', '', 14000); await foto('06d_paso_trazado');
+    await clic('#guardar', '', 12000); await foto('06e_ruta_creada');
+  }
   await ir('/web#action=fleet_rutas.action_fleet_recorrido&view_type=list'); await foto('11_lista_recorridos');
   await ir('/web#action=fleet_rutas.action_fleet_incidencia&view_type=list'); await foto('12_lista_incidencias');
   await ir('/web#action=fleet_rutas.action_fleet_metricas&view_type=list'); await foto('13_lista_metricas');
@@ -96,6 +134,11 @@ try {
   await clic('.fleet_nav_item', 'Panel'); await foto('14_panel_movil');
   await entrar('ui_pasajero');
   await ir('/flota/app', 9000); await foto('15_pasajero_en_vivo');
+  if (process.env.UI_EN_VIVO === '1') {
+    await clic('.route-card', 'Centro', 6000);
+    await js(`document.querySelector('.eta')?.scrollIntoView({block: 'start'})`);
+    await dormir(1500); await foto('15b_pasajero_estimacion');
+  }
   await clic('[data-tab="history"]', '', 4000); await foto('16_pasajero_recorridos');
   await clic('[data-tab="alerts"]', '', 3000); await foto('17_pasajero_avisos');
 } finally {

@@ -57,6 +57,7 @@ services:
       - ODOO_DB_NAME=${ODOO_DB_NAME:-odoo_flota}
       - TRACCAR_WEBHOOK_SECRET=${TRACCAR_WEBHOOK_SECRET:-}
       - GRAFANA_PORT=${GRAFANA_PORT:-3000}
+      - TRACCAR_WEB_PORT=${TRACCAR_WEB_PORT:-8082}
     entrypoint: ["/bin/bash", "-c"]
     command:
       - |

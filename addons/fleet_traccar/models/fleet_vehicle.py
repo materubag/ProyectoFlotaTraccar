@@ -16,6 +16,12 @@ class FleetVehicle(models.Model):
         help='Identificador único reportado por el rastreador GPS (ej. IMEI o ID de Traccar Client).',
         copy=False
     )
+    traccar_device_name = fields.Char(
+        string='Nombre en Traccar',
+        readonly=True,
+        copy=False,
+        help='Nombre del dispositivo según la última sincronización.'
+    )
     traccar_tracking_enabled = fields.Boolean(
         string='Seguimiento GPS Habilitado',
         default=False,
@@ -51,7 +57,8 @@ class FleetVehicle(models.Model):
     traccar_device_status = fields.Selection([
         ('unknown', 'Desconocido'),
         ('online', 'En línea'),
-        ('offline', 'Fuera de línea')
+        ('offline', 'Fuera de línea'),
+        ('removed', 'No disponible en Traccar'),
     ], string='Estado en Traccar', default='unknown', readonly=True)
 
     _sql_constraints = [

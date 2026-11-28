@@ -103,10 +103,39 @@ class FleetRuta(models.Model):
             if ruta.distancia_estimada_km < 0 or ruta.duracion_estimada_min < 0:
                 raise ValidationError('La distancia y la duración no pueden ser negativas.')
 
-    @api.depends('parada_ids')
+    def reemplazar_paradas(self, nuevas):
+        """
+        Aplica la lista de paradas de un editor sin alterar el historial.
+
+        Una parada cuya ubicación, orden u horario no cambia se conserva. Las que
+        cambian se sustituyen por una nueva; la anterior se borra, o se archiva si
+        algún recorrido ya la registró.
+        """
+        self.ensure_one()
+        pendientes = list(self.parada_ids)
+        iguales, por_crear = [], []
+        for valores in nuevas:
+            parada = next((p for p in pendientes if p._sin_cambios(valores)), None)
+            if parada:
+                pendientes.remove(parada)
+                iguales.append((parada, valores))
+            else:
+                por_crear.append(valores)
+        if (pendientes or por_crear) and self.env['fleet.recorrido'].search_count(
+                [('ruta_id', '=', self.id), ('estado', '=', 'en_curso')]):
+            raise UserError('No se pueden cambiar las paradas mientras la ruta tiene un recorrido en curso.')
+        for parada, valores in iguales:
+            parada.write({'name': valores['name'], 'tipo': valores['tipo']})
+        self.env['fleet.parada'].browse([p.id for p in pendientes]).unlink()
+        for valores in por_crear:
+            self.env['fleet.parada'].create(dict(valores, ruta_id=self.id))
+        self.invalidate_recordset(['parada_ids'])
+
+    @api.depends('parada_ids', 'parada_ids.active')
     def _compute_total_paradas(self):
         for ruta in self:
-            ruta.total_paradas = len(ruta.parada_ids)
+            # La lista en memoria puede incluir aún una parada recién archivada.
+            ruta.total_paradas = len(ruta.parada_ids.filtered('active'))
 
     @api.depends('distancia_estimada_km', 'duracion_estimada_min')
     def _compute_velocidad_promedio(self):
@@ -153,6 +182,9 @@ class FleetParada(models.Model):
         string='Nombre de Parada',
         required=True,
     )
+    active = fields.Boolean(
+        string='Activa', default=True,
+        help='Una parada reemplazada se archiva para conservar los recorridos que la registraron.')
     ruta_id = fields.Many2one(
         comodel_name='fleet.ruta',
         string='Ruta',
@@ -205,6 +237,43 @@ class FleetParada(models.Model):
         compute='_compute_hora_prevista_str',
         store=True,
     )
+
+    # Datos con los que se evaluó cada recorrido: no se alteran si ya hay historial.
+    _CAMPOS_HISTORICOS = ('ruta_id', 'secuencia', 'latitud', 'longitud', 'hora_prevista',
+                          'radio_proximidad_m', 'tolerancia_min')
+
+    def _sin_cambios(self, valores):
+        self.ensure_one()
+        return (self.secuencia == valores['secuencia']
+                and abs(self.latitud - valores['latitud']) < 1e-6
+                and abs(self.longitud - valores['longitud']) < 1e-6
+                and abs(self.hora_prevista - valores['hora_prevista']) < 1 / 120
+                and abs(self.radio_proximidad_m - valores['radio_proximidad_m']) < 0.01
+                and self.tolerancia_min == valores['tolerancia_min'])
+
+    def _con_historial(self):
+        grupos = self.env['fleet.cumplimiento.parada'].sudo().search([('parada_id', 'in', self.ids)])
+        return self.browse(grupos.mapped('parada_id').ids)
+
+    def write(self, vals):
+        campos = [c for c in self._CAMPOS_HISTORICOS if c in vals]
+        if campos:
+            for parada in self._con_historial():
+                for campo in campos:
+                    actual = parada[campo].id if campo == 'ruta_id' else parada[campo]
+                    nuevo = vals[campo]
+                    distinto = (abs(actual - nuevo) > 1e-6 if isinstance(actual, float)
+                                else actual != nuevo)
+                    if distinto:
+                        raise UserError(
+                            'La parada "%s" ya tiene recorridos registrados. Cámbiela desde el '
+                            'editor de rutas, o elimínela y cree una nueva.' % parada.name)
+        return super().write(vals)
+
+    def unlink(self):
+        usadas = self._con_historial()
+        usadas.write({'active': False})
+        return super(FleetParada, self - usadas).unlink()
 
     @api.depends('hora_prevista')
     def _compute_hora_prevista_str(self):
@@ -366,6 +435,30 @@ class FleetRecorrido(models.Model):
             if rec.fecha_fin_real and (not rec.fecha_inicio_real or rec.fecha_fin_real < rec.fecha_inicio_real):
                 raise ValidationError('El fin real debe ser posterior al inicio real.')
 
+    def paradas_del_recorrido(self):
+        """Paradas con las que se registró el recorrido; si no inició, las actuales de la ruta."""
+        self.ensure_one()
+        registradas = self.cumplimiento_parada_ids.mapped('parada_id')
+        return (registradas or self.ruta_id.parada_ids).sorted('secuencia')
+
+    def _es_destino_sin_recorrer(self, parada):
+        """
+        Verdadero si la parada es el destino de una ruta circular y el vehículo aún
+        no ha visitado ninguna parada intermedia: está saliendo, no llegando.
+        """
+        self.ensure_one()
+        paradas = self.paradas_del_recorrido()
+        if len(paradas) < 3 or parada != paradas[-1]:
+            return False
+        from .fleet_algoritmos import haversine_distance_m
+        origen = paradas[0]
+        if haversine_distance_m(origen.latitud, origen.longitud, parada.latitud,
+                                parada.longitud) > parada.radio_proximidad_m:
+            return False
+        intermedias = paradas[1:-1]
+        return not self.cumplimiento_parada_ids.filtered(
+            lambda c: c.cumplida and c.parada_id in intermedias)
+
     def action_ver_mapa(self):
         self.ensure_one()
         return {'type': 'ir.actions.act_url', 'url': f'/fleet_rutas/mapa/{self.id}', 'target': 'new'}
@@ -421,9 +514,12 @@ class FleetRecorrido(models.Model):
     @api.depends('posicion_ids', 'posicion_ids.es_desviacion')
     def _compute_tiene_desviacion(self):
         for rec in self:
-            rec.tiene_desviacion = any(
-                p.es_desviacion for p in rec.posicion_ids
-            )
+            if not any(p.es_desviacion for p in rec.posicion_ids):
+                rec.tiene_desviacion = False
+                continue
+            from .fleet_algoritmos import episodios_desvio
+            rec.tiene_desviacion = bool(episodios_desvio(
+                [(p.timestamp, p.es_desviacion) for p in rec.posicion_ids.sorted('timestamp')]))
 
     @api.depends('incidencia_ids')
     def _compute_total_incidencias(self):
@@ -432,7 +528,7 @@ class FleetRecorrido(models.Model):
 
     # ── Action methods ─────────────────────────────────────────────────────
 
-    def action_iniciar(self):
+    def action_iniciar(self, momento=None):
         """Inicia el recorrido: cambia estado y registra hora de inicio real."""
         self.ensure_one()
         if self.estado not in ('programado',):
@@ -445,7 +541,7 @@ class FleetRecorrido(models.Model):
             raise UserError('Este vehículo ya tiene un recorrido en curso.')
         if self.ruta_id.estado != 'activa' or not self.ruta_id.parada_ids:
             raise UserError('La ruta debe estar activa y tener paradas.')
-        now = fields.Datetime.now()
+        now = momento or fields.Datetime.now()
         self.write({
             'estado': 'en_curso',
             'fecha_inicio_real': now,
@@ -457,14 +553,14 @@ class FleetRecorrido(models.Model):
             self.name, now, self.env.user.name,
         )
 
-    def action_completar(self):
+    def action_completar(self, momento=None):
         """Completa el recorrido: registra fin real y calcula métricas."""
         self.ensure_one()
         if self.estado != 'en_curso' or self.fecha_fin_real:
             raise UserError(
                 f'Solo se puede completar un recorrido "En Curso" o "Con Incidencias".'
             )
-        now = fields.Datetime.now()
+        now = momento or fields.Datetime.now()
         # Calcular distancia real y velocidad promedio desde historial GPS
         distancia_km = 0.0
         velocidad_prom = 0.0
@@ -484,6 +580,8 @@ class FleetRecorrido(models.Model):
         for pos in posiciones:
             pos.detectar_desviacion()
         self._registrar_incidencias_cierre(now)
+        # El fin queda fijado antes de revisar la señal: el silencio se mide hasta el cierre.
+        self.write({'fecha_fin_real': now})
         self.env['fleet.traccar.sync'].verificar_perdida_senal(self.id)
         # Determinar estado final
         estado_final = 'completado'
@@ -516,22 +614,31 @@ class FleetRecorrido(models.Model):
     def _registrar_incidencias_cierre(self, now):
         self.ensure_one()
         incidence = self.env['fleet.incidencia']
+        paradas = self.paradas_del_recorrido()
         for cumplimiento in self.cumplimiento_parada_ids:
             if not cumplimiento.cumplida:
-                incidence.create({'recorrido_id': self.id, 'tipo': 'parada_omitida', 'timestamp': now,
-                                  'descripcion': f'Parada no visitada: {cumplimiento.parada_id.name}'})
-        if not self.posicion_ids or self.cumplimiento_parada_ids.filtered(lambda c: not c.cumplida):
+                incidence.registrar_en_parada(self, cumplimiento.parada_id, 'parada_omitida', {
+                    'timestamp': now,
+                    'descripcion': f'Parada no visitada: {cumplimiento.parada_id.name}'}, actualizar=False)
+        # Incompleto es no llegar al destino; las paradas intermedias se registran aparte.
+        destino = paradas[-1:]
+        llego = self.cumplimiento_parada_ids.filtered(lambda c: c.parada_id == destino and c.cumplida)
+        if not self.posicion_ids or not llego:
             incidence.create({'recorrido_id': self.id, 'tipo': 'incompleto', 'timestamp': now,
-                              'descripcion': 'Recorrido sin GPS o con puntos de control pendientes.'})
+                              'descripcion': 'Recorrido sin GPS o sin llegada al destino.'})
+        # Inicio y llegada final comparten incidencia con la parada para no contarse dos veces.
         if self.retraso_inicio_min > 5:
-            incidence.create({'recorrido_id': self.id, 'tipo': 'retraso', 'timestamp': self.fecha_inicio_real,
-                              'descripcion': 'Inicio fuera de la tolerancia de 5 minutos.',
-                              'valor_detectado': self.retraso_inicio_min, 'valor_esperado': 5, 'unidad': 'min'})
+            incidence.registrar_en_parada(self, paradas[:1], 'retraso', {
+                'timestamp': self.fecha_inicio_real,
+                'descripcion': 'Inicio fuera de la tolerancia de 5 minutos.',
+                'valor_detectado': self.retraso_inicio_min, 'valor_esperado': 5, 'unidad': 'min'},
+                actualizar=False)
         if self.fecha_fin_estimada and (now - self.fecha_fin_estimada).total_seconds() > 300:
-            incidence.create({'recorrido_id': self.id, 'tipo': 'retraso', 'timestamp': now,
-                              'descripcion': 'Llegada final fuera de la tolerancia de 5 minutos.',
-                              'valor_detectado': (now - self.fecha_fin_estimada).total_seconds() / 60,
-                              'valor_esperado': 5, 'unidad': 'min'})
+            incidence.registrar_en_parada(self, destino, 'retraso', {
+                'timestamp': now,
+                'descripcion': 'Llegada final fuera de la tolerancia de 5 minutos.',
+                'valor_detectado': (now - self.fecha_fin_estimada).total_seconds() / 60,
+                'valor_esperado': 5, 'unidad': 'min'}, actualizar=False)
 
     def _inicializar_cumplimiento_paradas(self):
         """Crea registros de cumplimiento para cada parada de la ruta."""

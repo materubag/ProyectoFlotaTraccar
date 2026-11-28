@@ -1597,10 +1597,45 @@ i.o_facet_remove:hover {
     align-items:center;
     gap:12px;
 }
+.o_fleet_rutas_dashboard .fleet_route_summary_actions{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+}
 .o_fleet_rutas_dashboard .fleet_route_assignment .g3{
     margin-top:10px;
 }
 @media(max-width:900px){
     .o_fleet_rutas_dashboard .fleet_routes_layout{grid-template-columns:1fr;}
     .o_fleet_rutas_dashboard .fleet_routes_list{min-height:0;}
+}
+
+/* Web de Traccar integrada */
+.o_fleet_rutas_dashboard .fleet_map_frame.fleet_traccar_frame {
+  height: calc(100vh - 230px);
+  min-height: 480px;
+}
+
+/* Panel unificado */
+.o_fleet_rutas_dashboard .fleet_section_title { margin: 18px 0 8px; font-size: 16px; }
+.o_fleet_rutas_dashboard .fleet_notice.is_warning { background: #fdebc8; color: #5c3b00; padding: 10px 14px; }
+.o_fleet_rutas_dashboard .fleet_kpi .big.empty { font-size: 18px; color: var(--mu); }
+.o_fleet_rutas_dashboard .fleet_change { font-size: 12px; margin-top: 4px; }
+.o_fleet_rutas_dashboard .fleet_change.up { color: #1e7a4c; }
+.o_fleet_rutas_dashboard .fleet_change.down { color: #b42a2a; }
+.o_fleet_rutas_dashboard .fleet_map_frame.fleet_panel_map { height: 420px; min-height: 320px; }
+.o_fleet_rutas_dashboard .fleet_mini_bar { display: block; height: 4px; width: 80px; background: #e0e0e0; text-decoration: none; }
+.o_fleet_rutas_dashboard .fleet_mini_bar i { display: block; height: 100%; background: var(--bl); }
+.o_fleet_rutas_dashboard .fleet_trend { display: flex; gap: 10px; overflow-x: auto; align-items: flex-end; }
+.o_fleet_rutas_dashboard .fleet_trend_day { display: flex; flex-direction: column; align-items: center; min-width: 48px; }
+.o_fleet_rutas_dashboard .fleet_trend_bars { display: flex; gap: 3px; align-items: flex-end; height: 130px; border-bottom: 1px solid var(--bd); }
+.o_fleet_rutas_dashboard .fleet_trend_bars i { width: 14px; display: block; }
+.o_fleet_rutas_dashboard .fleet_trend_bars i.a { background: var(--bl); }
+.o_fleet_rutas_dashboard .fleet_trend_bars i.b { background: var(--bl); opacity: .35; }
+.o_fleet_rutas_dashboard .fleet_list { padding: 6px 0; border-bottom: 1px solid var(--bd); }
+.o_fleet_rutas_dashboard .fleet_formulas summary { cursor: pointer; font-weight: 600; }
+.o_fleet_rutas_dashboard .fleet_list button.btn-link,
+.o_fleet_rutas_dashboard .uta-table button.btn-link {
+  border: 0 !important; background: none !important; min-height: 0; height: auto; width: auto;
+  color: var(--bl) !important; text-align: left;
 }
