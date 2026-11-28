@@ -8,8 +8,9 @@ import requests
 from odoo import api, fields, models
 from odoo.exceptions import UserError
 
-from .fleet_algoritmos import (limpiar_posiciones_gps, longitud_polilinea_m,
-                               min_distance_to_polyline_m, simplificar_polilinea)
+from .fleet_algoritmos import (elegir_secuencia_minima, limpiar_posiciones_gps,
+                               longitud_polilinea_m, min_distance_to_polyline_m,
+                               simplificar_polilinea)
 
 _logger = logging.getLogger(__name__)
 
@@ -17,6 +18,52 @@ OSRM_URL = 'https://router.project-osrm.org'
 MARGEN_PARADA_M = 150.0
 TOLERANCIA_SIMPLIFICACION_M = 5.0
 MAX_PUNTOS = 5000
+MARGEN_CALZADA_M = 40.0   # distancia máxima para considerar otra calzada de la misma parada
+MAX_TABLA_OSRM = 100      # límite de coordenadas del servicio público
+
+
+def _consultar_osrm(url, parametros):
+    respuesta = requests.get(url, params=parametros, headers={'User-Agent': 'fleet-rutas'}, timeout=15)
+    respuesta.raise_for_status()
+    datos = respuesta.json()
+    if datos.get('code') != 'Ok':
+        raise ValueError(datos.get('code'))
+    return datos
+
+
+def ajustar_paradas_a_calzada(base, puntos):
+    """
+    En vías de doble calzada, la calle más cercana a una parada puede ir en sentido
+    contrario y OSRM da un rodeo para volver. Se buscan las calzadas próximas a cada
+    parada y se elige la combinación con el recorrido total más corto.
+
+    ``puntos`` es una lista de (lon, lat). Ante cualquier fallo se devuelven sin cambios.
+    """
+    por_parada = min(6, MAX_TABLA_OSRM // max(len(puntos), 1))
+    if por_parada < 2:
+        return puntos
+    try:
+        candidatos = []
+        for lon, lat in puntos:
+            datos = _consultar_osrm('%s/nearest/v1/driving/%.6f,%.6f' % (base, lon, lat),
+                                    {'number': por_parada})
+            cercanos = []
+            for punto in datos['waypoints']:
+                ubicacion = tuple(punto['location'])
+                if punto['distance'] <= MARGEN_CALZADA_M and ubicacion not in cercanos:
+                    cercanos.append(ubicacion)
+            candidatos.append(cercanos or [(lon, lat)])
+        if all(len(c) == 1 for c in candidatos):
+            return puntos
+        planos = [p for grupo in candidatos for p in grupo]
+        tabla = _consultar_osrm(
+            '%s/table/v1/driving/%s' % (base, ';'.join('%.6f,%.6f' % p for p in planos)),
+            {'annotations': 'distance'})
+        elegidos = elegir_secuencia_minima([len(c) for c in candidatos], tabla['distances'])
+        return [planos[i] for i in elegidos] if elegidos else puntos
+    except (requests.RequestException, ValueError, KeyError, IndexError, TypeError) as exc:
+        _logger.warning('No se pudo ajustar las paradas a la calzada: %s', type(exc).__name__)
+        return puntos
 
 
 class FleetRutaTrazado(models.Model):
@@ -85,16 +132,11 @@ class FleetRutaTrazado(models.Model):
             raise UserError('La ruta necesita al menos dos paradas.')
         base = (self.env['ir.config_parameter'].sudo().get_param('fleet_rutas.osrm_url')
                 or OSRM_URL).rstrip('/')
-        coordenadas = ';'.join('%.6f,%.6f' % (p.longitud, p.latitud) for p in paradas)
+        ajustados = ajustar_paradas_a_calzada(base, [(p.longitud, p.latitud) for p in paradas])
+        coordenadas = ';'.join('%.6f,%.6f' % p for p in ajustados)
         try:
-            respuesta = requests.get(
-                '%s/route/v1/driving/%s' % (base, coordenadas),
-                params={'overview': 'full', 'geometries': 'geojson'},
-                headers={'User-Agent': 'fleet-rutas'}, timeout=15)
-            respuesta.raise_for_status()
-            datos = respuesta.json()
-            if datos.get('code') != 'Ok':
-                raise ValueError(datos.get('code'))
+            datos = _consultar_osrm('%s/route/v1/driving/%s' % (base, coordenadas),
+                                    {'overview': 'full', 'geometries': 'geojson'})
             puntos = [(float(lat), float(lon))
                       for lon, lat in datos['routes'][0]['geometry']['coordinates']]
             if len(puntos) < 2:

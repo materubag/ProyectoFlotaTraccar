@@ -359,6 +359,22 @@ OSRM calcula un camino para automóvil que puede incluir rodeos: **cada trazado 
 - **Rendimiento:** calcular métricas de 1.000 posiciones contra 500 vértices tardó 567 ms (antes 49 ms con un trazado de 4 puntos). Los trazados de OSRM observados tienen 27 a 73 vértices; falta medir 10.000 posiciones.
 - **Actuar:** **pendiente** definir los trazados reales, validar con recorridos distintos al de referencia y optimizar si el p95 supera 2 s.
 
+### Ciclo 1c — realizado (28/11/2026): rodeos de OSRM en vías de doble calzada
+- **Síntoma:** al probar una ruta real de 5 paradas, el trazado sobrepasaba el último punto y medía 42,0 km frente a 4,08 km en rectas.
+- **Causa verificada:** las paradas estaban junto a la calzada de sentido contrario; OSRM avanzaba hasta un retorno en cada tramo.
+- **Hacer:** buscar calzadas a 40 m o menos de cada parada y elegir la combinación de menor recorrido total (`nearest` y `table` de OSRM); aviso en la vista cuando el trazado supera el doble de las rectas.
+- **Verificar:** la misma ruta pasó a 5,77 km (propuesta con el servicio real); 79 pruebas Pytest, 3 de ellas nuevas para la selección, y 15 de 15 casos de integración. En las rutas de demostración: Centro 4,82 → 3,72 km, Ficoa 7,11 → 6,91 km, Huachi 3,36 → 2,89 km.
+- **Actuar:** revisar cada propuesta; el ajuste elige el camino más corto, que puede no ser el del bus. Los trazados guardados antes del cambio deben regenerarse. Las cifras OSRM del ciclo 1b son anteriores a esta corrección y `ciclo_trazado/pruebas.json` contiene las nuevas.
+
+### Ciclo 1d — realizado (28/11/2026): trazado dentro de la creación de rutas
+- **Planificar:** el usuario esperaba el trazado al marcar las paradas y encontraba los botones separados.
+- **Hacer:** el editor ofrece **Guardar sin trazado** y **Continuar con trazado**; el segundo abre el paso 2 con la propuesta de OSRM calculada, sin guardarla, y opciones para volver o terminar. Al guardar paradas se conserva la distancia de un trazado aún vigente. Botones Trazado y Editar ruta juntos.
+- **Verificar:** recorrido automatizado en una copia de la base (editor → paso 2 → guardar) sin errores de JavaScript ni de Odoo; 79 pruebas Pytest. Falta la prueba con usuarios.
+
+| Paradas | Trazado |
+|---|---|
+| ![Editor](ciclo_trazado/06c_editor.png) | ![Paso de trazado](ciclo_trazado/06d_paso_trazado.png) |
+
 ### Ciclo 2 — Aplicación del pasajero con ETA (O1)
 | Fase | Contenido |
 |---|---|

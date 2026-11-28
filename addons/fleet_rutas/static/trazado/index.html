@@ -18,6 +18,8 @@ button, select { width: 100%; padding: 9px; margin-top: 6px; font: inherit; }
 button { border: 0; background: #714b67; color: #fff; cursor: pointer; }
 button.sec { background: #e9ecf1; color: #1a2230; }
 button:disabled { opacity: .5; cursor: default; }
+[hidden] { display: none !important; }
+#navegacion { display: flex; gap: 6px; }
 .nota { color: #566174; font-size: 12px; }
 .aviso { background: #fdebc8; padding: 8px; }
 .error { background: #fbe1e1; padding: 8px; }
@@ -27,7 +29,12 @@ button:disabled { opacity: .5; cursor: default; }
 </head>
 <body>
 <aside>
+  <p id="paso" class="nota" hidden>Paso 2 de 2: trazado. Las paradas ya están guardadas.</p>
   <h1 id="titulo"></h1>
+  <div id="navegacion" hidden>
+    <button id="volver" class="sec">Volver a las paradas</button>
+    <button id="sinTrazado" class="sec">Continuar sin trazado</button>
+  </div>
   <p id="estado"></p>
   <p class="leyenda nota"><span style="background:#2f6df0"></span>Guardado<br>
     <span style="background:#ea580c"></span>Propuesta<br>

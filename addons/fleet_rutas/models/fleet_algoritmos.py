@@ -144,6 +144,31 @@ def simplificar_polilinea(puntos: List[Tuple[float, float]],
     return [puntos[i] for i in sorted(conservar)]
 
 
+def elegir_secuencia_minima(tamanos: List[int], matriz: List[List[Optional[float]]]) -> Optional[List[int]]:
+    """
+    Elige un candidato por parada minimizando la distancia total en orden.
+
+    ``tamanos`` indica cuántos candidatos tiene cada parada; ``matriz`` contiene
+    las distancias entre todos ellos, numerados de forma consecutiva (None = sin
+    camino). Devuelve los índices elegidos o None si no hay ningún recorrido.
+    """
+    if not tamanos or min(tamanos) < 1:
+        return None
+    mejores = {k: (0.0, [k]) for k in range(tamanos[0])}
+    inicio = tamanos[0]
+    for cantidad in tamanos[1:]:
+        siguientes = {}
+        for k in range(inicio, inicio + cantidad):
+            opciones = [(costo + matriz[j][k], camino + [k])
+                        for j, (costo, camino) in mejores.items() if matriz[j][k] is not None]
+            if opciones:
+                siguientes[k] = min(opciones)
+        if not siguientes:
+            return None
+        mejores, inicio = siguientes, inicio + cantidad
+    return min(mejores.values())[1]
+
+
 def limpiar_posiciones_gps(posiciones: List[Dict], precision_max_m: float = 30.0,
                            velocidad_max_kmh: float = 120.0,
                            separacion_min_m: float = 5.0) -> List[Tuple[float, float]]:

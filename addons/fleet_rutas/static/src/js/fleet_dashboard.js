@@ -1012,12 +1012,14 @@ FleetRutasDashboard.template = xml/* xml */`
             <div class="card fleet_route_summary">
               <div class="fleet_route_summary_header">
                 <h3 t-esc="selectedRoute.name" />
-                <button class="btn s" t-on-click="openRoutePath">
-                  <i class="fa fa-road" /> Trazado
-                </button>
-                <button class="btn s" t-on-click="openEditRoute">
-                  <i class="fa fa-pencil" /> Editar ruta
-                </button>
+                <div class="fleet_route_summary_actions">
+                  <button class="btn s" t-on-click="openRoutePath">
+                    <i class="fa fa-road" /> Trazado
+                  </button>
+                  <button class="btn s" t-on-click="openEditRoute">
+                    <i class="fa fa-pencil" /> Editar ruta
+                  </button>
+                </div>
               </div>
               <div class="g g4">
                 <div><span class="lb">Origen</span><b t-esc="selectedRoute.origen" /></div>

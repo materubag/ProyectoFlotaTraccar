@@ -3,8 +3,11 @@ import json
 from html import escape
 
 from werkzeug.exceptions import Forbidden
+
 from odoo import http, fields
 from odoo.http import request, Response
+
+from ..models.fleet_algoritmos import longitud_polilinea_m
 
 
 class FleetMapa(http.Controller):
@@ -281,8 +284,8 @@ class FleetMapa(http.Controller):
 .metric{font-size:13px;color:#6b7280}.metric strong{display:block;color:#111827;font-size:16px;margin-top:3px}
 .point{display:grid;grid-template-columns:28px 1fr auto;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid #edf0f3}.seq{width:24px;height:24px;border-radius:50%;background:#2563eb;color:#fff;text-align:center;line-height:24px;font-weight:bold}
 .point small{display:block;color:#6b7280}.point input{width:72px;border:1px solid #d1d5db;border-radius:6px;padding:5px}.coords{display:none}.coords .coord-row{display:grid;grid-template-columns:28px 1fr 1fr 1fr auto;gap:6px;margin:6px 0}.coords input{min-width:0;height:34px}
-.footer{position:sticky;bottom:-20px;background:#fff;border-top:1px solid #e5e7eb;padding:14px 0 0;display:flex;justify-content:flex-end;gap:8px}
-.footer button{height:40px;border:0;border-radius:8px;padding:0 16px;cursor:pointer}.cancel{background:#e5e7eb}.save{background:#2563eb;color:#fff}.hint{background:#dbeafe;color:#2563eb;padding:12px;border-radius:8px;font-size:13px;margin-top:10px;text-align:center}
+.footer{position:sticky;bottom:-20px;background:#fff;border-top:1px solid #e5e7eb;padding:14px 0 0;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px}.footer button:disabled{opacity:.5;cursor:default}
+.footer button{height:40px;border:0;border-radius:8px;padding:0 10px;font-size:13px;white-space:nowrap;cursor:pointer}.cancel{background:#e5e7eb}.save{background:#2563eb;color:#fff}.hint{background:#dbeafe;color:#2563eb;padding:12px;border-radius:8px;font-size:13px;margin-top:10px;text-align:center}
 @media(max-width:900px){.layout{grid-template-columns:1fr}.panel{border-left:0}.map-wrap{height:420px}}
 </style>
 </head>
@@ -297,7 +300,7 @@ class FleetMapa(http.Controller):
 <div id="points"></div>
 <div class="coords" id="coords"><div class="coord-row"><b>#</b><b>Latitud</b><b>Longitud</b><b>Nombre</b><b></b></div><div id="coordRows"></div><button type="button" id="addCoord" class="cancel">Agregar punto</button></div>
 <div class="hint" id="hint">Haz clic en el mapa para agregar un punto. Arrastra los marcadores para moverlos.</div>
-<div class="footer"><button class="cancel" onclick="location.href='/web#menu_id=0&action=fleet_rutas.action_fleet_rutas_dashboard'">Cancelar</button><button class="save" id="save">Guardar ruta</button></div>
+<div class="footer"><button class="cancel" onclick="location.href='/web#menu_id=0&action=fleet_rutas.action_fleet_rutas_dashboard'">Cancelar</button><button class="cancel" id="save">Guardar sin trazado</button><button class="save" id="savePath">Continuar con trazado</button></div>
 </aside>
 </div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -331,7 +334,9 @@ document.getElementById('search').onkeydown=async e=>{if(e.key==='Enter'){e.prev
 document.getElementById('modeMap').onclick=()=>{mode='map';document.getElementById('modeMap').classList.add('active');document.getElementById('modeCoords').classList.remove('active');document.getElementById('mapWrap').style.display='block';document.getElementById('coords').style.display='none';document.getElementById('hint').style.display='block';setTimeout(()=>{map.invalidateSize();redraw(true)},50)};
 document.getElementById('modeCoords').onclick=()=>{mode='coords';document.getElementById('modeCoords').classList.add('active');document.getElementById('modeMap').classList.remove('active');document.getElementById('mapWrap').style.display='none';document.getElementById('coords').style.display='block';document.getElementById('hint').style.display='none';renderCoordRows()};
 document.getElementById('addCoord').onclick=()=>{points.push({lat:-1.249,lng:-78.617,name:'Punto '+(points.length+1),time:'08:'+String(points.length*15).padStart(2,'0')});redraw(true)};
-document.getElementById('save').onclick=async()=>{if(points.length<2){alert('Agrega al menos dos puntos de control.');return}const base=hhmmToDecimal(document.getElementById('departure').value);const payload={route_id:editingRouteId,name:document.getElementById('name').value.trim()||(editingRouteId?'Editar ruta':'Nueva ruta'),distance:distance(),departure:document.getElementById('departure').value,corridor:Number(document.getElementById('corridor').value||100),points:points.map((p,i)=>({...p,name:p.name||('Punto '+(i+1)),time:hhmmToDecimal(p.time||document.getElementById('departure').value),type:i===0?'origen':i===points.length-1?'destino':'intermedia',tolerance:p.tolerance||5,radio:p.radio||50}))};const response=await fetch('/fleet_rutas/rutas/crear',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const data=await response.json();if(!response.ok){alert(data.message||'No se pudo guardar la ruta');return}location.href='/web#menu_id=0&action=fleet_rutas.action_fleet_rutas_dashboard'};
+async function saveRoute(withPath){if(points.length<2){alert('Agrega al menos dos puntos de control.');return}const base=hhmmToDecimal(document.getElementById('departure').value);const payload={route_id:editingRouteId,name:document.getElementById('name').value.trim()||(editingRouteId?'Editar ruta':'Nueva ruta'),distance:distance(),departure:document.getElementById('departure').value,corridor:Number(document.getElementById('corridor').value||100),points:points.map((p,i)=>({...p,name:p.name||('Punto '+(i+1)),time:hhmmToDecimal(p.time||document.getElementById('departure').value),type:i===0?'origen':i===points.length-1?'destino':'intermedia',tolerance:p.tolerance||5,radio:p.radio||50}))};const buttons=[document.getElementById('save'),document.getElementById('savePath')];buttons.forEach(b=>b.disabled=true);try{const response=await fetch('/fleet_rutas/rutas/crear',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const data=await response.json();if(!response.ok){alert(data.message||'No se pudo guardar la ruta');buttons.forEach(b=>b.disabled=false);return}location.href=withPath?'/fleet_rutas/trazado/'+data.route_id+'?paso=2':'/web#menu_id=0&action=fleet_rutas.action_fleet_rutas_dashboard'}catch(e){alert('No se pudo guardar la ruta');buttons.forEach(b=>b.disabled=false)}}
+document.getElementById('save').onclick=()=>saveRoute(false);
+document.getElementById('savePath').onclick=()=>saveRoute(true);
 renderPoints();
 if(editingRouteId && points.length){setTimeout(()=>redraw(true),100)}
 </script>
@@ -413,6 +418,10 @@ if(editingRouteId && points.length){setTimeout(()=>redraw(true),100)}
                 'tolerancia_min': int(point.get('tolerance') or 5),
                 'tipo': 'origen' if index == 1 else ('destino' if index == len(points) else 'intermedia'),
             })
+        ruta.invalidate_recordset(['parada_ids', 'trazado_vigente'])
+        if ruta.trazado_vigente:
+            ruta.distancia_estimada_km = round(
+                longitud_polilinea_m(ruta.puntos_referencia()) / 1000, 3)
         return self._json_response({'status': 'ok', 'route_id': ruta.id})
 
     @http.route('/fleet_rutas/vehiculos_vivos', auth='user', type='http',

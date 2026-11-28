@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 import pytest
 
 from fleet_algoritmos import (calcular_distancia_total_km, distancia_geodesica_m,
+                              elegir_secuencia_minima,
                               haversine_distance_m, limpiar_posiciones_gps,
                               longitud_polilinea_m, simplificar_polilinea)
 
@@ -76,3 +77,20 @@ def test_limpieza_acepta_precision_desconocida_y_ordena_por_hora():
 def test_limpieza_descarta_un_primer_punto_erroneo():
     puntos = [fijo(0, norte_m=9000), fijo(10), fijo(20, este_m=60), fijo(30, este_m=120)]
     assert len(limpiar_posiciones_gps(puntos)) == 3
+
+
+def test_secuencia_minima_evita_la_calzada_contraria():
+    # Parada 1: candidato 0. Parada 2: 1 (sentido contrario) o 2 (correcto). Parada 3: 3.
+    matriz = [[0, 9000, 600, 1500], [9000, 0, 20, 900], [9000, 20, 0, 900], [0, 0, 0, 0]]
+    assert elegir_secuencia_minima([1, 2, 1], matriz) == [0, 2, 3]
+
+
+def test_secuencia_minima_mira_el_recorrido_completo():
+    # El tramo inicial más corto (hacia 1) obliga a un rodeo después.
+    matriz = [[0, 100, 200, None], [None, 0, None, 9000], [None, None, 0, 300], [None, None, None, 0]]
+    assert elegir_secuencia_minima([1, 2, 1], matriz) == [0, 2, 3]
+
+
+def test_secuencia_minima_sin_camino():
+    assert elegir_secuencia_minima([1, 1], [[0, None], [None, 0]]) is None
+    assert elegir_secuencia_minima([], []) is None

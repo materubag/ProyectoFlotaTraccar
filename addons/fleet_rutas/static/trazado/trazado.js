@@ -4,6 +4,9 @@
   const datos = JSON.parse(document.getElementById('datos').textContent);
   const $ = (id) => document.getElementById(id);
   let propuesta = null;
+  // Paso final del asistente de rutas (se llega desde el editor de paradas).
+  const asistente = new URLSearchParams(location.search).has('paso');
+  const panel = '/web#menu_id=0&action=fleet_rutas.action_fleet_rutas_dashboard';
 
   $('titulo').textContent = datos.nombre;
   if (!datos.trazado) {
@@ -76,9 +79,11 @@
         texto += ' Paradas lejos del trazado: ' +
           propuesta.paradas_lejanas.map((p) => `${p.nombre} (${p.distancia_m} m)`).join(', ') + '.';
       }
+      const rodeo = propuesta.distancia_km > 2 * propuesta.distancia_recta_km;
+      if (rodeo) texto += ' Es más del doble que en rectas: revise si hay rodeos o paradas en la calzada contraria.';
       if (propuesta.simulado) texto += ' Proviene de datos SIMULADOS.';
       $('mensaje').textContent = texto;
-      $('mensaje').className = propuesta.paradas_lejanas.length || propuesta.simulado ? 'aviso' : '';
+      $('mensaje').className = propuesta.paradas_lejanas.length || propuesta.simulado || rodeo ? 'aviso' : '';
       $('guardar').disabled = $('descartar').disabled = false;
     } catch (error) {
       $('mensaje').textContent = error.message;
@@ -90,9 +95,11 @@
   }
 
   async function aplicar(accion, campos) {
+    $('guardar').disabled = true;
     try {
       await enviar(accion, campos);
-      location.reload();
+      if (asistente && accion === 'guardar') location.assign(panel);
+      else location.reload();
     } catch (error) {
       $('mensaje').textContent = error.message;
       $('mensaje').className = 'error';
@@ -109,4 +116,17 @@
   $('quitar').addEventListener('click', () => {
     if (window.confirm('¿Quitar el trazado guardado de esta ruta?')) aplicar('quitar', {});
   });
+
+  if (asistente) {
+    $('paso').hidden = $('navegacion').hidden = false;
+    $('quitar').hidden = true;
+    $('guardar').textContent = 'Guardar trazado y finalizar';
+    $('volver').addEventListener('click', () => location.assign(`/fleet_rutas/rutas/nueva?route_id=${datos.id}`));
+    $('sinTrazado').addEventListener('click', () => location.assign(panel));
+    if (datos.vigente) {
+      $('sinTrazado').textContent = 'Finalizar con el trazado actual';
+    } else {
+      proponer({ origen: 'osrm' });
+    }
+  }
 })();

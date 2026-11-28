@@ -97,6 +97,15 @@ try {
   if (await js(`!!document.getElementById('osrm')`)) {
     await clic('#osrm', '', 9000); await foto('06b_trazado');
   }
+  // Asistente de rutas completo sobre la copia temporal.
+  await ir('/fleet_rutas/rutas/nueva', 4000);
+  if (await js(`!!document.getElementById('savePath')`)) {
+    await js(`points.push({lat:-1.2634,lng:-78.6013,name:'Inicio',time:'08:00'},
+      {lat:-1.2560,lng:-78.6000,name:'Final',time:'08:15'}); redraw(true)`);
+    await dormir(3000); await foto('06c_editor');
+    await clic('#savePath', '', 14000); await foto('06d_paso_trazado');
+    await clic('#guardar', '', 12000); await foto('06e_ruta_creada');
+  }
   await ir('/web#action=fleet_rutas.action_fleet_recorrido&view_type=list'); await foto('11_lista_recorridos');
   await ir('/web#action=fleet_rutas.action_fleet_incidencia&view_type=list'); await foto('12_lista_incidencias');
   await ir('/web#action=fleet_rutas.action_fleet_metricas&view_type=list'); await foto('13_lista_metricas');
